@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { GOOGLE_BACK, GOOGLE_FLOWS, GOOGLE_FLOW_COOKIE, authUrl, googleReady, newPkce, sign, type GoogleFlow } from "@/lib/integrations/google";
+import { GOOGLE_FLOWS, GOOGLE_FLOW_COOKIE, authUrl, googleBackUrl, googleReady, newPkce, sign, type GoogleFlow } from "@/lib/integrations/google";
 import { appUrl } from "@/lib/services/accounts";
 import { safeNext } from "@/lib/auth/next";
 
@@ -12,7 +12,7 @@ export function GET(req: NextRequest) {
   const next = safeNext(q.get("next"), "");
   const plan = q.get("plan") ?? "";
   const cycle = q.get("cycle") ?? "";
-  if (!googleReady()) return NextResponse.redirect(new URL(`${GOOGLE_BACK[flow]}?google=off`, appUrl()));
+  if (!googleReady()) return NextResponse.redirect(new URL(googleBackUrl(flow, "off", { plan, cycle }), appUrl()));
 
   const pkce = newPkce();
   const { verifier, challenge } = pkce;

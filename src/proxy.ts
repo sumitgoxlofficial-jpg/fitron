@@ -15,7 +15,7 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // The website is public: /site (static home page files), sign-up, email links, contact, policies, robots and sitemap.
+  // The website is public: /site (static home page files), sign-in chooser, sign-up, email links, contact, policies, robots and sitemap.
   // Webhooks, the job runner and door devices (/iclock) authenticate with their own signatures and secrets.
-  matcher: ["/((?!auth/|login|signup|verify-email|forgot-password|reset-password|contact|privacy|terms|refund|robots.txt|sitemap.xml|site/|_next/|favicon.ico|fitron-mark.png|fitron-logo.png|api/health|api/webhooks/|api/jobs/|iclock/|trainer|api/trainer/|api/coach).*)"],
+  matcher: ["/((?!auth/|login|signin|signup|verify-email|forgot-password|reset-password|contact|privacy|terms|refund|robots.txt|sitemap.xml|site/|_next/|favicon.ico|fitron-mark.png|fitron-logo.png|api/health|api/webhooks/|api/jobs/|iclock/|trainer|api/trainer/|api/coach).*)"],
 };

@@ -20,12 +20,16 @@ export async function signUpGym(_: FormState, fd: FormData): Promise<FormState> 
   const blocked = await limited(fd, "signup", 5);
   if (blocked) return blocked;
   // Signed up with Google: the email is the one Google verified, and there's no password to pick
-  // (they can set one later with "Forgot password?").
+  // (they can set one later with "Forgot password?"). Only when the form says so: someone who
+  // switched to another email after Google must not have this cookie's identity swapped in.
   const store = await cookies();
-  const google = unsign<{ email: string }>(store.get(GOOGLE_SIGNUP_COOKIE)?.value);
+  const google = fd.get("google") === "1" ? unsign<{ email: string }>(store.get(GOOGLE_SIGNUP_COOKIE)?.value) : null;
   if (google) {
     fd.set("email", google.email);
     fd.set("password", randomBytes(24).toString("base64url"));
+  } else if (fd.get("google") === "1") {
+    // The 30 minutes Google's confirmation lasts have passed.
+    return failed(fd, { message: "Your Google sign-in expired. Choose “Sign up with Google” again, or use your email." });
   }
   let next = "";
   const state = await formAction(
