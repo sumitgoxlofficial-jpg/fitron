@@ -111,6 +111,22 @@ describe("home page files", () => {
     expect(html.includes("body .float-card.fc-1{left:0}body .float-card.fc-2{right:0}"), "body .float-card.fc-1{left:0}body .float-card.fc-2{right:0}").toBe(true);
   });
 
+  it("moves keyboard focus into the phone menu, makes the page behind it inert, and gives focus back when it closes", () => {
+    for (const needle of ["fitron:menu-a11y", "document.querySelectorAll('main, footer, .wa-float')", "setAttribute('inert', '')", "menu.querySelector('a')", "btn.focus("]) expect(html.includes(needle), needle).toBe(true);
+  });
+
+  it("puts the floating WhatsApp link inside a landmark", () => {
+    const wrapped = '<aside aria-label="Quick contact"><a class="wa-float"';
+    expect(html.includes(wrapped), wrapped).toBe(true);
+    expect([...html.matchAll(/class="wa-float"/g)]).toHaveLength(1);
+  });
+
+  it("keeps the pricing tab bar inside the screen on phones", () => {
+    const rule = "body .seg.p-tabs label>span{font-size:clamp(";
+    expect(html.includes(rule), rule).toBe(true);
+    expect(html.includes("body .seg.p-tabs{max-width:100%}"), "tab bar max-width").toBe(true);
+  });
+
   it("links to the company details on the Contact page", () => {
     expect(html.includes('href="/contact#company"'), 'href="/contact#company"').toBe(true);
   });

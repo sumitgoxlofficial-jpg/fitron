@@ -78,6 +78,41 @@ HERO_CSS = (
     "@media (max-width:520px){body .float-card.fc-1{left:0}body .float-card.fc-2{right:0}}"
 )
 
+# The pricing tab bar (AI Trainer | Gym Accounting | Gym Partnership) has labels that cannot wrap and was a fixed 359 px
+# wide, so below about 360 px it ran off both sides of the screen (the first tab was cut off at 320 px) and at 375 px its
+# border sat a few pixels past the edge. Fluid type and padding keep it inside the screen at every phone width.
+TABS_CSS = (
+    "/*fitron:tabs-phone*/@media (max-width:420px){body .seg.p-tabs{max-width:100%}"
+    "body .seg.p-tabs label>span{font-size:clamp(.72rem,3.4vw,.82rem);padding-left:clamp(5px,2vw,13px);padding-right:clamp(5px,2vw,13px)}}"
+)
+
+# The floating WhatsApp link sat outside every landmark, which screen-reader users meet as stray content (axe "region").
+WA_OPEN = '<aside aria-label="Quick contact">'
+
+# Keyboard and screen-reader use of the phone menu. fitron-page.js opens it by toggling body.menu-open and closes it on
+# Escape, but focus stayed on the button and Tab walked through the page hidden behind the menu. This watches the same
+# class: when the menu opens, focus moves to its first link and the page behind (main, footer, the WhatsApp button) is
+# made inert; when it closes the page is live again and focus goes back to the menu button, unless a link in the menu
+# was chosen (then the browser has already moved focus to where that link leads).
+MENU_JS = """<script>/*fitron:menu-a11y*/
+(function () {
+  var btn = document.querySelector('.menu-btn'), menu = document.getElementById('mobileMenu');
+  if (!btn || !menu || !window.MutationObserver) return;
+  var behind = [].slice.call(document.querySelectorAll('main, footer, .wa-float')), was = false, picked = false;
+  menu.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('a')) picked = true; });
+  new MutationObserver(function () {
+    var open = document.body.classList.contains('menu-open');
+    if (open === was) return;
+    was = open;
+    behind.forEach(function (el) { if (open) el.setAttribute('inert', ''); else el.removeAttribute('inert'); });
+    if (open) { var first = menu.querySelector('a'); if (first) first.focus({ preventScroll: true }); }
+    else { var a = document.activeElement; if (!picked && (a === document.body || menu.contains(a))) btn.focus({ preventScroll: true }); }
+    picked = false;
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
+</script>
+"""
+
 # The 3D logo is decoration. Its 1.2 MB library is not downloaded for visitors who asked for less motion or
 # less data, and for everyone else it loads once the page has loaded and the browser is idle, so it no longer
 # competes with the first paint.
@@ -149,6 +184,12 @@ def apply(page):
     assert n == 1 and f'alt="{ALT}"' in page, "AI Trainer screenshot not found"
     page = add(page, "</style>", MENU_CSS, "fitron:menu-over-banner", "menu over banner", before=True)
     page = add(page, "</style>", HERO_CSS, "fitron:hero-phone", "hero on phones", before=True)
+    page = add(page, "</style>", TABS_CSS, "fitron:tabs-phone", "pricing tabs on phones", before=True)
+    # Wrap the WhatsApp link in a landmark (once).
+    if WA_OPEN + '<a class="wa-float"' not in page:
+        page, n = re.subn(r'(<a class="wa-float"[\s\S]*?</a>)', lambda m: WA_OPEN + m.group(1) + "</aside>", page, count=1)
+        assert n == 1, "WhatsApp link not found"
+    page = add(page, "</body>", MENU_JS, "fitron:menu-a11y", "menu keyboard focus", before=True)
     page = swap(page, BOOT_OLD, BOOT_NEW, "3D logo loading")
     page = add(page, '<li><a href="/contact">Contact us</a></li>', '\n      <li><a href="/contact#company">Company details</a></li>', "/contact#company", "footer company link")
     # Rebuilt each time, so a changed FAQ or price list reaches the structured data.
