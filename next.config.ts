@@ -41,6 +41,13 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
       },
+      // Static files of the home page. Next sends public/ files with max-age=0, so every visit asked for the 1.2 MB 3D
+      // library and the screenshots again. The fonts have hashed names and never change; the images and the library
+      // may be replaced under the same name, so they are only kept for a day (then served while they refresh).
+      // The two small page scripts (fitron-page.js, fitron-3d.js) are left alone so a deploy never mixes versions.
+      { source: "/site/fonts/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+      { source: "/site/:file(.*\\.(?:webp|png))", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
+      { source: "/site/three.module.js", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
     ];
   },
 };

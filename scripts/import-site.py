@@ -7,6 +7,9 @@ The design tool exports one self-unpacking HTML file (React runtime, fonts and i
 This unpacks it, keeps only the rendered page, and rewires its buttons to the real app:
 trial buttons to /signup?plan=..., "Open Gym Accounting" to /login, policies to /privacy, /terms, /refund.
 If the design changes those buttons, the asserts below fail: update the mapping here.
+Our own edits on top of the design (wording that must match the product, structured data, the phone menu
+fix) are in scripts/site_patches.py and are applied last. This script deletes and rebuilds public/site, so
+afterwards run `node scripts/optimise-site-images.mjs` to turn the PNG screenshots back into WebP.
 public/site/og.png (the share image) is a screenshot and is not touched.
 """
 import re, os, sys, json, base64, gzip, mimetypes, shutil, tempfile
@@ -110,5 +113,9 @@ assert 'og:image' in out
 # The added "Log in" item makes the desktop nav one item longer than the design; tighten it on narrower desktops.
 out=out.replace('</style>','.nav .brand,.nav .nav-cta{flex-shrink:0}@media (max-width:1400px){.nav-links{gap:clamp(10px,1.4vw,22px)}.nav-links a{letter-spacing:.08em}.nav-links .nav-extra{display:none}}\n</style>',1)
 out=out.replace('<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">','<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<meta name="description" content="FITRON: an AI personal trainer for ₹299 a month, and gym accounting software with GST invoices, WhatsApp reminders and P&amp;L from ₹999 a month.">',1)
+# Everything we change on top of the design (wording that must match the product, structured data, the phone menu fix...).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import site_patches
+out=site_patches.apply(out)
 open(O+'/index.html','w',encoding='utf-8').write(out)
-print('Wrote', O, len(out), 'bytes. Now: check the page, run npm test (pricing.test.ts checks prices and plan links).')
+print('Wrote', O, len(out), 'bytes. Now: node scripts/optimise-site-images.mjs (PNG screenshots to WebP), then check the page and run npm test (pricing.test.ts and site-links.test.ts check prices, links and structured data).')

@@ -10,6 +10,7 @@ const legal = [
   ["/privacy#cookies", "Cookie Policy"],
   ["/privacy#grievance", "Grievance Officer"],
   ["/contact", "Contact us"],
+  ["/contact#company", "Company details"],
 ] as const;
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
