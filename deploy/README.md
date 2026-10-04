@@ -5,7 +5,7 @@ FITRON is one product at **fitron.in** with three parts, all served by this one 
 | Part | Where | Who uses it |
 |---|---|---|
 | **Website** | `fitron.in` | Visitors: the landing page with pricing, free-trial sign-up, contact form and policies |
-| **AI Trainer** (AI coach) | `fitron.in/trainer` (being built next; the design is in `prototype/ai-trainer/`) | Gym members: workout and Indian meal plans, a 24/7 AI coach, habits and progress, from ₹299 a month |
+| **AI Trainer** (AI coach) | `fitron.in/trainer` (the design is in `prototype/ai-trainer/`) | Gym members: workout and Indian meal plans, a 24/7 AI coach, habits and progress, from ₹299 a month |
 | **Gym Accounting** | `fitron.in/login`, then `/dashboard` | Gym owners and staff: members, renewals, GST invoices, payments, expenses, P&L, reports and Fitron AI, from ₹999 a month |
 
 Gyms sign up themselves from the website (`fitron.in/signup?plan=starter`, `professional` or `enterprise`), confirm their email, and get a 7-day free trial. They pay FITRON by scanning your UPI QR and entering the UTR, and you confirm it (step 9).

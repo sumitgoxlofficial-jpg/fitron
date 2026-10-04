@@ -1,7 +1,13 @@
 import "server-only";
+import { db } from "@/lib/db";
 import type { GoogleProfile } from "@/lib/integrations/google";
 import { findOrCreateTrainer } from "./trainer";
 import { createTrainerSession } from "./trainer-session";
+
+/** Whether this email already has an AI Trainer account (deleted accounts keep no email, so they don't count). */
+export async function hasTrainerAccount(email: string): Promise<boolean> {
+  return !!(await db.trainerMember.findUnique({ where: { email: email.trim().toLowerCase() }, select: { id: true } }));
+}
 
 /**
  * Google confirmed the email (called by the shared Google callback for ?for=trainer): find or create

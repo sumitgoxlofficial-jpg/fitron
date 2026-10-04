@@ -1,5 +1,6 @@
 import "server-only";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { GYM_SIGNIN_HREF, TRAINER_HREF, gymSignupHref } from "@/lib/domain/site-links";
 
 // "Continue with Google": OAuth 2.0 authorization-code flow with PKCE (OpenID Connect).
 // Needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET from Google Cloud › APIs & Services › Credentials
@@ -11,7 +12,16 @@ export const googleReady = () => !!(env("GOOGLE_CLIENT_ID") && env("GOOGLE_CLIEN
 /** Where each flow starts: the console login, the gym sign-up, or the AI Trainer member app. */
 export const GOOGLE_FLOWS = ["staff", "signup", "trainer"] as const;
 export type GoogleFlow = (typeof GOOGLE_FLOWS)[number];
-export const GOOGLE_BACK: Record<GoogleFlow, string> = { staff: "/login", signup: "/signup", trainer: "/trainer" };
+
+/**
+ * Where a flow comes back to with ?google=<code> when Google didn't sign anyone in (off, cancelled,
+ * expired, failed, no account). A gym sign-up goes back to the console's Create account tab and
+ * keeps the plan that was picked.
+ */
+export function googleBackUrl(flow: GoogleFlow, code: string, picked: { plan?: string | null; cycle?: string | null } = {}): string {
+  if (flow === "signup") return gymSignupHref({ ...picked, google: code });
+  return `${flow === "trainer" ? TRAINER_HREF : GYM_SIGNIN_HREF}?${new URLSearchParams({ google: code })}`;
+}
 /** Carries state, PKCE verifier and flow from /auth/google to its callback (10 minutes). */
 export const GOOGLE_FLOW_COOKIE = "fitron_google_flow";
 /** Carries a Google-verified identity to the gym sign-up form (30 minutes). */

@@ -23,7 +23,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
           <a href="/#pricing" className="text-muted hover:text-fg">
             Pricing
           </a>
-          <a href="/login" className="text-muted hover:text-fg">
+          <a href="/signin" className="text-muted hover:text-fg">
             Sign in
           </a>
         </nav>

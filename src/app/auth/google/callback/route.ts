@@ -4,9 +4,10 @@ import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
 import { safeNext } from "@/lib/auth/next";
-import { GOOGLE_BACK, GOOGLE_FLOWS, GOOGLE_FLOW_COOKIE, GOOGLE_SIGNUP_COOKIE, exchangeCode, sign, unsign, type GoogleFlow, type GoogleProfile } from "@/lib/integrations/google";
+import { GOOGLE_FLOWS, GOOGLE_FLOW_COOKIE, GOOGLE_SIGNUP_COOKIE, exchangeCode, googleBackUrl, sign, unsign, type GoogleFlow, type GoogleProfile } from "@/lib/integrations/google";
+import { gymSignupHref } from "@/lib/domain/site-links";
 import { appUrl, recordSignIn } from "@/lib/services/accounts";
-import { signInTrainerWithGoogle } from "@/lib/services/trainer-google";
+import { hasTrainerAccount, signInTrainerWithGoogle } from "@/lib/services/trainer-google";
 
 // Google sends the visitor back here. The state must match the one we set in /auth/google,
 // and the code is redeemed with our PKCE verifier, so a forged or replayed callback goes nowhere.
@@ -25,19 +26,18 @@ export async function GET(req: NextRequest) {
   };
   if (!f) {
     const flow = (q.get("state") ?? "").split(".")[0];
-    const back = (GOOGLE_FLOWS as readonly string[]).includes(flow) ? GOOGLE_BACK[flow as GoogleFlow] : "/login";
-    return done(to(`${back}?google=expired`));
+    return done(to(googleBackUrl((GOOGLE_FLOWS as readonly string[]).includes(flow) ? (flow as GoogleFlow) : "staff", "expired")));
   }
-  const back = GOOGLE_BACK[f.flow];
+  const back = (code: string) => googleBackUrl(f.flow, code, { plan: f.plan, cycle: f.cycle });
   // Cancelled on Google's screen, or a state that isn't ours.
-  if (q.get("error") || !q.get("code") || q.get("state") !== f.state) return done(to(`${back}?google=cancelled`));
+  if (q.get("error") || !q.get("code") || q.get("state") !== f.state) return done(to(back("cancelled")));
 
   let me: GoogleProfile;
   try {
     me = await exchangeCode(q.get("code")!, f.verifier, `${appUrl()}/auth/google/callback`);
   } catch (e) {
     console.error("[google] sign-in failed:", e);
-    return done(to(`${back}?google=failed`));
+    return done(to(back("failed")));
   }
 
   if (f.flow === "trainer") {
@@ -49,13 +49,21 @@ export async function GET(req: NextRequest) {
     // An existing staff account just signs in; a new email goes on to the gym sign-up form.
     const user = await db.user.findFirst({ where: { email: me.email, active: true, deletedAt: null } });
     if (user) return done(await staffIn(user.id, user.emailVerifiedAt, "/dashboard"));
-    const res = to(`/signup?${new URLSearchParams({ google: "1", ...(f.plan ? { plan: f.plan } : {}), ...(f.cycle ? { cycle: f.cycle } : {}) })}`);
+    const res = to(gymSignupHref({ plan: f.plan, cycle: f.cycle, google: "1" }));
     res.cookies.set(GOOGLE_SIGNUP_COOKIE, sign({ email: me.email, name: me.name }, 30 * 60_000), { ...cookie, maxAge: 1800 });
     return done(res);
   }
 
   const user = await db.user.findFirst({ where: { email: me.email, active: true, deletedAt: null } });
-  if (!user) return done(to(`/login?google=nouser&email=${encodeURIComponent(me.email)}`));
+  if (!user) {
+    // Not on any gym's team, but Google has confirmed the email and it already has an AI Trainer
+    // account: open the member app instead of a dead end.
+    if (await hasTrainerAccount(me.email)) {
+      await signInTrainerWithGoogle(me);
+      return done(to("/trainer"));
+    }
+    return done(to(`/login?google=nouser&email=${encodeURIComponent(me.email)}`));
+  }
   return done(await staffIn(user.id, user.emailVerifiedAt, safeNext(f.next)));
 }
 

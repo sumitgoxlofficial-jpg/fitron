@@ -3,20 +3,64 @@
 import { useActionState, useState } from "react";
 import { continueSignup } from "./actions";
 import { signUpGym } from "../(site)/account-actions";
-import { Button, Field, Input, Notice } from "@/components/ui";
+import { Button, Field, Input, Notice, Select } from "@/components/ui";
 import { GoogleLink } from "@/components/google-link";
+import { DEFAULT_PLAN, PLANS, findPlan, rupeesLabel, type Cycle } from "@/lib/domain/pricing";
+import { gymSignupHref } from "@/lib/domain/site-links";
 
 const MAX_LOGO = 1_048_576;
 
 type Vals = Record<string, string>;
 const EMPTY2: Vals = { business: "", phone: "", gymEmail: "", address: "", city: "", state: "", pin: "", tagline: "", website: "", instagram: "" };
+const gymPlans = PLANS.filter((p) => p.product === "GYM_ACCOUNTING");
 
-/** The "Create account" tab: step 1 owner account, step 2 the gym. Both end in the same server actions as /signup. */
-export function CreateAccountForm({ plan, cycle, googleOn }: { plan: string; cycle: string; googleOn: boolean }) {
+/** Which plan the trial starts on, and how it will be billed once the trial ends. Changeable until the account is created. */
+function PlanPicker({ planKey, cycle, onPlan, onCycle }: { planKey: string; cycle: Cycle; onPlan: (k: string) => void; onCycle: (c: Cycle) => void }) {
+  const p = findPlan(planKey) ?? findPlan(DEFAULT_PLAN)!;
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-line p-3">
+      <Field label="Your plan">
+        <Select value={p.key} onChange={(e) => onPlan(e.target.value)} aria-label="Plan">
+          {gymPlans.map((x) => (
+            <option key={x.key} value={x.key}>
+              {x.name} · {x.memberLimit ? `up to ${x.memberLimit} members` : "unlimited members, multi-branch"}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <fieldset className="flex flex-col gap-1.5 text-sm">
+        <legend className="mb-1.5 font-semibold">After the 7-day free trial</legend>
+        <div className="grid grid-cols-2 gap-2">
+          {(["MONTHLY", "YEARLY"] as const).map((c) => (
+            <label key={c} className={`flex cursor-pointer flex-col rounded-md border px-3 py-2 ${cycle === c ? "border-accent bg-accent-soft" : "border-line"}`}>
+              <span className="flex items-center gap-2 font-semibold">
+                <input type="radio" name="plan-cycle" value={c} checked={cycle === c} onChange={() => onCycle(c)} />
+                {c === "MONTHLY" ? "Monthly" : "Yearly"}
+              </span>
+              <span className="text-muted">
+                {rupeesLabel(p.price[c])} / {c === "MONTHLY" ? "month" : "year"}
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <p className="text-xs text-muted">No card needed. Prices exclude 18% GST. Nothing is charged unless you choose to pay when the trial ends.</p>
+    </div>
+  );
+}
+
+/**
+ * The "Create account" tab: step 1 owner account, step 2 the gym, with the plan picked on fitron.in
+ * (changeable here). `google`: back from Google, which has confirmed the email, so it starts at step 2
+ * with no password. Both end in the same server actions.
+ */
+export function CreateAccountForm({ plan, cycle, googleOn, google }: { plan: string; cycle: string; googleOn: boolean; google?: { email: string; name: string } }) {
   const [s1, check, checking] = useActionState(continueSignup, undefined);
   const [s2, create, creating] = useActionState(signUpGym, undefined);
-  const [step, setStep] = useState<1 | 2>(1);
-  const [owner, setOwner] = useState<Vals>({ name: "", email: "", password: "" });
+  const [step, setStep] = useState<1 | 2>(google ? 2 : 1);
+  const [planKey, setPlanKey] = useState((findPlan(plan) ?? findPlan(DEFAULT_PLAN)!).key);
+  const [billing, setBilling] = useState<Cycle>(cycle === "YEARLY" ? "YEARLY" : "MONTHLY");
+  const [owner, setOwner] = useState<Vals>({ name: google?.name ?? "", email: google?.email ?? "", password: "" });
   const [agree, setAgree] = useState(false);
   const [gym, setGym] = useState<Vals>(EMPTY2);
   const [logo, setLogo] = useState<{ url: string } | null>(null);
@@ -37,7 +81,8 @@ export function CreateAccountForm({ plan, cycle, googleOn }: { plan: string; cyc
     setErr(s2.message ?? "");
     setLogo(null); // React resets the form after an action, which clears the chosen file.
     if (s2.values) setGym((g) => ({ ...g, ...Object.fromEntries(Object.keys(EMPTY2).map((k) => [k, String(s2.values?.[k] ?? g[k])])) }));
-    if (Object.keys(s2.errors ?? {}).some((k) => ["name", "email", "password", "terms"].includes(k))) setStep(1);
+    // Back from Google there is no step 1 to return to; its errors show in the notice above.
+    if (!google && Object.keys(s2.errors ?? {}).some((k) => ["name", "email", "password", "terms"].includes(k))) setStep(1);
   }
 
   const set1 = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setOwner({ ...owner, [k]: e.target.value });
@@ -65,18 +110,25 @@ export function CreateAccountForm({ plan, cycle, googleOn }: { plan: string; cyc
     setLogo({ url: URL.createObjectURL(f) });
   }
 
-  const gUrl = `/auth/google?${new URLSearchParams({ for: "signup", plan, cycle })}`;
+  const p = findPlan(planKey) ?? findPlan(DEFAULT_PLAN)!;
+  const gUrl = `/auth/google?${new URLSearchParams({ for: "signup", plan: p.key, cycle: billing })}`;
   const req = <span className="text-accent"> *</span>;
+  const picker = <PlanPicker planKey={p.key} cycle={billing} onPlan={setPlanKey} onCycle={setBilling} />;
 
   return (
     <>
       <div>
         <h2 className="text-[28px] font-semibold">{step === 1 ? "Create your Fitron account" : "Set up your gym"}</h2>
         <p className="mt-1 text-sm text-muted">
-          {step === 1 ? "Step 1 of 2 · the owner account for your gym." : "Step 2 of 2 · shown on invoices, WhatsApp messages and the sidebar. You can change it later in Settings."}
+          {google
+            ? `Confirmed by Google as ${google.email}. The gym's details are shown on invoices, WhatsApp messages and the sidebar. You can change them later in Settings.`
+            : step === 1
+              ? "Step 1 of 2 · the owner account for your gym."
+              : "Step 2 of 2 · shown on invoices, WhatsApp messages and the sidebar. You can change it later in Settings."}
         </p>
       </div>
       {err && <Notice tone="alert">{err}</Notice>}
+      {(step === 1 || google) && picker}
       {step === 1 ? (
         <>
           {googleOn && (
@@ -126,11 +178,27 @@ export function CreateAccountForm({ plan, cycle, googleOn }: { plan: string; cyc
             }
           }}
         >
-          {(["plan", "cycle", "name", "email", "password"] as const).map((k) => (
-            <input key={k} type="hidden" name={k} value={k === "plan" ? plan : k === "cycle" ? cycle : owner[k]} />
-          ))}
+          <input type="hidden" name="plan" value={p.key} />
+          <input type="hidden" name="cycle" value={billing} />
+          {google ? (
+            // The server takes the email from Google's own signed cookie and sets no password.
+            <input type="hidden" name="google" value="1" />
+          ) : (
+            (["name", "email", "password"] as const).map((k) => <input key={k} type="hidden" name={k} value={owner[k]} />)
+          )}
           <input type="hidden" name="terms" value="on" />
           <input type="hidden" name="source" value="login" />
+          {google ? (
+            <>
+              <Field label="Your name"><Input name="name" autoComplete="name" value={owner.name} onChange={set1("name")} /></Field>
+              <Field label="Email" hint="Confirmed by Google. You'll sign in with Google."><Input name="email" type="email" value={google.email} readOnly /></Field>
+            </>
+          ) : (
+            <p className="text-sm text-muted">
+              Plan: <b className="text-fg">{p.name}</b>, {billing === "MONTHLY" ? `${rupeesLabel(p.price.MONTHLY)} a month` : `${rupeesLabel(p.price.YEARLY)} a year`} after the trial.{" "}
+              <button type="button" className="text-accent underline" onClick={() => { setErr(""); setLogo(null); setStep(1); }}>Change</button>
+            </p>
+          )}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,170px),1fr))] gap-x-[14px] gap-y-3">
             <Field label={<>Gym name{req}</>} className="col-span-full"><Input name="business" placeholder="Power Haus Gym" autoComplete="organization" value={gym.business} onChange={set2("business")} /></Field>
             <Field label={<>Gym phone{req}</>}><Input name="phone" placeholder="10-digit mobile" type="tel" inputMode="tel" value={gym.phone} onChange={set2("phone")} /></Field>
@@ -159,9 +227,10 @@ export function CreateAccountForm({ plan, cycle, googleOn }: { plan: string; cyc
             <span className="text-xs text-muted">Optional. PNG or JPG up to 1 MB.</span>
           </div>
           <div className="flex gap-2">
-            <Button type="button" variant="ghost" onClick={() => { setErr(""); setLogo(null); setStep(1); }}>Back</Button>
+            {!google && <Button type="button" variant="ghost" onClick={() => { setErr(""); setLogo(null); setStep(1); }}>Back</Button>}
             <Button variant="primary" disabled={creating} className="flex-1 py-[11px] text-[15px]">{creating ? "Creating your console…" : "Create account and open Fitron"}</Button>
           </div>
+          {google && <a href={gymSignupHref({ plan: p.key, cycle: billing })} className="self-center text-sm text-accent underline">Use a different email</a>}
         </form>
       )}
     </>

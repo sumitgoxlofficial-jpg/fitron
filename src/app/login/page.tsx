@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current";
 import { LoginForm } from "./login-form";
@@ -10,7 +11,8 @@ import { CookieBanner } from "@/components/cookie-banner";
 import { GoogleButton, googleMessage } from "@/components/google-button";
 import { DEFAULT_PLAN, findPlan, lowestGymPrice } from "@/lib/domain/pricing";
 import { formatInr } from "@/lib/format";
-import { googleReady } from "@/lib/integrations/google";
+import { GOOGLE_SIGNUP_COOKIE, googleReady, unsign } from "@/lib/integrations/google";
+import { TRAINER_HREF } from "@/lib/domain/site-links";
 
 export const metadata = { title: "Sign in · FITRON" };
 
@@ -29,6 +31,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const inHref = next ? `/login?${new URLSearchParams({ next })}` : "/login";
   const tab = "rounded-[5px] px-3.5 py-1.5 text-[13px] font-semibold";
   const gMsg = googleMessage(q.google, q.email);
+  // Back from Google on a sign-up: it has confirmed the email and name, so the form starts at the gym's details.
+  const google = up && q.google === "1" ? unsign<{ email: string; name: string }>((await cookies()).get(GOOGLE_SIGNUP_COOKIE)?.value) : null;
   const stats: [string, string][] = [
     [fromMonthly, "a month, Starter"],
     ["24/7", "AI coach for members"],
@@ -61,7 +65,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             <Link href={upHref} aria-current={up ? "page" : undefined} className={`${tab} ${up ? "bg-accent text-accent-ink" : "text-fg"}`}>Create account</Link>
           </nav>
           {up ? (
-            <CreateAccountForm plan={plan} cycle={cycle} googleOn={googleReady()} />
+            <>
+              {gMsg && <Notice tone="alert">{gMsg}</Notice>}
+              <CreateAccountForm key={google?.email ?? "email"} plan={plan} cycle={cycle} googleOn={googleReady()} google={google ? { email: google.email, name: google.name } : undefined} />
+            </>
           ) : (
             <>
               <div>
@@ -77,6 +84,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             </>
           )}
           <p className="text-xs text-neutral-700">New to FITRON? <a href="/#pricing" className="text-accent underline">See plans and pricing</a></p>
+          <p className="flex flex-wrap gap-x-3 gap-y-1 border-t border-line pt-3 text-xs text-neutral-700">
+            <span>Member of the AI Trainer? <a href={TRAINER_HREF} className="text-accent underline">Sign in to the AI Trainer</a></span>
+            <a href="/" className="text-accent underline">Back to fitron.in</a>
+          </p>
         </div>
       </section>
       <CookieBanner />

@@ -74,9 +74,10 @@ body=body.replace('href="mailto:hello@fitron.in?subject=FITRON%20Sales"','href="
 legal={'privacy':'/privacy','cookies':'/privacy#cookies','rights':'/privacy#rights','grievance':'/privacy#grievance','terms':'/terms','partners':'/terms#partners'}
 body=re.sub(r'href="Legal\.dc\.html#([a-z]+)"( data-fallback="#[a-z]+")?',lambda m:'href="%s"'%legal[m.group(1)],body)
 body=body.replace('<a href="#faq">Read the policies.</a>','<a href="/privacy">Read the policies.</a>')
-body=body.replace('<li><a href="#faq">FAQ</a></li>\n  </ul>','<li><a href="#faq">FAQ</a></li>\n    <li><a href="/login">Log in</a></li>\n  </ul>',1)
-body=body.replace('<a href="#faq">FAQ</a>\n  <a class="btn btn-gold" href="#products">','<a href="#faq">FAQ</a><a href="/login">Log in</a>\n  <a class="btn btn-gold" href="#products">',1)
-assert body.count('href="/login"')==3
+body=body.replace('<li><a href="#faq">FAQ</a></li>\n  </ul>','<li><a href="#faq">FAQ</a></li>\n    <li><a href="/signin">Log in</a></li>\n  </ul>',1)
+body=body.replace('<a href="#faq">FAQ</a>\n  <a class="btn btn-gold" href="#products">','<a href="#faq">FAQ</a><a href="/signin">Log in</a>\n  <a class="btn btn-gold" href="#products">',1)
+# "Log in" opens the sign-in chooser (gym console or AI Trainer); only "Open Gym Accounting" goes straight to the console.
+assert body.count('href="/signin"')==2 and body.count('href="/login"')==1
 body=body.replace('<li><a href="#together">Better together</a></li>\n    <li><a href="#partnership">','<li class="nav-extra"><a href="#together">Better together</a></li>\n    <li><a href="#partnership">',1)
 assert 'nav-extra' in body
 body=body.replace('<li><a href="/terms">Terms &amp; Conditions</a></li>','<li><a href="/terms">Terms &amp; Conditions</a></li>\n    <li><a href="/refund">Refund Policy</a></li>\n    <li><a href="/contact">Contact us</a></li>',1)
