@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { CurrentUser } from "@/lib/auth/current";
 import type { Prisma } from "@/generated/prisma/client";
-import { invoiceState, invoiceTotals, type InvoiceLine } from "@/lib/domain/billing";
+import { invoiceState, invoiceTotals, lineTaxes, type InvoiceLine } from "@/lib/domain/billing";
 import { addDays, membershipEndDate } from "@/lib/domain/dates";
 import type { InvoiceInput, PaymentInput, SellInput } from "@/lib/validation/billing";
 import { audit } from "./audit";
@@ -46,6 +46,8 @@ export async function writeInvoice(
   await assertBranchWritable(tx, u.orgId, a.branchId);
   const tax = a.tax;
   const t = invoiceTotals(a.lines);
+  // The lines carry the invoice's own tax, split so they add back up to it (rule 3).
+  const itemTax = lineTaxes(a.lines, t.tax);
   const n = await nextNumber(tx, u.orgId, "invoice");
   const br = await tx.branch.findFirst({ where: { orgId: u.orgId, id: a.branchId }, select: { invoicePrefix: true } });
   const prefix = br?.invoicePrefix || a.prefix;
@@ -63,7 +65,7 @@ export async function writeInvoice(
       status: "ISSUED",
       createdById: u.id,
       items: {
-        create: a.lines.map((l) => {
+        create: a.lines.map((l, i) => {
           const net = l.qty * l.rate - l.discount;
           return {
             description: l.description,
@@ -71,7 +73,7 @@ export async function writeInvoice(
             rate: l.rate,
             discount: l.discount,
             taxRate: l.taxRate,
-            taxAmount: Math.round((net * l.taxRate) / 100),
+            taxAmount: itemTax[i]!,
             amount: net,
             category: l.category,
             planId: l.planId ?? null,

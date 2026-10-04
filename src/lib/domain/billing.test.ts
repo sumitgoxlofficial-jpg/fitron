@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatInr, invoiceState, invoiceTotals } from "./billing";
+import { formatInr, invoiceState, invoiceTotals, lineTaxes } from "./billing";
 
 const plan = { qty: 1, rate: 300_000, discount: 20_000, taxRate: 18 };
 const regFee = { qty: 1, rate: 50_000, discount: 0, taxRate: 18 };
@@ -18,6 +18,43 @@ describe("invoiceTotals", () => {
   it("rounds tax once for the whole invoice", () => {
     const line = { qty: 1, rate: 1, discount: 0, taxRate: 18 };
     expect(invoiceTotals([line, line, line]).tax).toBe(1); // 0.54 rounds to 1, not 3 × 0
+  });
+});
+
+describe("lineTaxes", () => {
+  const totalOf = (lines: Parameters<typeof invoiceTotals>[0]) => invoiceTotals(lines).tax;
+
+  it("adds up to the invoice's tax", () => {
+    const line = { qty: 1, rate: 1, discount: 0, taxRate: 18 };
+    const lines = [line, line, line];
+    expect(lineTaxes(lines, totalOf(lines))).toEqual([1, 0, 0]); // 1 paise shared out, not 0 + 0 + 0
+  });
+
+  it("does not hand out more than the invoice charged", () => {
+    // 25 paise at 18% is 4.5 paise a line: 13.5 → 14 on the invoice, but 5 + 5 + 5 = 15 by line.
+    const line = { qty: 1, rate: 25, discount: 0, taxRate: 18 };
+    const lines = [line, line, line];
+    const parts = lineTaxes(lines, totalOf(lines));
+    expect(parts.reduce((s, x) => s + x, 0)).toBe(14);
+    expect(parts).toEqual([5, 5, 4]);
+  });
+
+  it("leaves whole amounts alone", () => {
+    const lines = [plan, regFee];
+    expect(lineTaxes(lines, totalOf(lines))).toEqual([50_400, 9_000]);
+  });
+
+  it("gives the spare paise to the lines that lost the most", () => {
+    const lines = [
+      { qty: 1, rate: 10, discount: 0, taxRate: 18 }, // 1.8
+      { qty: 1, rate: 10, discount: 0, taxRate: 5 }, // 0.5
+    ];
+    expect(lineTaxes(lines, totalOf(lines))).toEqual([2, 0]); // 2.3 → 2, and 0.8 beats 0.5
+  });
+
+  it("charges nothing when there is no tax", () => {
+    const lines = [{ qty: 2, rate: 100, discount: 0, taxRate: 0 }];
+    expect(lineTaxes(lines, totalOf(lines))).toEqual([0]);
   });
 });
 

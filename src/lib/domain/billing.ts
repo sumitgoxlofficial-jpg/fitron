@@ -27,6 +27,30 @@ export function invoiceTotals(lines: InvoiceLine[]): InvoiceTotals {
   return { subtotal, discount, tax, total: subtotal - discount + tax };
 }
 
+/** The taxable value of a line: what is left after its own discount. */
+export const lineNet = (l: InvoiceLine): number => l.qty * l.rate - l.discount;
+
+/**
+ * Splits the invoice's tax across its lines so the parts add up to it exactly.
+ *
+ * The invoice rounds its tax once (above), so rounding each line on its own would not come back to
+ * the same number: three lines of 4.5 paise are 13.5 → 14 on the invoice but 5 + 5 + 5 = 15 by line.
+ * A P&L adding up line tax would then disagree with the invoice it was printed from. Each line gets
+ * its whole paise, and the few left over go to the lines that lost the most when rounded down.
+ */
+export function lineTaxes(lines: InvoiceLine[], tax: number): number[] {
+  const exact = lines.map((l) => (lineNet(l) * l.taxRate) / 100);
+  const out = exact.map((x) => Math.floor(x));
+  let left = tax - out.reduce((s, x) => s + x, 0);
+  const byRemainder = exact.map((x, i) => ({ i, r: x - Math.floor(x) })).sort((a, b) => b.r - a.r || a.i - b.i);
+  for (const { i } of byRemainder) {
+    if (left <= 0) break;
+    out[i]! += 1;
+    left -= 1;
+  }
+  return out;
+}
+
 export type PaymentLike = { amount: number; status: "SUCCESS" | "REVERSED" };
 
 export type InvoiceStatus = "CANCELLED" | "PAID" | "PARTIALLY_PAID" | "UNPAID";
