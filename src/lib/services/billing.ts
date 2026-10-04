@@ -364,7 +364,7 @@ export async function listReceivables(u: CurrentUser, filter?: string) {
 export async function memberHistory(u: CurrentUser, memberId: string) {
   await findMember(u, memberId);
   const [memberships, invoices, payments] = await Promise.all([
-    db.membership.findMany({ where: { memberId }, orderBy: { startDate: "desc" }, include: { plan: { select: { name: true } }, invoice: { select: { id: true, number: true } } } }),
+    db.membership.findMany({ where: { memberId, branchId: { in: u.branchIds } }, orderBy: { startDate: "desc" }, include: { plan: { select: { name: true } }, invoice: { select: { id: true, number: true } } } }),
     listInvoices(u, { memberId }),
     listPayments(u, { memberId }),
   ]);

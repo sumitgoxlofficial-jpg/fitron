@@ -164,7 +164,9 @@ export async function dailyCounts(u: CurrentUser, days = 14) {
   });
 }
 
-export const memberVisits = (memberId: string, take = 30) => db.attendance.findMany({ where: { memberId }, orderBy: { checkIn: "desc" }, take });
+/** A member's own check-ins, limited like every other query to the branches the user may see. */
+export const memberVisits = (u: CurrentUser, memberId: string, take = 30) =>
+  db.attendance.findMany({ where: { ...attScope(u), memberId }, orderBy: { checkIn: "desc" }, take });
 
 /** Check-ins per hour (5 am – 10 pm, IST) over the last 30 days, for "Busy hours". */
 export async function busyHours(u: CurrentUser) {

@@ -106,7 +106,7 @@ export default async function MemberPage({ params, searchParams }: PageProps<"/m
   const canBio = u.can("members.edit") && !m.walkIn;
   const [history, visits, bookings, workouts, diets, progress, records, trainers, freeze, templates, messages, docs] = await Promise.all([
     canMoney ? memberHistory(u, m.id) : null,
-    memberVisits(m.id, 200),
+    memberVisits(u, m.id, 200),
     u.can("classes.manage") ? memberBookings(m.id) : null,
     listWorkouts(u),
     listDiets(u),

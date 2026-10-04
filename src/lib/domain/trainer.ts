@@ -8,6 +8,13 @@ export const TRAINER_PLANS = ["ai-pro", "ai-premium"] as const;
 export type TrainerPlan = (typeof TRAINER_PLANS)[number];
 export const isTrainerPlan = (k: unknown): k is TrainerPlan => TRAINER_PLANS.includes(k as TrainerPlan);
 
+/** What a payment is for. A bad value is refused rather than quietly turned into "purchase". */
+export const TRAINER_PAYMENT_KINDS = ["purchase", "upgrade", "renew", "month"] as const;
+export type TrainerPaymentKind = (typeof TRAINER_PAYMENT_KINDS)[number];
+export const isTrainerPaymentKind = (k: unknown): k is TrainerPaymentKind => TRAINER_PAYMENT_KINDS.includes(k as TrainerPaymentKind);
+
+export const isCycle = (c: unknown): c is Cycle => c === "MONTHLY" || c === "YEARLY";
+
 /** AI Coach messages a member may send per day (India time). AI Premium has the higher limit. */
 export const COACH_DAILY_LIMIT: Record<TrainerPlan, number> = { "ai-pro": 25, "ai-premium": 100 };
 

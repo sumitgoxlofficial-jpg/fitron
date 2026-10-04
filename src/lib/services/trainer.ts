@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import type { Prisma, TrainerMember } from "@/generated/prisma/client";
 import { addDays } from "@/lib/domain/dates";
-import { COACH_DAILY_LIMIT, isTrainerPlan, plannedSessions, progress, reviewInsight, trainerAccess, trainerPrice, TRAINER_TRIAL_DAYS, validEmail, type DayLog, type SetLog, type TrainerPlan } from "@/lib/domain/trainer";
+import { COACH_DAILY_LIMIT, isCycle, isTrainerPaymentKind, isTrainerPlan, plannedSessions, progress, reviewInsight, trainerAccess, trainerPrice, TRAINER_TRIAL_DAYS, validEmail, type DayLog, type SetLog, type TrainerPlan } from "@/lib/domain/trainer";
 import type { Cycle } from "@/lib/domain/pricing";
 import { emailReady, sendEmail } from "@/lib/integrations/email";
 import { cleanUtr, fitronAdmins, fitronUpi, upiLink } from "@/lib/integrations/upi";
@@ -274,7 +274,6 @@ export async function setTrainerRenewal(memberId: string, cancelled: boolean) {
 }
 
 export const trainerPaymentRef = (id: string) => `FTR-${id.slice(-8).toUpperCase()}`;
-const KINDS = ["purchase", "upgrade", "renew", "month"] as const;
 
 function paymentView(p: { id: string; plan: string; cycle: string; kind: string; total: number; status: string; utr: string | null; submittedAt: Date | null; rejectReason: string | null; periodEnd: Date | null; createdAt: Date }) {
   return { id: p.id, ref: trainerPaymentRef(p.id), plan: p.plan, cycle: p.cycle, kind: p.kind, total: p.total, status: p.status, utr: p.utr, submittedAt: p.submittedAt?.toISOString() ?? null, rejectReason: p.rejectReason, periodEnd: p.periodEnd ? toIso(p.periodEnd) : null, createdAt: p.createdAt.toISOString() };
@@ -286,8 +285,10 @@ function paymentView(p: { id: string; plan: string; cycle: string; kind: string;
  */
 export async function startTrainerPayment(memberId: string, a: { plan: string; cycle: string; kind: string }) {
   if (!isTrainerPlan(a.plan)) throw new UserError("Pick AI Pro or AI Premium.");
-  const cycle: Cycle = a.cycle === "YEARLY" ? "YEARLY" : "MONTHLY";
-  const kind = (KINDS as readonly string[]).includes(a.kind) ? a.kind : "purchase";
+  if (!isCycle(a.cycle)) throw new UserError("Pick a monthly or yearly plan.");
+  if (!isTrainerPaymentKind(a.kind)) throw new UserError("Couldn't tell what this payment is for. Close this and start again.");
+  const cycle: Cycle = a.cycle;
+  const kind = a.kind;
   const upi = fitronUpi();
   if (!upi && process.env.NODE_ENV === "production") throw new UserError("UPI payments aren't switched on yet. Start the free trial for now, or write to hello@fitron.in.");
   const price = trainerPrice(a.plan, cycle);

@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { plannedSessions, progress, reviewInsight, streak, trainerAccess, trainerPeriod, trainerPrice, weekNumbers, weekStart, type DayLog, strength } from "./trainer";
+import { isCycle, isTrainerPaymentKind, isTrainerPlan, plannedSessions, progress, reviewInsight, streak, trainerAccess, trainerPeriod, trainerPrice, weekNumbers, weekStart, type DayLog, strength } from "./trainer";
 
 const day = (date: string, x: Partial<DayLog> = {}): DayLog => ({ date, water: 0, habits: {}, workoutDone: false, focus: null, weightKg: null, ...x });
+
+describe("what the app may send", () => {
+  it("accepts only the two AI Trainer plans", () => {
+    expect(isTrainerPlan("ai-pro")).toBe(true);
+    expect(isTrainerPlan("ai-premium")).toBe(true);
+    for (const bad of ["professional", "AI-PRO", "", null, undefined, 1, {}]) expect(isTrainerPlan(bad)).toBe(false);
+  });
+  it("accepts only a monthly or yearly cycle, so a typo is never billed as a month", () => {
+    expect(isCycle("MONTHLY")).toBe(true);
+    expect(isCycle("YEARLY")).toBe(true);
+    for (const bad of ["monthly", "yearly", "WEEKLY", "", null, undefined, 1]) expect(isCycle(bad)).toBe(false);
+  });
+  it("accepts only the four things a payment can be for", () => {
+    for (const k of ["purchase", "upgrade", "renew", "month"]) expect(isTrainerPaymentKind(k)).toBe(true);
+    for (const bad of ["yearly", "Purchase", "", null, undefined, 1]) expect(isTrainerPaymentKind(bad)).toBe(false);
+  });
+});
 
 describe("AI Trainer prices", () => {
   it("uses FITRON's price list plus 18% GST", () => {
