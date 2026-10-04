@@ -28,6 +28,10 @@ describe("what the home page promises matches the product", () => {
   it("counts the gym modules the way the sidebar does", () => {
     const sections = NAV.flatMap((g) => g.items).length;
     expect((new RegExp(`\\b${sections} Gym modules`)).test(text), "text should match " + String(new RegExp(`\\b${sections} Gym modules`))).toBe(true);
+    // Every place the page counts them says the same number (the product card and the partner perks said 22 once).
+    const counts = [...text.matchAll(/\b(\d+) (?:Gym )?modules\b/gi)].map((m) => Number(m[1]));
+    expect(counts.length).toBeGreaterThanOrEqual(3);
+    expect(counts.filter((n) => n !== sections)).toEqual([]);
   });
 });
 

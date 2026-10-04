@@ -36,6 +36,8 @@ Checks: `npm run lint`, `npm run typecheck`, `npm test` (database tests run when
 
 To run Fitron for real on a free Oracle Cloud server (app, database, HTTPS, daily jobs and nightly backups in one command), follow [deploy/README.md](deploy/README.md).
 
+To get the site found by Google and Bing, see [deploy/SEO.md](deploy/SEO.md): what is built in, and the steps only the owner can take.
+
 ## Set up a real gym (by hand)
 
 ```bash
