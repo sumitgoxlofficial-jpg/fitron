@@ -45,6 +45,9 @@ TEXT = [
     ("Tally export, month lock, audit log", "Excel and CSV export, month lock, audit log", "Gym Accounting card"),
     ("Does Gym Accounting work with Tally and GST?", "Does Gym Accounting handle GST and my accountant's books?", "FAQ question"),
     ("as a Tally file or Excel for your accountant.", "as Excel or CSV files for your accountant.", "FAQ answer"),
+    # Only invoices come out as PDF, so the Professional card no longer promises "PDF financial exports": what it adds
+    # is Excel and CSV exports of the accounting reports and ledgers (the Accounting section is Professional).
+    ("Excel and PDF financial exports", "Excel and CSV accounting exports", "Professional card: exports"),
     # AI Pro and AI Premium. The app gives every member the same features (workouts, food plan, habits, progress,
     # reminders, weekly review) and differs by tier in one thing only: AI Coach messages per day, 25 or 100
     # (COACH_DAILY_LIMIT in src/lib/domain/trainer.ts; landing-page.test.ts keeps the numbers equal). The page

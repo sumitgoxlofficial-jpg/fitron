@@ -49,8 +49,11 @@ export function appVersion(): string {
   return c ? `${v} (${c})` : v;
 }
 
-export const ackText = (number: string, priority: string) =>
-  `Thanks, we've got your request ${number}. We reply within 4 working hours${priority === "Urgent" ? "; urgent tickets are picked up first." : "."}`;
+/** `prioritySupport`: the gym's plan includes it (Enterprise, Enterprise Partner; hasPrioritySupport in features.ts). */
+export const ackText = (number: string, priority: string, prioritySupport = false) => {
+  const first = [priority === "Urgent" ? "urgent tickets" : null, prioritySupport ? "tickets on priority-support plans" : null].filter(Boolean);
+  return `Thanks, we've got your request ${number}. We reply within 4 working hours${first.length ? `; ${first.join(" and ")} are picked up first.` : "."}`;
+};
 
 export function ticketEmail(t: {
   number: string;
@@ -58,6 +61,8 @@ export function ticketEmail(t: {
   subject: string;
   gymName: string;
   orgId: string;
+  /** The gym's FITRON plan; `prioritySupport` marks the ticket so the team sees it first. */
+  plan?: { name: string; prioritySupport: boolean };
   by: { name: string; email: string; role: string };
   branch: string | null;
   topic: string;
@@ -67,9 +72,10 @@ export function ticketEmail(t: {
   message: string;
 }) {
   return {
-    subject: `[${t.number}]${t.priority === "Urgent" ? " [Urgent]" : ""} ${t.subject} — ${t.gymName}`,
+    subject: `[${t.number}]${t.plan?.prioritySupport ? " [PRIORITY PLAN]" : ""}${t.priority === "Urgent" ? " [Urgent]" : ""} ${t.subject} — ${t.gymName}`,
     text: [
       `Gym: ${t.gymName} (org ${t.orgId})`,
+      ...(t.plan ? [`Plan: ${t.plan.name}${t.plan.prioritySupport ? " (priority support: answer first)" : ""}`] : []),
       `Raised by: ${t.by.name} <${t.by.email}> · ${t.by.role}`,
       `Branch: ${t.branch ?? "All branches"}`,
       `Topic: ${t.topic}`,

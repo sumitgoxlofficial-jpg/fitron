@@ -8,6 +8,7 @@ import sitemap from "@/app/sitemap";
 import { NAV } from "@/lib/nav";
 import { PLANS } from "./pricing";
 import { COACH_DAILY_LIMIT } from "./trainer";
+import { PRIORITY_SUPPORT_PLANS } from "./features";
 
 const root = path.join(__dirname, "../../..");
 const html = readFileSync(path.join(root, "public/site/index.html"), "utf8");
@@ -61,6 +62,22 @@ describe("AI Pro and AI Premium on the home page", () => {
   it("matches the limit the AI Trainer app shows its members", () => {
     const app = readFileSync(path.join(root, "public/trainer/index.html"), "utf8");
     expect(app.includes(`st.tier === 'ai-premium' ? ${premium} : ${pro}`), `st.tier === 'ai-premium' ? ${premium} : ${pro}`).toBe(true);
+  });
+});
+
+describe("exports and support promised on the plan cards", () => {
+  it("does not promise PDF financial exports: only invoices come out as PDF (reports and ledgers are Excel and CSV)", () => {
+    expect(text.includes("PDF financial"), "PDF financial").toBe(false);
+    expect(text.includes("Excel and CSV accounting exports"), "Excel and CSV accounting exports").toBe(true);
+    expect(PLANS.find((p) => p.key === "professional")!.card!.features).toContain("Excel and CSV accounting exports");
+  });
+
+  it("promises priority support exactly on the plans whose tickets are marked priority", () => {
+    const cards = [...html.matchAll(/<article class="pc[ "][\s\S]*?<\/article>/g)].map((m) => m[0]);
+    const withPriority = cards.filter((c) => /<li[^>]*>(?:<svg[\s\S]*?<\/svg>)?<span>Priority [a-z ]*support<\/span>/.test(c)).map((c) => c.match(/<h3>(.*?)<\/h3>/)![1]!.trim());
+    const keys = PLANS.filter((p) => withPriority.includes(p.name)).map((p) => p.key);
+    expect(withPriority.length).toBeGreaterThan(0);
+    expect(keys.sort()).toEqual([...PRIORITY_SUPPORT_PLANS].sort());
   });
 });
 

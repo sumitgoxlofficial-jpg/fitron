@@ -9,6 +9,7 @@ import { recentRuns } from "./jobs";
 import { sendEmail, emailReady } from "@/lib/integrations/email";
 import { storageMode } from "@/lib/integrations/storage";
 import { ackText, appVersion, deviceLabel, ticketEmail } from "@/lib/domain/support";
+import { hasPrioritySupport } from "@/lib/domain/features";
 import type { TicketInput } from "@/lib/validation/support";
 import { fmtDate, fmtTime } from "@/lib/format";
 
@@ -26,12 +27,13 @@ export async function raiseTicket(u: CurrentUser, v: TicketInput, ctx: { userAge
   const browser = deviceLabel(ctx.userAgent);
   const version = appVersion();
   const ip = ctx.ip ?? null;
+  const prioritySupport = hasPrioritySupport(u.plan);
   const ticket = await db.$transaction(async (tx) => {
     const number = "TKT-" + (await nextNumber(tx, u.orgId, "ticket", 1001));
     const t = await tx.supportTicket.create({
       data: { orgId: u.orgId, number, userId: u.id, branchId, topic: v.topic, priority: v.priority, subject: v.subject, message: v.message, status: "Open", appVersion: version, browser, ip },
     });
-    await tx.supportTicketReply.create({ data: { ticketId: t.id, by: "Fitron Support", kind: "AUTO", text: ackText(number, v.priority) } });
+    await tx.supportTicketReply.create({ data: { ticketId: t.id, by: "Fitron Support", kind: "AUTO", text: ackText(number, v.priority, prioritySupport) } });
     await audit(tx, { orgId: u.orgId, userId: u.id, action: "support.ticket.create", entity: "SupportTicket", entityId: number, after: { number, topic: v.topic, priority: v.priority, subject: v.subject, branchId } });
     return t;
   });
@@ -42,6 +44,7 @@ export async function raiseTicket(u: CurrentUser, v: TicketInput, ctx: { userAge
       subject: v.subject,
       gymName: await gymNameOf(u),
       orgId: u.orgId,
+      plan: { name: u.plan.name, prioritySupport },
       by: { name: u.name, email: u.email, role: u.role },
       branch: branchId ? (u.branches.find((b) => b.id === branchId)?.name ?? null) : null,
       topic: v.topic,

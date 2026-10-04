@@ -34,7 +34,7 @@ export const FEATURES: Record<Feature, { label: string; card: string }> = {
   programs: { label: "Workouts & diet", card: "AI Trainer integration for members" },
   partnership: { label: "Gym Partnership", card: "AI Trainer integration for members" },
   biometric: { label: "Biometric & doors", card: "Staff and trainer management" },
-  exports: { label: "Excel and PDF exports", card: "Excel and PDF financial exports" },
+  exports: { label: "Excel exports", card: "Excel and CSV accounting exports" },
   analytics: { label: "Branch comparison", card: "Consolidated financial reporting and branch-wise revenue" },
   roles: { label: "Custom roles", card: "Advanced staff roles and permissions" },
 };
@@ -52,6 +52,14 @@ export const PLAN_FEATURES: Record<string, readonly Feature[]> = {
   "partner-software": PROFESSIONAL,
   "partner-enterprise": ENTERPRISE,
 };
+
+/**
+ * The plans whose cards promise priority support ("Priority technical support" on Enterprise, "Priority partner
+ * support" on Enterprise Partner). Tickets from these gyms are marked as priority-plan for the support team
+ * (src/lib/domain/support.ts); landing-page.test.ts keeps the cards and this list equal.
+ */
+export const PRIORITY_SUPPORT_PLANS: readonly string[] = ["enterprise", "partner-enterprise"];
+export const hasPrioritySupport = (plan: { key: string; custom?: boolean }) => !plan.custom && PRIORITY_SUPPORT_PLANS.includes(plan.key);
 
 /** The gym's plan as the console sees it. `custom` gyms (set up by hand, no trial) get everything. */
 export type GymPlanView = { key: string; name: string; custom: boolean };
@@ -91,3 +99,14 @@ export const PERMISSION_FEATURE: Partial<Record<Permission, Feature>> = {
   "ai.use": "ai",
   "programs.manage": "programs",
 };
+
+/**
+ * Whether this person may use a permission here: their role has it and, for the permissions in PERMISSION_FEATURE,
+ * the gym's plan opens that section. Pages get this from requirePermission (src/lib/auth/current.ts); download
+ * routes have no page layout in front of them, so they call this. A route that checked only `u.can(...)` let a
+ * Starter gym download Professional exports by typing the address.
+ */
+export function canUsePermission(u: { can: (p: Permission) => boolean; has: (f: Feature) => boolean }, p: Permission) {
+  const f = PERMISSION_FEATURE[p];
+  return u.can(p) && (!f || u.has(f));
+}

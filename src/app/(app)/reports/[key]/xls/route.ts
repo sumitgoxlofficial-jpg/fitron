@@ -11,7 +11,8 @@ export async function GET(req: Request, ctx: RouteContext<"/reports/[key]/xls">)
   const { key } = await ctx.params;
   const def = REPORTS[key];
   if (!def) return new Response("Not found.", { status: 404 });
-  if (!u.can(def.perm)) return new Response("Not allowed.", { status: 403 });
+  // The same two checks as the CSV route: the role, and the plan that opens this report.
+  if (!u.can(def.perm) || (def.feature && !u.has(def.feature))) return new Response("Not allowed.", { status: 403 });
   const url = new URL(req.url);
   const today = todayIso();
   const from = url.searchParams.get("from");

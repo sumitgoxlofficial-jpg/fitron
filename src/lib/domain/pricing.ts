@@ -37,7 +37,7 @@ export const PLANS = [
       audience: "For growing gyms.",
       limit: "Up to 300 active members",
       includes: "Everything in Starter, plus",
-      features: ["Advanced accounting dashboard", "Monthly profit and loss reports", "Cash, UPI and payment tracking", "Automated WhatsApp payment reminders*", "Staff and trainer management", "Advanced expense categorisation", "Excel and PDF financial exports", "AI Trainer integration for members"],
+      features: ["Advanced accounting dashboard", "Monthly profit and loss reports", "Cash, UPI and payment tracking", "Automated WhatsApp payment reminders*", "Staff and trainer management", "Advanced expense categorisation", "Excel and CSV accounting exports", "AI Trainer integration for members"],
       recommended: true,
     } },
   { key: "enterprise", product: "GYM_ACCOUNTING", name: "Enterprise", tagline: "For large gyms and chains. Unlimited members, multi-branch.", price: { MONTHLY: 3_99_900, YEARLY: 39_99_000 }, memberLimit: null, multiBranch: true, trialDays: TRIAL_DAYS,
