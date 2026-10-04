@@ -5,6 +5,7 @@ import type { CurrentUser } from "@/lib/auth/current";
 import { Button } from "@/components/ui";
 import { Tag } from "@/components/tag";
 import { FAQ, SUPPORT, supportContacts, systemDetailsText } from "@/lib/domain/support";
+import { hasPrioritySupport } from "@/lib/domain/features";
 import { gymNameOf, listTickets, supportEnv, systemDetails } from "@/lib/services/support";
 import { istClock, todayIso } from "@/lib/services/time";
 import { fmtDate } from "@/lib/format";
@@ -26,6 +27,7 @@ export async function HelpTab({ u, waStatus, waMode }: { u: CurrentUser; waStatu
         <div>
           <h3 className="text-lg">Contact Fitron support</h3>
           <p className="text-[13px] text-muted">{SUPPORT.hours} · replies within 4 working hours</p>
+          {hasPrioritySupport(u.plan) && <p className="mt-1 text-[13px] font-semibold text-accent">Your {u.plan.name} plan includes priority support: your tickets are picked up first.</p>}
         </div>
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))]">
           {contacts.map((c) => {

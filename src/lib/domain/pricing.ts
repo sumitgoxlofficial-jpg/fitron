@@ -25,7 +25,7 @@ export const PARTNER_SHARE = 0.7;
 
 export const PLANS = [
   { key: "ai-pro", product: "AI_TRAINER", name: "AI Pro", tagline: "Structured workouts and personalised fitness guidance.", price: { MONTHLY: 29_900, YEARLY: 1_99_900 }, trialDays: TRIAL_DAYS },
-  { key: "ai-premium", product: "AI_TRAINER", name: "AI Premium", tagline: "Advanced AI coaching and long-term progress tracking.", price: { MONTHLY: 49_900, YEARLY: 4_99_900 }, trialDays: TRIAL_DAYS },
+  { key: "ai-premium", product: "AI_TRAINER", name: "AI Premium", tagline: "Everything in AI Pro, with a higher daily AI Coach limit.", price: { MONTHLY: 49_900, YEARLY: 4_99_900 }, trialDays: TRIAL_DAYS },
   { key: "starter", product: "GYM_ACCOUNTING", name: "Starter", tagline: "For small gyms and fitness studios. Up to 100 active members.", price: { MONTHLY: 99_900, YEARLY: 9_99_000 }, memberLimit: 100, multiBranch: false, trialDays: TRIAL_DAYS,
     card: {
       audience: "For small gyms and fitness studios.",
@@ -37,7 +37,7 @@ export const PLANS = [
       audience: "For growing gyms.",
       limit: "Up to 300 active members",
       includes: "Everything in Starter, plus",
-      features: ["Advanced accounting dashboard", "Monthly profit and loss reports", "Cash, UPI and payment tracking", "Automated WhatsApp payment reminders*", "Staff and trainer management", "Advanced expense categorisation", "Excel and PDF financial exports", "AI Trainer integration for members"],
+      features: ["Advanced accounting dashboard", "Monthly profit and loss reports", "Cash, UPI and payment tracking", "Automated WhatsApp payment reminders*", "Staff and trainer management", "Advanced expense categorisation", "Excel and CSV accounting exports", "AI Trainer integration for members"],
       recommended: true,
     } },
   { key: "enterprise", product: "GYM_ACCOUNTING", name: "Enterprise", tagline: "For large gyms and chains. Unlimited members, multi-branch.", price: { MONTHLY: 3_99_900, YEARLY: 39_99_000 }, memberLimit: null, multiBranch: true, trialDays: TRIAL_DAYS,

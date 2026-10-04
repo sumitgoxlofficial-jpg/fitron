@@ -2,6 +2,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { hasDb, makeGym } from "@/test/db";
 import { UserError } from "./errors";
+
+// Keep the support email from really sending, and keep what it would have said.
+const mail = vi.hoisted(() => ({ sent: [] as { to: string; subject: string; text: string }[] }));
+vi.mock("@/lib/integrations/email", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/integrations/email")>()),
+  sendEmail: vi.fn(async (m: { to: string; subject: string; text: string }) => {
+    mail.sent.push(m);
+    return { sent: false };
+  }),
+}));
+
 import { listTickets, raiseTicket, resolveTicket, systemDetails } from "./support";
 
 const ctx = { userAgent: "Mozilla/5.0 (X11; Linux) Chrome/120 Safari/537", ip: "1.2.3.4" };
@@ -27,6 +38,34 @@ describe.skipIf(!hasDb)("Help & support (database)", () => {
     const r2 = await db.supportTicketReply.findFirstOrThrow({ where: { ticketId: t2.id } });
     expect(r2.text).toContain("urgent tickets are picked up first");
     expect(await db.auditLog.count({ where: { orgId: g.org.id, action: "support.ticket.create", entity: "SupportTicket", entityId: "TKT-1001" } })).toBe(1);
+  });
+
+  it("marks a ticket from a priority-support plan, for the team and for the gym", async () => {
+    vi.stubEnv("SMTP_HOST", "");
+    mail.sent.length = 0;
+    const g = await makeGym();
+    const base = await g.user("Super Admin");
+    const gyms = {
+      enterprise: { ...base, plan: { key: "enterprise", name: "Enterprise", custom: false } },
+      partner: { ...base, plan: { key: "partner-enterprise", name: "Enterprise Partner", custom: false } },
+      starter: { ...base, plan: { key: "starter", name: "Starter", custom: false } },
+      handmade: { ...base, plan: { key: "enterprise", name: "Enterprise", custom: true } },
+    };
+    const tickets: Record<string, Awaited<ReturnType<typeof raiseTicket>>> = {};
+    for (const [k, u] of Object.entries(gyms)) tickets[k] = await raiseTicket(u, { ...input, subject: `From ${k}` }, ctx);
+
+    const subject = (k: string) => mail.sent.find((m) => m.subject.includes(`From ${k}`))!.subject;
+    const reply = async (k: string) => (await db.supportTicketReply.findFirstOrThrow({ where: { ticketId: tickets[k]!.id } })).text;
+    for (const k of ["enterprise", "partner"]) {
+      expect(subject(k), k).toContain("[PRIORITY PLAN]");
+      expect(await reply(k), k).toContain("tickets on priority-support plans are picked up first");
+    }
+    for (const k of ["starter", "handmade"]) {
+      expect(subject(k), k).not.toContain("PRIORITY");
+      expect(await reply(k), k).not.toContain("priority-support");
+    }
+    expect(mail.sent.find((m) => m.subject.includes("From enterprise"))!.text).toContain("Plan: Enterprise (priority support: answer first)");
+    expect(mail.sent.find((m) => m.subject.includes("From starter"))!.text).toContain("Plan: Starter\n");
   });
 
   it("lists only this gym's tickets, newest first", async () => {

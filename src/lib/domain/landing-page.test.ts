@@ -7,6 +7,8 @@ import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { NAV } from "@/lib/nav";
 import { PLANS } from "./pricing";
+import { COACH_DAILY_LIMIT } from "./trainer";
+import { PRIORITY_SUPPORT_PLANS } from "./features";
 
 const root = path.join(__dirname, "../../..");
 const html = readFileSync(path.join(root, "public/site/index.html"), "utf8");
@@ -19,13 +21,63 @@ const text = html
 
 describe("what the home page promises matches the product", () => {
   it("does not promise a Tally file: Gym Accounting exports Excel and CSV", () => {
-    expect(html).not.toMatch(/tally/i);
-    expect(text).toContain("Excel or CSV files for your accountant");
+    expect((/tally/i).test(html), "html must not match " + String(/tally/i)).toBe(false);
+    expect(text.includes("Excel or CSV files for your accountant"), "Excel or CSV files for your accountant").toBe(true);
   });
 
   it("counts the gym modules the way the sidebar does", () => {
     const sections = NAV.flatMap((g) => g.items).length;
-    expect(text).toMatch(new RegExp(`\\b${sections} Gym modules`));
+    expect((new RegExp(`\\b${sections} Gym modules`)).test(text), "text should match " + String(new RegExp(`\\b${sections} Gym modules`))).toBe(true);
+  });
+});
+
+describe("AI Pro and AI Premium on the home page", () => {
+  const card = (name: string) => {
+    const i = html.indexOf(`<h3>${name}</h3>`);
+    return html.slice(i, html.indexOf("</article>", i));
+  };
+  const bullets = (name: string) => [...card(name).matchAll(/<li[^>]*>(.*?)<\/li>/g)].map((m) => m[1]!.replace(/<[^>]+>/g, ""));
+  const pro = COACH_DAILY_LIMIT["ai-pro"];
+  const premium = COACH_DAILY_LIMIT["ai-premium"];
+
+  it("states each tier's daily AI Coach limit, the numbers the server enforces", () => {
+    expect(bullets("AI Pro")).toContain(`AI Coach: ${pro} messages a day`);
+    expect((/monthly usage limits/).test(text), "text must not match " + String(/monthly usage limits/)).toBe(false);
+  });
+
+  it("lists as Premium-only just what the app really gives Premium and not Pro: the higher coach limit", () => {
+    // Every other feature (workouts, food plan, habits, progress, reminders, weekly review) is the same on both
+    // tiers in the app. When a feature is built that only Premium has, add it here and to the card.
+    expect(bullets("AI Premium")).toEqual(["Everything in AI Pro, plus", `AI Coach: ${premium} messages a day`]);
+    expect(premium).toBeGreaterThan(pro);
+  });
+
+  it("uses the same one-line description as src/lib/domain/pricing.ts", () => {
+    for (const [name, key] of [["AI Pro", "ai-pro"], ["AI Premium", "ai-premium"]] as const) {
+      const who = card(name).match(/class="pc-who">(.*?)<\/p>/)?.[1];
+      expect(who, name).toBe(PLANS.find((p) => p.key === key)!.tagline);
+    }
+  });
+
+  it("matches the limit the AI Trainer app shows its members", () => {
+    const app = readFileSync(path.join(root, "public/trainer/index.html"), "utf8");
+    expect(app.includes(`st.tier === 'ai-premium' ? ${premium} : ${pro}`), `st.tier === 'ai-premium' ? ${premium} : ${pro}`).toBe(true);
+  });
+});
+
+describe("exports and support promised on the plan cards", () => {
+  it("does not promise PDF financial exports: only invoices come out as PDF (reports and ledgers are Excel and CSV)", () => {
+    expect(text.includes("PDF financial"), "PDF financial").toBe(false);
+    expect(text.includes("Excel and CSV accounting exports"), "Excel and CSV accounting exports").toBe(true);
+    expect(PLANS.find((p) => p.key === "professional")!.card!.features).toContain("Excel and CSV accounting exports");
+  });
+
+  it("promises priority support exactly on the plans whose tickets are marked priority", () => {
+    const cards = [...html.matchAll(/<article class="pc[ "][\s\S]*?<\/article>/g)].map((m) => m[0]);
+    const withPriority = cards.filter((c) => /<li[^>]*>(?:<svg[\s\S]*?<\/svg>)?<span>Priority [a-z ]*support<\/span>/.test(c)).map((c) => c.match(/<h3>(.*?)<\/h3>/)![1]!.trim());
+    const keys = PLANS.filter((p) => withPriority.includes(p.name)).map((p) => p.key);
+    expect(withPriority.length).toBeGreaterThan(0);
+    expect(keys.sort()).toEqual([...PRIORITY_SUPPORT_PLANS].sort());
   });
 });
 
@@ -37,30 +89,30 @@ describe("home page files", () => {
   });
 
   it("serves the product screenshots as WebP, with real alt text on the AI Trainer one", () => {
-    expect(html).toContain("/site/app-dashboard.webp");
-    expect(html).toContain("/site/console-dashboard.webp");
-    expect(html).not.toMatch(/(app|console)-dashboard\.png/);
+    expect(html.includes("/site/app-dashboard.webp"), "/site/app-dashboard.webp").toBe(true);
+    expect(html.includes("/site/console-dashboard.webp"), "/site/console-dashboard.webp").toBe(true);
+    expect((/(app|console)-dashboard\.png/).test(html), "html must not match " + String(/(app|console)-dashboard\.png/)).toBe(false);
     const alt = html.match(/<img data-gallery-img="" src="[^"]+" alt="([^"]*)"/)?.[1] ?? "";
     expect(alt.length).toBeGreaterThan(30);
   });
 
   it("downloads the 3D logo library only for visitors who haven't asked for less motion or data, and only when idle", () => {
     expect([...html.matchAll(/import\('\/site\/fitron-3d\.js'\)/g)]).toHaveLength(1);
-    for (const needle of ["prefers-reduced-motion", "saveData", "requestIdleCallback", "const load3d"]) expect(html, needle).toContain(needle);
+    for (const needle of ["prefers-reduced-motion", "saveData", "requestIdleCallback", "const load3d"]) expect(html.includes(needle), needle).toBe(true);
   });
 
   it("keeps the cookie banner and the WhatsApp button off the open phone menu", () => {
-    expect(html).toMatch(/body\.menu-open \.consent,body\.menu-open \.wa-float\{[^}]*pointer-events:none/);
+    expect((/body\.menu-open \.consent,body\.menu-open \.wa-float\{[^}]*pointer-events:none/).test(html), "html should match " + String(/body\.menu-open \.consent,body\.menu-open \.wa-float\{[^}]*pointer-events:none/)).toBe(true);
   });
 
   it("lays the hero out in one column on phones (the design's own rule was overridden, so the text ran off the screen)", () => {
-    expect(html).toContain("@media (max-width:900px){body .hero{grid-template-columns:minmax(0,1fr)}");
-    expect(html).toContain("body .hero-copy{min-width:0}");
-    expect(html).toContain("body .float-card.fc-1{left:0}body .float-card.fc-2{right:0}");
+    expect(html.includes("@media (max-width:900px){body .hero{grid-template-columns:minmax(0,1fr)}"), "@media (max-width:900px){body .hero{grid-template-columns:minmax(0,1fr)}").toBe(true);
+    expect(html.includes("body .hero-copy{min-width:0}"), "body .hero-copy{min-width:0}").toBe(true);
+    expect(html.includes("body .float-card.fc-1{left:0}body .float-card.fc-2{right:0}"), "body .float-card.fc-1{left:0}body .float-card.fc-2{right:0}").toBe(true);
   });
 
   it("links to the company details on the Contact page", () => {
-    expect(html).toContain('href="/contact#company"');
+    expect(html.includes('href="/contact#company"'), 'href="/contact#company"').toBe(true);
   });
 });
 
@@ -87,7 +139,7 @@ describe("home page structured data", () => {
     const asked = ofType("FAQPage")[0]!.mainEntity!;
     expect(asked.map((q) => q.name)).toEqual(shown);
     expect(shown).toHaveLength(8);
-    for (const q of asked) expect(text, q.name).toContain(q.acceptedAnswer.text.slice(0, 60));
+    for (const q of asked) expect(text.includes(q.acceptedAnswer.text.slice(0, 60)), q.name).toBe(true);
   });
 });
 

@@ -76,3 +76,31 @@ describe("FAQ and system details", () => {
     expect(systemDetailsText([{ k: "Gym", v: "G" }, { k: "Plan", v: "Pro" }], "2026-10-04 10:00")).toBe("Gym G\nPlan Pro\nDate 2026-10-04 10:00");
   });
 });
+
+describe("priority-support plans", () => {
+  it("adds nothing to a normal ticket's acknowledgement and subject", () => {
+    expect(ackText("TKT-1001", "Normal")).toBe("Thanks, we've got your request TKT-1001. We reply within 4 working hours.");
+    expect(ackText("TKT-1001", "Urgent")).toBe("Thanks, we've got your request TKT-1001. We reply within 4 working hours; urgent tickets are picked up first.");
+  });
+
+  it("tells a priority plan its ticket is picked up first, urgent or not", () => {
+    expect(ackText("TKT-1002", "Normal", true)).toBe("Thanks, we've got your request TKT-1002. We reply within 4 working hours; tickets on priority-support plans are picked up first.");
+    expect(ackText("TKT-1002", "Urgent", true)).toContain("urgent tickets and tickets on priority-support plans are picked up first");
+  });
+
+  const base = { number: "TKT-1003", priority: "Normal", subject: "Reports are slow", gymName: "Power Haus", orgId: "org1", by: { name: "Asha", email: "a@x.in", role: "Super Admin" }, branch: null, topic: "Question", appVersion: "1", browser: "Chrome", ip: null, message: "Hi" };
+
+  it("marks the support email of a priority plan so the team sees it first", () => {
+    const m = ticketEmail({ ...base, plan: { name: "Enterprise", prioritySupport: true } });
+    expect(m.subject).toBe("[TKT-1003] [PRIORITY PLAN] Reports are slow — Power Haus");
+    expect(m.text).toContain("Plan: Enterprise (priority support: answer first)");
+    expect(ticketEmail({ ...base, priority: "Urgent", plan: { name: "Enterprise", prioritySupport: true } }).subject).toBe("[TKT-1003] [PRIORITY PLAN] [Urgent] Reports are slow — Power Haus");
+  });
+
+  it("names the plan on other tickets without marking them", () => {
+    const m = ticketEmail({ ...base, plan: { name: "Starter", prioritySupport: false } });
+    expect(m.subject).toBe("[TKT-1003] Reports are slow — Power Haus");
+    expect(m.text).toContain("Plan: Starter\n");
+    expect(ticketEmail(base).subject).toBe("[TKT-1003] Reports are slow — Power Haus");
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FEATURES, PERMISSION_FEATURE, PLAN_FEATURES, planFor, planHas, type Feature } from "./features";
+import { FEATURES, PERMISSION_FEATURE, PLAN_FEATURES, PRIORITY_SUPPORT_PLANS, canUsePermission, hasPrioritySupport, planFor, planHas, type Feature } from "./features";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { PLANS } from "./pricing";
 
@@ -29,5 +29,29 @@ describe("plan features", () => {
     // What Starter keeps: the basics every gym needs to bill and track members.
     const open = (Object.keys(PERMISSIONS) as (keyof typeof PERMISSIONS)[]).filter((k) => !PERMISSION_FEATURE[k]);
     for (const k of ["members.view", "memberships.renew", "invoices.create", "payments.collect", "expenses.manage", "plans.manage", "settings.manage", "import.run", "audit.view"]) expect(open).toContain(k);
+  });
+});
+
+describe("canUsePermission (for download routes, which have no page layout in front of them)", () => {
+  const who = (opens: Feature[]) => ({ can: () => true, has: (f: Feature) => opens.includes(f) });
+  it("needs the role and, for a plan-locked permission, the plan", () => {
+    expect(canUsePermission(who([]), "accounting.view")).toBe(false);
+    expect(canUsePermission(who(["accounting"]), "accounting.view")).toBe(true);
+    expect(canUsePermission(who(["accounting"]), "purchases.manage")).toBe(true);
+    expect(canUsePermission({ can: () => false, has: () => true }, "accounting.view")).toBe(false);
+  });
+  it("asks nothing of the plan for a permission no plan feature owns", () => {
+    expect(canUsePermission(who([]), "invoices.view")).toBe(true);
+  });
+});
+
+describe("priority support", () => {
+  it("is for Enterprise and Enterprise Partner, and not for a hand-made gym or the other plans", () => {
+    expect([...PRIORITY_SUPPORT_PLANS].sort()).toEqual(["enterprise", "partner-enterprise"]);
+    for (const k of PRIORITY_SUPPORT_PLANS) expect(PLANS.some((p) => p.key === k), k).toBe(true);
+    expect(hasPrioritySupport({ key: "enterprise" })).toBe(true);
+    expect(hasPrioritySupport({ key: "partner-enterprise", custom: false })).toBe(true);
+    expect(hasPrioritySupport({ key: "enterprise", custom: true })).toBe(false);
+    for (const k of ["starter", "professional", "partner-referral", "partner-software"]) expect(hasPrioritySupport({ key: k }), k).toBe(false);
   });
 });
