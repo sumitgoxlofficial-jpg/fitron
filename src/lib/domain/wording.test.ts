@@ -21,12 +21,13 @@ function walk(dir: string): string[] {
   });
 }
 const files = ["app/(app)", "app/login", "app/(site)", "components"].flatMap((d) => walk(join(ROOT, d)));
-const text = files.map((f) => ({ f, s: readFileSync(f, "utf8") }));
+// Compared with "/" so the exemptions below match on Windows too, where join() gives "\".
+const text = files.map((f) => ({ f, s: readFileSync(f, "utf8"), p: f.replaceAll("\\", "/") }));
 
 describe("wording", () => {
   it.each([...RETIRED, ...RETIRED_EVERYWHERE])("never uses %s", (phrase) => {
     // Profile's own "Last sign-in" fact is the person's own account page, not the staff card.
-    const hits = text.filter(({ f, s }) => s.includes(phrase) && !(phrase === "Last sign-in" && f.endsWith("profile/page.tsx"))).map((x) => x.f);
+    const hits = text.filter(({ p, s }) => s.includes(phrase) && !(phrase === "Last sign-in" && p.endsWith("profile/page.tsx"))).map((x) => x.f);
     expect(hits).toEqual([]);
   });
   it.each(REQUIRED)("uses %s", (phrase) => {
