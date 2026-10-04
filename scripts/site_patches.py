@@ -45,6 +45,13 @@ TEXT = [
     ("Tally export, month lock, audit log", "Excel and CSV export, month lock, audit log", "Gym Accounting card"),
     ("Does Gym Accounting work with Tally and GST?", "Does Gym Accounting handle GST and my accountant's books?", "FAQ question"),
     ("as a Tally file or Excel for your accountant.", "as Excel or CSV files for your accountant.", "FAQ answer"),
+    # AI Pro and AI Premium. The app gives every member the same features (workouts, food plan, habits, progress,
+    # reminders, weekly review) and differs by tier in one thing only: AI Coach messages per day, 25 or 100
+    # (COACH_DAILY_LIMIT in src/lib/domain/trainer.ts; landing-page.test.ts keeps the numbers equal). The page
+    # used to list six Premium-only features that every member already has, and called the limit monthly.
+    ("<span>Basic progress tracking</span>", "<span>Progress tracking and a weekly review</span>", "AI Pro: progress"),
+    ("<span>AI fitness chat, with monthly usage limits</span>", "<span>AI Coach: 25 messages a day</span>", "AI Pro: chat limit"),
+    ('<p class="pc-who">Advanced AI coaching and long-term progress tracking.</p>', '<p class="pc-who">Everything in AI Pro, with a higher daily AI Coach limit.</p>', "AI Premium: tagline"),
     # The number of sections in the sidebar (src/lib/nav.ts); site-links.test.ts keeps them equal.
     ('<span class="num-3d gold-3d">22</span><p>Gym modules', '<span class="num-3d gold-3d">24</span><p>Gym modules', "module count"),
     (
@@ -124,9 +131,16 @@ def structured_data(page):
     return f'<script type="application/ld+json">{body}</script>\n'
 
 
+CHECK_ITEM = '<li><svg class="icon"><use href="#i-check"></use></svg><span>{}</span></li>'
+PREMIUM_LIST = re.compile(r'(<li class="pc-inc">Everything in AI Pro, plus</li>)(?:<li><svg class="icon"><use href="#i-check"></use></svg><span>[^<]*</span></li>)+(</ul>)')
+
+
 def apply(page):
     for old, new, why in TEXT:
         page = swap(page, old, new, why)
+    # Premium lists only what the app really gates by tier. Applying this again gives the same list.
+    page, n = PREMIUM_LIST.subn(lambda m: m.group(1) + CHECK_ITEM.format("AI Coach: 100 messages a day") + m.group(2), page)
+    assert n == 1, "AI Premium list not found"
     # Real alt text on the AI Trainer screenshot (the file may be .png or .webp).
     page, n = re.subn(r'(<img data-gallery-img="" src="[^"]+") alt="[^"]*"', lambda m: f'{m.group(1)} alt="{ALT}"', page)
     assert n == 1 and f'alt="{ALT}"' in page, "AI Trainer screenshot not found"

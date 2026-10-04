@@ -25,7 +25,7 @@ export const PARTNER_SHARE = 0.7;
 
 export const PLANS = [
   { key: "ai-pro", product: "AI_TRAINER", name: "AI Pro", tagline: "Structured workouts and personalised fitness guidance.", price: { MONTHLY: 29_900, YEARLY: 1_99_900 }, trialDays: TRIAL_DAYS },
-  { key: "ai-premium", product: "AI_TRAINER", name: "AI Premium", tagline: "Advanced AI coaching and long-term progress tracking.", price: { MONTHLY: 49_900, YEARLY: 4_99_900 }, trialDays: TRIAL_DAYS },
+  { key: "ai-premium", product: "AI_TRAINER", name: "AI Premium", tagline: "Everything in AI Pro, with a higher daily AI Coach limit.", price: { MONTHLY: 49_900, YEARLY: 4_99_900 }, trialDays: TRIAL_DAYS },
   { key: "starter", product: "GYM_ACCOUNTING", name: "Starter", tagline: "For small gyms and fitness studios. Up to 100 active members.", price: { MONTHLY: 99_900, YEARLY: 9_99_000 }, memberLimit: 100, multiBranch: false, trialDays: TRIAL_DAYS,
     card: {
       audience: "For small gyms and fitness studios.",
