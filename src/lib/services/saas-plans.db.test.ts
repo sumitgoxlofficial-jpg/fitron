@@ -89,6 +89,11 @@ describe.skipIf(!hasDb)("FITRON plans paid by UPI + UTR (database)", () => {
     expect(sent[0]).toMatchObject({ to: owner.email, subject: "We couldn't confirm your FITRON payment" });
     const h = await billingHistory(owner);
     expect(h.find((x) => x.id === c.id)).toMatchObject({ status: "REJECTED", rejectReason: "No payment with this UTR", invoiceNo: null });
+    // The decision is in the gym's audit log, with the reviewer and the reason, and no gym user as the actor.
+    const row = await db.auditLog.findFirstOrThrow({ where: { orgId: gym.org.id, action: "billing.utr-rejected", entityId: c.id } });
+    expect(row).toMatchObject({ actorType: "SYSTEM", userId: null, entity: "BranchSubscription" });
+    expect(row.after).toMatchObject({ status: "REJECTED", reviewedBy: "team@fitron.in", rejectReason: "No payment with this UTR" });
+    expect(row.hash).toBeTruthy();
   });
 
   it("caps Starter at 100 active members and one branch", async () => {

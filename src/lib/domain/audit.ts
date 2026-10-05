@@ -186,6 +186,7 @@ const SENTENCES: Record<string, (c: Ctx) => string> = {
   "offer.pause": withRef("Paused", "offer"),
   "offer.activate": withRef("Activated", "offer"),
   "billing.utr-submitted": () => "Submitted a bank transfer reference for the subscription",
+  "billing.utr-rejected": (c) => `FITRON could not match the bank transfer${str(c.a.reviewedBy) ? ` (checked by ${str(c.a.reviewedBy)})` : ""}${str(c.a.rejectReason) ? ` · reason: ${str(c.a.rejectReason)}` : ""}`,
   "billing.plan-paid": () => "Subscription plan paid",
   "billing.branch-paid": () => "Branch slot paid",
   "lead.create": named("Added", "enquiry"),
