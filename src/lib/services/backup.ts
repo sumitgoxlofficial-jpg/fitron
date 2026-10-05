@@ -4,7 +4,10 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import type { CurrentUser } from "@/lib/auth/current";
 import { hashPassword } from "@/lib/auth/password";
+import { systemUser } from "@/lib/auth/system";
+import { emailReady, sendEmail } from "@/lib/integrations/email";
 import { deleteObject, getObject, putObject } from "@/lib/integrations/storage";
+import { log } from "@/lib/log";
 import {
   BACKUP_FORMAT,
   BACKUP_TABLES,
@@ -283,6 +286,20 @@ function checkRefs(file: BackupFile) {
 export async function restoreBackup(u: CurrentUser, source: RestoreSource, confirm: string, now = new Date()) {
   if (u.role !== "Super Admin") throw new UserError("Only a Super Admin can restore a backup.");
   if (confirm.trim() !== "RESTORE") throw new UserError("Type RESTORE to confirm.", "confirm");
+  const r = await applyRestore(u, source, now, false);
+  return { exportedAt: r.exportedAt, safetyBackupId: r.safetyBackupId!, counts: r.counts };
+}
+
+/** Thrown at the end of a restore test's transaction, so that the database rolls everything back. */
+class RestoreTestDone extends Error {}
+
+/**
+ * The restore itself. With `dryRun` it does every step (the checks, the deletes, the inserts) inside the one transaction
+ * and then throws RestoreTestDone as the transaction's last act, so nothing is ever committed: no safety copy is taken,
+ * no audit row is written, and the staff lock-out check is skipped. The throw is unconditional and comes before anything
+ * that records the restore.
+ */
+async function applyRestore(u: CurrentUser, source: RestoreSource, now: Date, dryRun: boolean) {
   const { text, backup } = await loadSource(u, source);
   const file = parseBackup(text);
   if (!file) throw new UserError("That file is not a Fitron backup.", "file");
@@ -293,15 +310,16 @@ export async function restoreBackup(u: CurrentUser, source: RestoreSource, confi
   const roles = new Map((await db.role.findMany({ select: { id: true, name: true } })).map((r) => [r.name, r.id]));
   const fileUsers = file.tables.User ?? [];
   for (const fu of fileUsers) if (!roles.has(String(fu.roleName))) throw new UserError(`The backup has staff with a role this server doesn't know: ${String(fu.roleName)}.`, "file");
-  if (!fileUsers.some((fu) => fu.id === u.id)) throw new UserError("You aren't in this backup's staff list, so restoring it would lock you out.", "file");
+  if (!dryRun && !fileUsers.some((fu) => fu.id === u.id)) throw new UserError("You aren't in this backup's staff list, so restoring it would lock you out.", "file");
   const foreign = await db.user.findFirst({ where: { id: { in: fileUsers.map((fu) => String(fu.id)) }, orgId: { not: u.orgId } }, select: { id: true } });
   if (foreign) throw new UserError("The backup has staff that belong to another gym.", "file");
   checkRefs(file);
 
   // Never silently destroy data: what is there now becomes a backup first.
-  const safety = await createBackup(u, "PRE_RESTORE", now);
-  const current = safety.counts as Counts;
+  const safety = dryRun ? null : await createBackup(u, "PRE_RESTORE", now);
+  const current = (safety?.counts ?? {}) as Counts;
   const orgId = u.orgId;
+  const result = { exportedAt: new Date(file.exportedAt), counts: file.counts, tables: Object.keys(file.tables).length, rows: Object.values(file.tables).reduce((n, t) => n + (Array.isArray(t) ? t.length : 0), 0) };
 
   try {
     await db.$transaction(
@@ -359,6 +377,7 @@ export async function restoreBackup(u: CurrentUser, source: RestoreSource, confi
         const restoredMembers = new Set((file.tables.Member ?? []).map((m) => String(m.id)));
         for (const l of trainerLinks) if (l.gymMemberId && restoredMembers.has(l.gymMemberId)) await tx.trainerMember.update({ where: { id: l.id }, data: { gymMemberId: l.gymMemberId } });
 
+        if (dryRun) throw new RestoreTestDone();
         if (backup) await tx.backup.update({ where: { id: backup.id }, data: { restoredAt: now, restoredById: u.id } });
         await audit(tx, {
           orgId,
@@ -367,16 +386,72 @@ export async function restoreBackup(u: CurrentUser, source: RestoreSource, confi
           entity: "Backup",
           entityId: backup?.id ?? "file",
           before: { counts: current },
-          after: { counts: file.counts, exportedAt: file.exportedAt, fileName: backup?.fileName ?? ("file" in source ? source.file.name : null), safetyBackupId: safety.id },
+          after: { counts: file.counts, exportedAt: file.exportedAt, fileName: backup?.fileName ?? ("file" in source ? source.file.name : null), safetyBackupId: safety!.id },
         });
       },
       { timeout: 300_000, maxWait: 20_000 },
     );
   } catch (e) {
+    if (e instanceof RestoreTestDone) return { ...result, safetyBackupId: null };
     if (isUniqueViolation(e)) throw new UserError("The backup clashes with records that belong to another gym on this server (an id or email is already taken). Nothing was changed.");
     throw e;
   }
-  return { exportedAt: new Date(file.exportedAt), safetyBackupId: safety.id, counts: file.counts };
+  return { ...result, safetyBackupId: safety!.id };
+}
+
+/**
+ * The restore test: takes the gym's newest backup (an automatic or manual one) out of storage, checks that the stored
+ * bytes are the ones that were written, and restores it for real inside a transaction that is rolled back at the end.
+ * What it proves is that the file can be read, passes every check the real restore makes, and inserts into the
+ * database as it is now (so a change to the tables since the backup was taken shows up). The gym's data is untouched:
+ * but the transaction holds the gym's rows while it runs, so it belongs in the quiet hours. Null when there is no backup yet.
+ */
+export async function testRestore(orgId: string, now = new Date()) {
+  const backup = await db.backup.findFirst({ where: { orgId, kind: { in: ["AUTO", "MANUAL"] } }, orderBy: { createdAt: "desc" } });
+  if (!backup) return null;
+  const bytes = await getObject(backup.storageKey).catch(() => {
+    throw new Error(`The backup ${backup.fileName} is listed but its file is missing from storage.`);
+  });
+  if (createHash("sha256").update(bytes).digest("hex") !== backup.sha256) throw new Error(`The stored file of the backup ${backup.fileName} no longer matches its checksum, so it may be damaged.`);
+  const started = Date.now();
+  const u = await systemUser(orgId);
+  const r = await applyRestore(u, { backupId: backup.id }, now, true);
+  return { backup, rows: r.rows, tables: r.tables, ms: Date.now() - started };
+}
+
+/** What the tab shows about the weekly restore test: the last time it ran, and whether it passed. */
+export async function lastRestoreTest(orgId: string) {
+  const run = await db.jobRun.findFirst({ where: { orgId, name: "backup.test", finishedAt: { not: null } }, orderBy: { startedAt: "desc" } });
+  if (!run) return null;
+  const r = (run.result ?? {}) as { backup?: string; taken?: string; rows?: number; note?: string };
+  if (run.error) return { ok: false as const, day: run.day, error: run.error };
+  if (r.note) return { ok: null, day: run.day, note: r.note };
+  return { ok: true as const, day: run.day, backup: r.backup ?? "", taken: r.taken ? new Date(r.taken) : null, rows: r.rows ?? 0 };
+}
+
+/** The mail to the gym's Super Admins when the restore test fails: the in-app notice is easy to miss, and this one matters. */
+export async function alertRestoreTestFailed(orgId: string, error: string) {
+  if (!emailReady()) return;
+  const [org, owners] = await Promise.all([
+    db.organization.findUniqueOrThrow({ where: { id: orgId }, select: { name: true } }),
+    db.user.findMany({ where: { orgId, active: true, deletedAt: null, role: { name: "Super Admin" }, email: { not: "" } }, select: { email: true } }),
+  ]);
+  const text = [
+    "Hello,",
+    "",
+    `Every week Fitron checks that the latest backup of ${org.name} can really be restored. This week's check failed:`,
+    "",
+    `  ${error}`,
+    "",
+    "Your live data is not affected, and nothing was changed by the check. But a backup that cannot be restored is not worth keeping, so please:",
+    "  1. Open Settings › Backup and press \"Back up now\", then download the file and keep a copy off the server.",
+    "  2. If this message comes again next week, write to support@fitron.in and include this email.",
+    "",
+    "FITRON",
+  ].join("\n");
+  for (const o of owners) {
+    await sendEmail({ to: o.email, subject: `${org.name}: your latest backup could not be restored in a test`, text }).catch((e) => log.error("backup_test.alert_failed", e, { orgId }));
+  }
 }
 
 const KEEP_DAYS: Record<string, number> = { AUTO: 30, MANUAL: 90, PRE_RESTORE: 90 };

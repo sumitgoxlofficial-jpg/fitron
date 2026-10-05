@@ -3,6 +3,7 @@
 #   01:00 UTC = 06:30 India time: daily jobs (reminders, autopay, risk scores, device sync…)
 #   20:30 UTC = 02:00 India time: backup of the database and member files, keeping KEEP_DAYS days
 #   every hour: AI Trainer push reminders (each one goes once a day, in its own window)
+#   Saturday 21:00 UTC = Sunday 02:30 India time: restore test of every gym's latest backup (rolled back; holds the gym's rows briefly)
 set -u
 mkdir -p /backups
 state=/backups/.state
@@ -26,6 +27,14 @@ while true; do
       mark trainer "$hour"
     else
       echo "$(date -u) trainer reminders failed; retrying in 5 minutes"
+    fi
+  fi
+  # %u is the weekday, 1 = Monday: 6 is Saturday. At 21:00 UTC that is already Sunday morning in India, the quietest time.
+  if [ "$(date -u +%u)" = 6 ] && [ "$hm" -ge 2100 ] && [ "$(last restoretest)" != "$day" ]; then
+    if wget -q -O /backups/last-restore-test.json --header "Authorization: Bearer $CRON_SECRET" http://app:3000/api/jobs/weekly; then
+      mark restoretest "$day"; echo "$(date -u) restore test done"
+    else
+      echo "$(date -u) restore test failed; retrying in 5 minutes"
     fi
   fi
   if [ "$hm" -ge 2030 ] && [ "$(last backup)" != "$day" ]; then

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { getAutopayMode, runAutopayDay, syncWithRazorpay } from "./autopay";
 import { razorpayReady } from "@/lib/integrations/razorpay";
-import { backupNudge, createBackup, pruneBackups } from "./backup";
+import { alertRestoreTestFailed, backupNudge, createBackup, pruneBackups, testRestore } from "./backup";
 import { sizeText } from "@/lib/domain/backup";
 import { isUniqueViolation } from "./errors";
 import { notify } from "./notifications";
@@ -161,13 +161,32 @@ export const JOBS: Job[] = [
   },
 ];
 
+/** The jobs that run once a week, in the quiet hours (the scheduler calls /api/jobs/weekly), not with the morning jobs. */
+export const WEEKLY_JOBS: Job[] = [
+  {
+    name: "backup.test",
+    label: "Test that the latest backup restores",
+    async run(orgId, _today, now): Promise<Result> {
+      let t;
+      try {
+        t = await testRestore(orgId, now);
+      } catch (e) {
+        await alertRestoreTestFailed(orgId, e instanceof Error ? e.message : String(e));
+        throw e;
+      }
+      if (!t) return { note: "no backup yet" };
+      return { backup: t.backup.fileName, taken: t.backup.createdAt.toISOString(), rows: t.rows, tables: t.tables, ms: t.ms };
+    },
+  },
+];
+
 /**
- * Runs every daily job for one gym. Each job runs at most once per gym per day (JobRun is unique
+ * Runs every job of a list for one gym. Each job runs at most once per gym per day (JobRun is unique
  * on org + job + day); a job that failed is retried on the next call.
  */
-export async function runDailyJobs(orgId: string, today = todayIso(), now = new Date()) {
+async function runJobList(list: Job[], kind: string, orgId: string, today: string, now: Date) {
   const out: { name: string; status: "ran" | "skipped" | "failed"; result?: Result; error?: string }[] = [];
-  for (const job of JOBS) {
+  for (const job of list) {
     let run;
     try {
       run = await db.jobRun.create({ data: { orgId, name: job.name, day: today } });
@@ -187,17 +206,28 @@ export async function runDailyJobs(orgId: string, today = todayIso(), now = new 
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e);
       await db.jobRun.update({ where: { id: run.id }, data: { finishedAt: new Date(), error } });
-      await db.$transaction((tx) => notify(tx, { orgId, type: "JOB_FAILED", text: `Daily job "${job.label}" failed: ${error}`, link: "/settings/jobs" }));
+      await db.$transaction((tx) => notify(tx, { orgId, type: "JOB_FAILED", text: `${kind} job "${job.label}" failed: ${error}`, link: "/settings/jobs" }));
       out.push({ name: job.name, status: "failed", error });
     }
   }
   return out;
 }
 
+export const runDailyJobs = (orgId: string, today = todayIso(), now = new Date()) => runJobList(JOBS, "Daily", orgId, today, now);
+
+export const runWeeklyJobs = (orgId: string, today = todayIso(), now = new Date()) => runJobList(WEEKLY_JOBS, "Weekly", orgId, today, now);
+
 export async function runAllGyms(today = todayIso(), now = new Date()) {
   const orgs = await db.organization.findMany({ select: { id: true, name: true } });
   const results = [];
   for (const o of orgs) results.push({ org: o.name, jobs: await runDailyJobs(o.id, today, now) });
+  return results;
+}
+
+export async function runAllGymsWeekly(today = todayIso(), now = new Date()) {
+  const orgs = await db.organization.findMany({ select: { id: true, name: true } });
+  const results = [];
+  for (const o of orgs) results.push({ org: o.name, jobs: await runWeeklyJobs(o.id, today, now) });
   return results;
 }
 
