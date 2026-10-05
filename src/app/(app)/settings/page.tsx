@@ -200,12 +200,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                   ) to link to your gym.
                 </p>
                 <p className="text-xs text-muted">
-                  You see their training next to their membership and earn {Math.round(PARTNER_SHARE * 100)}% of what they pay FITRON for the AI Trainer. <Link className="underline" href="/partnership">Open Gym Partnership</Link>.
+                  You see their training next to their membership and earn {Math.round(PARTNER_SHARE * 100)}% of what they pay FITRON for the AI Trainer, before GST. <Link className="underline" href="/partnership">Open Gym Partnership</Link>.
                 </p>
               </>
             ) : (
               <form action={makeTrainerCode} className="flex flex-col gap-3">
-                <p className="text-sm text-muted">Make a code your members type into the FITRON AI Trainer to link to your gym. You then see their training here and earn {Math.round(PARTNER_SHARE * 100)}% of what they pay FITRON for it.</p>
+                <p className="text-sm text-muted">Make a code your members type into the FITRON AI Trainer to link to your gym. You then see their training here and earn {Math.round(PARTNER_SHARE * 100)}% of what they pay FITRON for it, before GST.</p>
                 <div>
                   <Button variant="primary">Make our trainer code</Button>
                 </div>

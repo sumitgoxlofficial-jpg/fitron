@@ -179,7 +179,7 @@ Instead of the UPI QR, gyms and AI Trainer members can pay FITRON through Razorp
 
 What is paid how: a monthly plan, a partner plan (monthly) and an extra branch (monthly) are Razorpay subscriptions. A yearly extra branch and a yearly partner plan have no Razorpay plan, so they are one payment that the gym renews by hand. One-time add-ons (onboarding, branding, data migration, custom integration, mobile app) are one payment each, and the FITRON team is not told automatically: check **Settings › Plan & billing › Payment history** or your Razorpay dashboard. If a renewal fails, Razorpay retries and the gym is told in the app and by email; if it gives up, the plan runs to the end of the period already paid, then the usual 7 days' grace and read-only apply.
 
-Not automatic: paying partner gyms their 70% share. The monthly amount owed is on `/fitron-admin/trainer` (it is worked out from the listed price members pay); paying it out is manual unless you ask Razorpay to turn on Route.
+Not automatic: paying partner gyms their 70% share. The monthly amount owed is on `/fitron-admin/trainer` (70% of what members pay before GST: the GST inside the listed price is not shared); paying it out is manual unless you ask Razorpay to turn on Route.
 
 ## Door devices (ZKTeco / eSSL)
 

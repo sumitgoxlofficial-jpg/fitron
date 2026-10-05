@@ -226,7 +226,7 @@ export default async function TrainerAdminPage({ searchParams }: PageProps<"/fit
                     <th className={TH}>Code</th>
                     <th className={`${TH} text-right`}>Linked members</th>
                     <th className={`${TH} text-right`}>Payments</th>
-                    <th className={`${TH} text-right`}>Price paid</th>
+                    <th className={`${TH} text-right`}>Before GST</th>
                     <th className={`${TH} text-right`}>Owed to the gym</th>
                   </tr>
                 </thead>
