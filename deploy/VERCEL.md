@@ -12,7 +12,7 @@ If sign-up or sign-in shows **"This page hit a problem on our side"**, the datab
 
 ## 1. Supabase
 
-1. **Make the project in Mumbai (`ap-south-1`).** The region can't be changed later, and every page makes several trips to the database, so a far region makes everything slower. `vercel.json` runs the app in Mumbai (`bom1`) to match. If your project is somewhere else, change `regions` in `vercel.json` to the nearest Vercel region (Singapore `sin1`, Seoul `icn1`).
+1. **Make the project in Mumbai (`ap-south-1`) if you can.** The region can't be changed later, and every page makes several trips to the database, so a far region makes everything slower. The app runs in the same region as the database, set by `regions` in `vercel.json`. It is currently Seoul (`icn1`), because FITRON's Supabase project was created there. For a project in Mumbai, change it to `bom1` (Singapore is `sin1`). Keep the two together: an app in one region and a database in another pays the distance on every query.
 2. **Turn the Data API off** (project API settings). FITRON talks to the database directly and never uses Supabase's web API; leaving it on puts every table behind a public address. FITRON also switches row-level security on for all of its tables, as a second lock.
 3. Click **Connect** at the top of the project and copy two addresses:
    - **Transaction pooler** (port 6543) is `DATABASE_URL`. Supabase recommends it for hosts like Vercel, where many short-lived copies of the app share the database's limited connections.
