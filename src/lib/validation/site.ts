@@ -1,4 +1,5 @@
 import * as z from "zod";
+import "@/lib/zod-config";
 import { PLANS, findPlan } from "@/lib/domain/pricing";
 import { indianPhone, optionalPhone, optionalText } from "./common";
 

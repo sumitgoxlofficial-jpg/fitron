@@ -1,4 +1,5 @@
 import * as z from "zod";
+import "@/lib/zod-config";
 import { optionalText, rupees } from "./common";
 
 export const METHODS = ["UPI", "Cash", "Card", "Bank Transfer", "Other"] as const;

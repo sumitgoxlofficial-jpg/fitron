@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
+import "@/lib/zod-config";
 import { requireFeature, requirePermission } from "@/lib/auth/current";
 import { assignCard, enrol, eraseBiometrics, openDoor, removeDevice, saveDevice, syncDevice, testScan } from "@/lib/services/biometric";
 import { db } from "@/lib/db";

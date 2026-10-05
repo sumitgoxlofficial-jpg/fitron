@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
+import "@/lib/zod-config";
 import { requireFeature, requirePermission } from "@/lib/auth/current";
 import { cookies } from "next/headers";
 import { BRANCH_COOKIE, requireUser } from "@/lib/auth/current";

@@ -1,0 +1,20 @@
+import { GYM_PAGES } from "@/lib/domain/gym-pages";
+
+// The paths that anyone can open without a session (src/proxy.ts sends every other path to the sign-in): the website,
+// the sign-in and sign-up pages, links from emails, the AI Trainer member app and its APIs, webhooks, the job runner and
+// door devices (which authenticate with their own signatures and secrets), and the files of the public pages.
+// A path matches by whole segments: "/contact" and "/contact/x", not "/contacts".
+const PUBLIC = [
+  "auth", "login", "signin", "signup", "verify-email", "forgot-password", "reset-password",
+  "contact", "privacy", "terms", "refund",
+  "robots.txt", "sitemap.xml", "favicon.ico", "fitron-mark.png", "fitron-logo.png", "site", "_next",
+  "trainer", "api/trainer", "api/coach",
+  "api/health", "api/client-error", "api/csp-report", "api/webhooks", "api/jobs", "iclock",
+  // The pages about Gym Accounting (src/lib/domain/gym-pages.ts) join this list by themselves.
+  ...GYM_PAGES.map((p) => p.path.slice(1)),
+];
+
+export function isPublicPath(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return PUBLIC.some((p) => pathname === `/${p}` || pathname.startsWith(`/${p}/`));
+}

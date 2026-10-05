@@ -1,5 +1,6 @@
 import "server-only";
 import type * as z from "zod";
+import "@/lib/zod-config";
 import { failed, fieldErrors, type FormState } from "@/lib/validation/common";
 import { UserError } from "@/lib/services/errors";
 

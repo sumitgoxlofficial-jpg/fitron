@@ -1,4 +1,5 @@
 import * as z from "zod";
+import "@/lib/zod-config";
 import { optionalText, rupees } from "./common";
 
 export const PLAN_KINDS = ["Membership", "Personal Training", "Add-on"] as const;

@@ -1,4 +1,5 @@
 import * as z from "zod";
+import "@/lib/zod-config";
 import { PRIORITIES, TOPICS } from "@/lib/domain/support";
 
 export const ticketInput = z.object({

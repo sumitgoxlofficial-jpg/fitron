@@ -1,4 +1,5 @@
 import * as z from "zod";
+import "@/lib/zod-config";
 import { indianPhone, optionalPhone } from "./common";
 import { NOTICE_KEYS, type NoticeKey } from "@/lib/domain/privacy";
 import { EXPIRY_CHIPS } from "@/lib/domain/reminders";

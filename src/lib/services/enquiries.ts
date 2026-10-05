@@ -1,5 +1,6 @@
 import "server-only";
 import type * as z from "zod";
+import "@/lib/zod-config";
 import { db } from "@/lib/db";
 import { findPlan, PRODUCT_LABEL, rupeesLabel } from "@/lib/domain/pricing";
 import { sendEmail } from "@/lib/integrations/email";
