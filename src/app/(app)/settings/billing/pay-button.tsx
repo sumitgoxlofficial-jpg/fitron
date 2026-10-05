@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { Button, Input, Select } from "@/components/ui";
 import { formatInr } from "@/lib/format";
 import type { Checkout, PaymentFor } from "@/lib/services/saas";
-import { confirmCheckoutAction, confirmDemoAction, startPaymentAction, submitUtrAction } from "./actions";
+import { confirmCheckoutAction, confirmDemoAction, confirmSubscriptionAction, startPaymentAction, submitUtrAction } from "./actions";
 
+/** What Checkout hands back: an order's id for one payment, or a subscription's id for a plan that renews itself. */
 type RazorpayResponse = {
-  razorpay_order_id: string;
+  razorpay_order_id?: string;
+  razorpay_subscription_id?: string;
   razorpay_payment_id: string;
   razorpay_signature: string;
 };
@@ -79,7 +81,7 @@ function UpiPanel({ c, onClose }: { c: Upi; onClose: () => void }) {
   );
 }
 
-/** Pay FITRON for the gym's plan or an extra branch (new slot, or renewing one). */
+/** Pay FITRON for the gym's plan, an extra branch (new slot, or renewing one) or a one-time add-on. */
 export function PayButton({
   what,
   label,
@@ -90,15 +92,16 @@ export function PayButton({
 }: {
   what: PaymentFor;
   label: string;
-  prices: { MONTHLY: number; YEARLY: number };
+  /** Shown in the cycle picker; not needed when the cycle is fixed. */
+  prices?: { MONTHLY: number; YEARLY: number };
   success: string;
-  /** Set when the cycle is picked outside the button (the plan cards' Monthly/Yearly switch). */
-  fixedCycle?: "YEARLY" | "MONTHLY";
+  /** Set when the cycle is picked outside the button (the plan cards' Monthly/Yearly switch), or ONCE for an add-on. */
+  fixedCycle?: "YEARLY" | "MONTHLY" | "ONCE";
   wide?: boolean;
 }) {
   const router = useRouter();
   const [picked, setCycle] = useState<"YEARLY" | "MONTHLY">("YEARLY");
-  const cycle = fixedCycle ?? picked;
+  const cycle: "YEARLY" | "MONTHLY" | "ONCE" = fixedCycle ?? picked;
   const [msg, setMsg] = useState<{ tone: "ok" | "alert"; text: string } | null>(null);
   const [upi, setUpi] = useState<Upi | null>(null);
   const [pending, start] = useTransition();
@@ -122,26 +125,39 @@ export function PayButton({
       }
       try {
         const Razorpay = await loadCheckout();
-        const rz = new Razorpay({
-          key: c.keyId,
-          order_id: c.orderId,
-          amount: c.total,
-          currency: "INR",
-          name: c.name,
-          description: c.description,
-          prefill: c.prefill,
-          theme: { color: "#cfa94f" },
-          handler: (resp: RazorpayResponse) =>
-            start(async () =>
-              done(
-                await confirmCheckoutAction({
-                  orderId: resp.razorpay_order_id,
-                  paymentId: resp.razorpay_payment_id,
-                  signature: resp.razorpay_signature,
-                }),
-              ),
-            ),
-        });
+        const common = { key: c.keyId, name: c.name, description: c.description, prefill: c.prefill, theme: { color: "#cfa94f" } };
+        const rz =
+          c.mode === "SUBSCRIPTION"
+            ? new Razorpay({
+                ...common,
+                subscription_id: c.subscriptionId,
+                handler: (resp: RazorpayResponse) =>
+                  start(async () => {
+                    const res = await confirmSubscriptionAction({ paymentId: resp.razorpay_payment_id, subscriptionId: resp.razorpay_subscription_id ?? c.subscriptionId, signature: resp.razorpay_signature });
+                    if (res.ok && res.data.status === "PROCESSING") {
+                      setMsg({ tone: "ok", text: "Payment received. Razorpay is still confirming it; your plan turns on within a few minutes and you'll get an email." });
+                      router.refresh();
+                      return;
+                    }
+                    done(res);
+                  }),
+              })
+            : new Razorpay({
+                ...common,
+                order_id: c.orderId,
+                amount: c.total,
+                currency: "INR",
+                handler: (resp: RazorpayResponse) =>
+                  start(async () =>
+                    done(
+                      await confirmCheckoutAction({
+                        orderId: resp.razorpay_order_id ?? "",
+                        paymentId: resp.razorpay_payment_id,
+                        signature: resp.razorpay_signature,
+                      }),
+                    ),
+                  ),
+              });
         rz.on("payment.failed", (e) =>
           setMsg({
             tone: "alert",
@@ -159,7 +175,7 @@ export function PayButton({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        {!fixedCycle && (
+        {!fixedCycle && prices && (
           <Select value={cycle} onChange={(e) => setCycle(e.target.value as "YEARLY" | "MONTHLY")} aria-label="Billing cycle" className="w-auto">
             <option value="YEARLY">Yearly · {formatInr(prices.YEARLY)}</option>
             <option value="MONTHLY">Monthly · {formatInr(prices.MONTHLY)}</option>

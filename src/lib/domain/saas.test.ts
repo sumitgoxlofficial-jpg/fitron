@@ -1,14 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "./dates";
-import { branchPrice, gstSplit, gymTerms, nextPeriod, planPrice, planStanding, planWritable, reminderSubject, renewalReminder, standings } from "./saas";
+import { branchPrice, gstInside, gstSplit, gymTerms, nextPeriod, planPrice, planStanding, planWritable, reminderSubject, renewalReminder, standings } from "./saas";
 
 describe("Fitron branch plan", () => {
-  it("prices extra branches and plans from the price list, with 18% GST", () => {
-    expect(branchPrice("MONTHLY")).toEqual({ base: 49_900, gst: 8_982, total: 58_882 });
-    expect(branchPrice("YEARLY")).toEqual({ base: 4_99_000, gst: 89_820, total: 5_88_820 });
-    expect(planPrice("starter", "MONTHLY")).toEqual({ base: 99_900, gst: 17_982, total: 1_17_882 });
-    expect(planPrice("enterprise", "YEARLY").base).toBe(39_99_000);
+  it("prices extra branches and plans from the price list, with the 18% GST inside the listed price", () => {
+    expect(branchPrice("MONTHLY")).toEqual({ base: 42_288, gst: 7_612, total: 49_900 });
+    expect(branchPrice("YEARLY")).toEqual({ base: 4_22_881, gst: 76_119, total: 4_99_000 });
+    expect(planPrice("starter", "MONTHLY")).toEqual({ base: 84_661, gst: 15_239, total: 99_900 });
+    expect(planPrice("enterprise", "YEARLY").total).toBe(39_99_000);
+    // Gym Partnership plans are paid like gym plans.
+    expect(planPrice("partner-software", "MONTHLY").total).toBe(1_99_900);
     expect(() => planPrice("ai-pro", "MONTHLY")).toThrow();
+  });
+
+  it("splits any listed price into taxable value and GST that add back up to what the customer pays", () => {
+    for (const listed of [1, 99, 29_900, 49_900, 99_900, 1_99_900, 4_99_000, 39_99_000, 12_345_67]) {
+      const p = gstInside(listed);
+      expect(p.total, String(listed)).toBe(listed);
+      expect(p.base + p.gst, String(listed)).toBe(listed);
+      // GST is 18% of the taxable value, to within the rounding of one paisa.
+      expect(Math.abs(p.gst - p.base * 0.18)).toBeLessThanOrEqual(1);
+    }
   });
 
   it("sets limits from the plan; gyms set up by hand keep the old rules", () => {

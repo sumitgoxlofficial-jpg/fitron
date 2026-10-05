@@ -104,11 +104,12 @@ describe("the pages about Gym Accounting", () => {
     for (const k of ["title", "description", "h1"] as const) expect(new Set(GYM_PAGES.map((p) => p[k])).size, k).toBe(GYM_PAGES.length);
   });
 
-  it("quote the prices on the price list, before GST", () => {
+  it("quote the prices on the price list, GST included", () => {
     const html = render(GYM_ACCOUNTING);
     const gym = PLANS.filter((p) => p.product === "GYM_ACCOUNTING");
-    const app = graphOf(html).find((g) => g["@type"] === "SoftwareApplication") as unknown as { offers: { name: string; price: number; priceCurrency: string }[] };
+    const app = graphOf(html).find((g) => g["@type"] === "SoftwareApplication") as unknown as { offers: { name: string; price: number; priceCurrency: string; priceSpecification: { valueAddedTaxIncluded: boolean } }[] };
     expect(app.offers.map((o) => [o.name, o.price, o.priceCurrency])).toEqual(gym.map((p) => [p.name, p.price.MONTHLY / 100, "INR"]));
+    for (const o of app.offers) expect(o.priceSpecification.valueAddedTaxIncluded, o.name).toBe(true);
     for (const p of gym) expect(html.includes(`₹${(p.price.MONTHLY / 100).toLocaleString("en-IN")}`), p.name).toBe(true);
   });
 

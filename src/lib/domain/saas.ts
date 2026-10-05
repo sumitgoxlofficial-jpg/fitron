@@ -1,27 +1,31 @@
 // FITRON's own billing of gyms: the Gym Accounting plan (see pricing.ts), and extra branches
-// paid monthly or yearly, plus GST.
+// paid monthly or yearly. Listed prices include GST: the customer pays exactly the listed price.
 import { addDays, daysBetween, membershipEndDate, type IsoDate } from "./dates";
 import { findPlan, PLANS } from "./pricing";
 
 /** Branches included before extra-branch payments start. */
 export const INCLUDED_BRANCHES = 3;
 export const GRACE_DAYS = 7;
-export const BRANCH_PRICE = { MONTHLY: 49_900, YEARLY: 4_99_000 } as const; // paise, before GST; "Additional gym branch" add-on
+export const BRANCH_PRICE = { MONTHLY: 49_900, YEARLY: 4_99_000 } as const; // paise, GST included; "Additional gym branch" add-on
 export const SAAS_GST_RATE = 18;
 export type Cycle = keyof typeof BRANCH_PRICE;
 
-const withGst = (base: number) => {
-  const gst = Math.round((base * SAAS_GST_RATE) / 100);
-  return { base, gst, total: base + gst };
-};
+/**
+ * Splits a listed price (paise) into the taxable value and the GST inside it. The customer pays `total`, which is
+ * the listed price itself; `base` is what is left after the 18% GST (listed / 1.18, rounded to the paisa).
+ */
+export function gstInside(listed: number) {
+  const base = Math.round((listed * 100) / (100 + SAAS_GST_RATE));
+  return { base, gst: listed - base, total: listed };
+}
 
-export const branchPrice = (cycle: Cycle) => withGst(BRANCH_PRICE[cycle]);
+export const branchPrice = (cycle: Cycle) => gstInside(BRANCH_PRICE[cycle]);
 
-/** A Gym Accounting plan's price for one period, plus GST. */
+/** A Gym Accounting or partner plan's price for one period: the listed price, with its GST worked out. */
 export function planPrice(planKey: string, cycle: Cycle) {
   const p = findPlan(planKey);
-  if (!p || p.product !== "GYM_ACCOUNTING") throw new Error(`Not a gym plan: ${planKey}`);
-  return withGst(p.price[cycle]);
+  if (!p || (p.product !== "GYM_ACCOUNTING" && p.product !== "PARTNER")) throw new Error(`Not a gym plan: ${planKey}`);
+  return gstInside(p.price[cycle]);
 }
 
 /** A paid period starts the day after the last one ends (or today, if it lapsed) and runs 1 or 12 months. */

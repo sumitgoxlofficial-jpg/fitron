@@ -1,4 +1,4 @@
-// FITRON's public price list, from the pricing page on fitron.in. Paise, before GST.
+// FITRON's public price list, from the pricing page on fitron.in. Paise, GST included.
 // The pricing page (public/site) and this file must agree; pricing.test.ts checks the page.
 
 export type Product = "AI_TRAINER" | "GYM_ACCOUNTING" | "PARTNER";
@@ -20,7 +20,7 @@ export type PlanDef = {
 };
 
 export const TRIAL_DAYS = 7;
-/** Gym Partnership: the gym's share of what its linked members pay FITRON for the AI Trainer (of the price before GST). */
+/** Gym Partnership: the gym's share of what its linked members pay FITRON for the AI Trainer (of the listed price, see partnerBasis). */
 export const PARTNER_SHARE = 0.7;
 
 export const PLANS = [
@@ -49,7 +49,7 @@ export const PLANS = [
     } },
   { key: "partner-referral", product: "PARTNER", name: "Referral Partner", tagline: "Promote the AI Trainer and earn 70% of eligible subscriptions.", price: { MONTHLY: 99_900, YEARLY: 9_99_000 }, trialDays: 0 },
   { key: "partner-software", product: "PARTNER", name: "Software Partner", tagline: "Gym Accounting Professional plus 70% AI Trainer revenue share.", price: { MONTHLY: 1_99_900, YEARLY: 19_99_000 }, trialDays: 0 },
-  { key: "partner-enterprise", product: "PARTNER", name: "Enterprise Partner", tagline: "Gym Accounting Enterprise plus 70% AI Trainer revenue share.", price: { MONTHLY: 3_99_900, YEARLY: 39_99_000 }, trialDays: 0 },
+  { key: "partner-enterprise", product: "PARTNER", name: "Enterprise Partner", tagline: "Gym Accounting Enterprise plus 70% AI Trainer revenue share.", price: { MONTHLY: 3_99_900, YEARLY: 39_99_000 }, multiBranch: true, trialDays: 0 },
 ] as const satisfies readonly PlanDef[];
 
 export type PlanKey = (typeof PLANS)[number]["key"];

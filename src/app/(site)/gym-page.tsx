@@ -38,7 +38,7 @@ export function GymPageView({ page }: { page: GymPage }) {
         name: p.name,
         price: p.price.MONTHLY / 100,
         priceCurrency: "INR",
-        priceSpecification: { "@type": "UnitPriceSpecification", price: p.price.MONTHLY / 100, priceCurrency: "INR", billingDuration: 1, unitCode: "MON", valueAddedTaxIncluded: false },
+        priceSpecification: { "@type": "UnitPriceSpecification", price: p.price.MONTHLY / 100, priceCurrency: "INR", billingDuration: 1, unitCode: "MON", valueAddedTaxIncluded: true },
       })),
     });
   }
@@ -99,7 +99,7 @@ export function GymPageView({ page }: { page: GymPage }) {
 
         <section id="plans" className="scroll-mt-6">
           <h2 className="text-2xl font-semibold">Plans and pricing</h2>
-          <p className="mt-3 text-muted">Every plan starts with a {TRIAL_DAYS}-day free trial. Prices are per month, before GST; yearly plans are billed upfront.</p>
+          <p className="mt-3 text-muted">Every plan starts with a {TRIAL_DAYS}-day free trial. Prices are per month, GST included; yearly plans are billed upfront.</p>
           <ul className="mt-5 grid gap-4 sm:grid-cols-3">
             {gymPlans.map((p) => (
               <li key={p.key} className="rounded-lg border border-line p-4">
@@ -152,7 +152,7 @@ export function GymPageView({ page }: { page: GymPage }) {
 
         <section className="rounded-lg border border-line p-6">
           <h2 className="text-2xl font-semibold">Try it with your own gym&apos;s numbers</h2>
-          <p className="mt-2 text-muted">Open an account, add a few members and make one invoice. If it is not for you, there is nothing to cancel: FITRON never debits your account.</p>
+          <p className="mt-2 text-muted">Open an account, add a few members and make one invoice. If it is not for you, nothing is charged: the trial needs no card, and a paid plan starts only when you choose it.</p>
           <div className="mt-4 flex flex-wrap gap-3">
             <a href={gymSignupHref({ plan: "professional" })} className={primary}>
               Start your {TRIAL_DAYS}-day free trial

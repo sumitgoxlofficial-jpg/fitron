@@ -1,5 +1,5 @@
 import { isTrainerPlan } from "@/lib/domain/trainer";
-import { memberView, startTrainerTrial } from "@/lib/services/trainer";
+import { memberWithRenewal, startTrainerTrial } from "@/lib/services/trainer";
 import { UserError } from "@/lib/services/errors";
 import { body, json, withTrainer } from "../_lib/http";
 
@@ -9,6 +9,6 @@ export async function POST(req: Request) {
     const { plan } = await body<{ plan?: unknown }>(req);
     // The trial is started on a named plan, so the account can't silently keep an older one.
     if (!isTrainerPlan(plan)) throw new UserError("Pick AI Pro or AI Premium.");
-    return json({ member: memberView(await startTrainerTrial(m.id, plan)) });
+    return json({ member: await memberWithRenewal(await startTrainerTrial(m.id, plan)) });
   });
 }

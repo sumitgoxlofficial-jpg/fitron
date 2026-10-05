@@ -52,7 +52,7 @@ export async function GET(req: Request) {
         { key: "code", label: "Trainer code" },
         { key: "members", label: "Linked members" },
         { key: "payments", label: "Payments" },
-        { key: "base", label: "Before GST (Rs)" },
+        { key: "base", label: "Price paid, the share is worked out from (Rs)" },
         { key: "share", label: "Owed to the gym (Rs)" },
       ],
       rows: rows.map((r) => ({ month, gym: r.gym, code: r.code ?? "", members: r.members, payments: r.payments, base: r.base / 100, share: r.share / 100 })),

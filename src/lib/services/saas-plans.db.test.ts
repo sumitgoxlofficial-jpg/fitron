@@ -41,11 +41,11 @@ describe.skipIf(!hasDb)("FITRON plans paid by UPI + UTR (database)", () => {
     await expect(createMember(inA, member("Locked Lata"))).rejects.toThrow(/plan has ended/);
 
     await expect(startPayment(owner, { kind: "PLAN", plan: "professional" }, "MONTHLY")).rejects.toThrow(/2 branches/);
-    await expect(startPayment(owner, { kind: "PLAN", plan: "ai-pro" }, "MONTHLY")).rejects.toThrow(/Gym Accounting plan/);
+    await expect(startPayment(owner, { kind: "PLAN", plan: "ai-pro" }, "MONTHLY")).rejects.toThrow(/Gym Accounting or Gym Partnership plan/);
     const c = await startPayment(owner, { kind: "PLAN", plan: "enterprise" }, "MONTHLY");
     if (c.mode !== "UPI") throw new Error("expected UPI");
-    expect(c.total).toBe(4_71_882);
-    expect(c.link).toMatch(/^upi:\/\/pay\?pa=fitron@okaxis&pn=FITRON&am=4718\.82&cu=INR&tn=FIT-/);
+    expect(c.total).toBe(3_99_900); // the listed Enterprise price, GST inside
+    expect(c.link).toMatch(/^upi:\/\/pay\?pa=fitron@okaxis&pn=FITRON&am=3999\.00&cu=INR&tn=FIT-/);
     expect(c.qr).toMatch(/^<svg/);
 
     await expect(submitUtr(owner, c.id, "12345")).rejects.toThrow(/12-digit/);

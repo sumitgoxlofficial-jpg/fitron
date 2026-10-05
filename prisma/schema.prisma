@@ -1137,43 +1137,76 @@ model AccessLog {
 /// Fitron's own billing: an extra branch beyond the 3 the plan includes, paid to Fitron.
 /// A payment from a gym to FITRON: a period of its Gym Accounting plan, or of one extra branch.
 model BranchSubscription {
-  id                String    @id @default(cuid())
-  orgId             String
-  /// PLAN | BRANCH
-  kind              String    @default("BRANCH")
-  /// PLAN only: the plan key paid for (starter, professional, enterprise)
-  plan              String?
+  id                     String    @id @default(cuid())
+  orgId                  String
+  /// PLAN | BRANCH | SERVICE (a one-time add-on such as onboarding or branding)
+  kind                   String    @default("BRANCH")
+  /// PLAN: the plan key paid for (starter, professional, enterprise, partner-*). SERVICE: the add-on key (onboarding, branding…)
+  plan                   String?
   /// BRANCH only; null = paid for but not yet given to a branch
-  branchId          String?
-  /// MONTHLY | YEARLY
-  cycle             String
-  base              Int
-  gst               Int
-  total             Int
-  periodStart       DateTime? @db.Date
-  periodEnd         DateTime? @db.Date
+  branchId               String?
+  /// MONTHLY | YEARLY | ONCE (SERVICE)
+  cycle                  String
+  base                   Int
+  gst                    Int
+  total                  Int
+  periodStart            DateTime? @db.Date
+  periodEnd              DateTime? @db.Date
   /// PENDING | SUBMITTED (UTR entered, FITRON checking) | PAID | REJECTED | FAILED
-  status            String    @default("PENDING")
-  /// UPI (FITRON's UPI QR + UTR) | LIVE (Razorpay) | DEMO
-  mode              String
+  status                 String    @default("PENDING")
+  /// UPI (FITRON's UPI QR + UTR) | LIVE (Razorpay Checkout, one payment) | SUBSCRIPTION (Razorpay, renews itself) | DEMO
+  mode                   String
   /// UPI only: the 12-digit UTR the gym typed after paying; one UTR pays for one thing
-  utr               String?   @unique
-  submittedAt       DateTime? @db.Timestamptz
+  utr                    String?   @unique
+  submittedAt            DateTime? @db.Timestamptz
   /// The FITRON team member who confirmed or rejected the UTR
-  reviewedBy        String?
-  reviewedAt        DateTime? @db.Timestamptz
-  rejectReason      String?
-  razorpayOrderId   String?   @unique
-  razorpayPaymentId String?   @unique
+  reviewedBy             String?
+  reviewedAt             DateTime? @db.Timestamptz
+  rejectReason           String?
+  razorpayOrderId        String?   @unique
+  razorpayPaymentId      String?   @unique
+  /// SUBSCRIPTION: the Razorpay subscription this charge belongs to (RazorpaySubscription.id). Every renewal is its own row.
+  razorpaySubscriptionId String?
   /// Fitron's tax invoice number, set when paid
-  invoiceNo         String?   @unique
-  createdById       String
-  createdAt         DateTime  @default(now()) @db.Timestamptz
-  paidAt            DateTime? @db.Timestamptz
+  invoiceNo              String?   @unique
+  createdById            String
+  createdAt              DateTime  @default(now()) @db.Timestamptz
+  paidAt                 DateTime? @db.Timestamptz
 
   @@index([orgId, status])
   @@index([status])
   @@index([branchId])
+  @@index([razorpaySubscriptionId])
+}
+
+/// A plan that renews itself through Razorpay Subscriptions (UPI AutoPay, card or e-mandate), made by FITRON for a gym
+/// (its plan, or one extra branch) or an AI Trainer member. Razorpay says on every charge; each charge becomes a
+/// BranchSubscription (gym) or TrainerPayment (member) row, and this row tracks the subscription itself.
+/// Plain ids, no relations: a subscription outlives edits to the gym or member it belongs to and must stay stoppable.
+model RazorpaySubscription {
+  /// Razorpay's own id (sub_…)
+  id           String    @id
+  /// GYM_PLAN | BRANCH | TRAINER
+  kind         String
+  orgId        String?
+  memberId     String?
+  /// What renews: starter, professional, enterprise, partner-* (GYM_PLAN), ai-pro, ai-premium (TRAINER); null for BRANCH
+  plan         String?
+  /// BRANCH: the branch it pays for; null until the paid slot is given to a branch
+  branchId     String?
+  /// MONTHLY | YEARLY
+  cycle        String
+  /// Razorpay's status: created | authenticated | active | pending | halted | cancelled | completed | paused | expired
+  status       String    @default("created")
+  paidCount    Int       @default(0)
+  nextChargeAt DateTime? @db.Timestamptz
+  /// When FITRON stopped it (the gym or member cancelled, or moved to another plan)
+  cancelledAt  DateTime? @db.Timestamptz
+  createdAt    DateTime  @default(now()) @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @db.Timestamptz
+
+  @@index([orgId, kind, status])
+  @@index([memberId, status])
 }
 
 /// A file kept against a member (ID proof, medical form, waiver…). Replacing or deleting keeps the old row.
@@ -1413,35 +1446,42 @@ model TrainerReview {
 
 /// A member paid FITRON by UPI and typed the UTR; the FITRON team checks it (see fitron-admin).
 model TrainerPayment {
-  id           String        @id @default(cuid())
-  memberId     String
+  id                     String        @id @default(cuid())
+  memberId               String
   /// Restrict: payment records are kept for tax, so a member row with payments can't be deleted outright
-  member       TrainerMember @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  member                 TrainerMember @relation(fields: [memberId], references: [id], onDelete: Restrict)
   /// ai-pro | ai-premium
-  plan         String
+  plan                   String
   /// MONTHLY | YEARLY
-  cycle        String
+  cycle                  String
   /// purchase | upgrade | renew | month: which button the member pressed
-  kind         String
-  base         Int
-  gst          Int
-  total        Int
-  /// UPI (FITRON_UPI_ID set) | DEMO (no UPI ID configured; nothing to match)
-  mode         String
+  kind                   String
+  base                   Int
+  gst                    Int
+  total                  Int
+  /// UPI (FITRON_UPI_ID set) | SUBSCRIPTION (Razorpay, renews itself) | DEMO (no UPI ID configured; nothing to match)
+  mode                   String
   /// PENDING | SUBMITTED | PAID | REJECTED
-  status       String        @default("PENDING")
-  utr          String?       @unique
-  submittedAt  DateTime?     @db.Timestamptz
-  reviewedBy   String?
-  reviewedAt   DateTime?     @db.Timestamptz
-  rejectReason String?
-  periodStart  DateTime?     @db.Date
-  periodEnd    DateTime?     @db.Date
-  createdAt    DateTime      @default(now()) @db.Timestamptz
-  paidAt       DateTime?     @db.Timestamptz
+  status                 String        @default("PENDING")
+  utr                    String?       @unique
+  submittedAt            DateTime?     @db.Timestamptz
+  reviewedBy             String?
+  reviewedAt             DateTime?     @db.Timestamptz
+  rejectReason           String?
+  periodStart            DateTime?     @db.Date
+  periodEnd              DateTime?     @db.Date
+  createdAt              DateTime      @default(now()) @db.Timestamptz
+  paidAt                 DateTime?     @db.Timestamptz
+  /// SUBSCRIPTION: the Razorpay subscription (RazorpaySubscription.id) and the payment of this charge
+  razorpaySubscriptionId String?
+  razorpayPaymentId      String?       @unique
+  /// true: the listed price was paid with the GST inside it (`total` is the listed price, `base` what is left after GST).
+  /// false (older rows): GST was added on top of the listed price, which is then `base`.
+  gstIncluded            Boolean       @default(false)
 
   @@index([status, submittedAt])
   @@index([memberId, createdAt])
+  @@index([razorpaySubscriptionId])
 }
 
 /// AI Coach messages a member sent on a day (India time), for the plan's daily limit.

@@ -1,4 +1,4 @@
-import { loadTrainer, memberView, saveTrainerState, type DayInput } from "@/lib/services/trainer";
+import { loadTrainer, memberWithRenewal, saveTrainerState, type DayInput } from "@/lib/services/trainer";
 import { db } from "@/lib/db";
 import { body, json, withTrainer } from "../_lib/http";
 
@@ -8,6 +8,6 @@ export async function PUT(req: Request) {
     const b = await body<{ profile?: unknown; day?: DayInput; onboarded?: boolean; consented?: boolean; cycle?: string; full?: boolean }>(req);
     await saveTrainerState(m.id, { profile: b.profile, day: b.day, onboarded: b.onboarded, consented: b.consented, cycle: b.cycle });
     if (b.full) return json(await loadTrainer(m.id));
-    return json({ ok: true, member: memberView(await db.trainerMember.findUniqueOrThrow({ where: { id: m.id } })) });
+    return json({ ok: true, member: await memberWithRenewal(await db.trainerMember.findUniqueOrThrow({ where: { id: m.id } })) });
   });
 }

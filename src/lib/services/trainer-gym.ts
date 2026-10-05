@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import type { CurrentUser } from "@/lib/auth/current";
 import type { Prisma, TrainerMember } from "@/generated/prisma/client";
 import { PARTNER_SHARE } from "@/lib/domain/pricing";
-import { progress, trainerAccess, type TrainerPlan } from "@/lib/domain/trainer";
+import { partnerBasis, progress, trainerAccess, type TrainerPlan } from "@/lib/domain/trainer";
 import { isUniqueViolation, UserError } from "./errors";
 import { getSetting } from "./settings";
 import { fromIso, todayIso, toIso } from "./time";
@@ -157,7 +157,7 @@ export type PartnershipRow = TrainerStatus & { gymMember: { id: string; code: st
 
 /**
  * The gym's Partnership page: every AI Trainer member linked to it, and what FITRON owes the gym for a
- * month (PARTNER_SHARE of the GST-free price of each AI Trainer payment confirmed that month while linked).
+ * month (PARTNER_SHARE of the listed price of each AI Trainer payment confirmed that month while linked, see partnerBasis).
  */
 export async function partnership(u: CurrentUser, month: string, today = todayIso()) {
   const start = fromIso(`${month}-01`);
@@ -179,9 +179,10 @@ export async function partnership(u: CurrentUser, month: string, today = todayIs
     member: p.member.name || p.member.email,
     plan: p.plan,
     cycle: p.cycle,
-    base: p.base,
+    /** What the share is worked out from: the listed price the member paid. */
+    base: partnerBasis(p),
     total: p.total,
-    share: Math.round(p.base * PARTNER_SHARE),
+    share: Math.round(partnerBasis(p) * PARTNER_SHARE),
     paidAt: p.paidAt!,
     periodEnd: p.periodEnd ? toIso(p.periodEnd) : null,
   }));

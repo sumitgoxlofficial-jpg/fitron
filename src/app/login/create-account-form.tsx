@@ -44,7 +44,7 @@ function PlanPicker({ planKey, cycle, onPlan, onCycle }: { planKey: string; cycl
           ))}
         </div>
       </fieldset>
-      <p className="text-xs text-muted">No card needed. Prices exclude 18% GST. Nothing is charged unless you choose to pay when the trial ends.</p>
+      <p className="text-xs text-muted">No card needed. Prices include 18% GST. Nothing is charged unless you choose to pay when the trial ends.</p>
     </div>
   );
 }
