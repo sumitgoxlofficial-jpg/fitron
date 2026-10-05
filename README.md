@@ -32,6 +32,20 @@ npm run dev            # http://localhost:3000 (landing page; the console is at 
 
 Checks: `npm run lint`, `npm run typecheck`, `npm test` (database tests run when `DATABASE_URL` is set), `npm run build`.
 
+### End-to-end tests
+
+`e2e/` holds browser tests (Playwright) that use the real app the way people do: sign up, sign in with two-step codes, sell a membership and read the GST invoice, open every console page on a desktop and a phone, check what each plan opens, and check the security headers and the Content-Security-Policy (the suite runs the server with `CSP_MODE=enforce`, so a page that needs something the policy forbids fails here). Each test makes its own gym, so tests do not depend on each other or on what an earlier run left in the database.
+
+```bash
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/fitron_test   # a database with the migrations applied (`npx prisma migrate deploy`)
+npm run build
+npx playwright install chromium    # once
+npm run e2e                        # starts `next start` on port 3100 itself (E2E_PORT to change it)
+npx playwright test sale.spec.ts   # one file;  add --ui to watch the browser
+```
+
+It tests the production build, so run `npm run build` again after changing the app. A server already running on the port is reused when not in CI, which is quicker but can be an old build. CI runs the same after the unit tests and keeps the report (traces and screenshots of failures) as a download on the run when something fails. The list of console pages is read from `src/app/(app)`, so a new page is covered without editing the tests.
+
 ## Go live
 
 To run Fitron for real on a free Oracle Cloud server (app, database, HTTPS, daily jobs and nightly backups in one command), follow [deploy/README.md](deploy/README.md).

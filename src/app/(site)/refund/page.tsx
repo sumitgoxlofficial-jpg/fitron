@@ -1,6 +1,7 @@
 import { LegalPage } from "../legal";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Refund Policy · FITRON", description: "When FITRON refunds subscription payments, and how to ask for one." };
+export const metadata = pageMetadata({ title: "Refund Policy · FITRON", description: "When FITRON refunds subscription payments, and how to ask for one.", path: "/refund" });
 
 export default function RefundPage() {
   return (

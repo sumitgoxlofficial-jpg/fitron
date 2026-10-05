@@ -19,6 +19,9 @@ const eslintConfig = defineConfig([
     // The AI Trainer member app is the design tool's export too, with React bundled in vendor/.
     "public/trainer/**",
     "src/generated/**",
+    // Output of the end-to-end tests.
+    "test-results/**",
+    "playwright-report/**",
   ]),
 ]);
 

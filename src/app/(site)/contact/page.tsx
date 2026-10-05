@@ -1,8 +1,9 @@
 import { ContactForm } from "./contact-form";
 import { publicCompany } from "@/lib/company";
+import { pageMetadata } from "@/lib/seo";
 import { TOPICS } from "@/lib/validation/site";
 
-export const metadata = { title: "Contact · FITRON", description: "Talk to FITRON: sales, demos, gym partnerships and support." };
+export const metadata = pageMetadata({ title: "Contact · FITRON", description: "Talk to FITRON: sales, demos, gym partnerships and support.", path: "/contact" });
 
 export default async function ContactPage({ searchParams }: PageProps<"/contact">) {
   const q = await searchParams;

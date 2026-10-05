@@ -47,3 +47,8 @@ session/
 !.env.example
 /storage/
 /deploy/backups/
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/

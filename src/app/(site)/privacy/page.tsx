@@ -1,6 +1,7 @@
 import { LegalPage } from "../legal";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Privacy Policy · FITRON", description: "How FITRON collects, uses and protects personal data under India's DPDP Act, 2023." };
+export const metadata = pageMetadata({ title: "Privacy Policy · FITRON", description: "How FITRON collects, uses and protects personal data under India's DPDP Act, 2023.", path: "/privacy" });
 
 export default function PrivacyPage() {
   return (
