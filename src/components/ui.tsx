@@ -106,7 +106,9 @@ export { cx };
 
 // The prototype's .table: uppercase small headers, hairline rows, a faint hover.
 export const TABLE = "w-full border-collapse text-sm";
-export const TH = "border-b border-line p-2.5 text-left text-[11px] font-bold tracking-[0.08em] whitespace-nowrap text-fg/60 uppercase";
+// relative: a header cell that holds a visually hidden label (sr-only is absolutely positioned) keeps it inside the cell, so it cannot
+// stick out of a scrolling table and widen the page.
+export const TH = "relative border-b border-line p-2.5 text-left text-[11px] font-bold tracking-[0.08em] whitespace-nowrap text-fg/60 uppercase";
 export const TD = "border-b border-fg/8 p-2.5 align-middle";
 export const TR = "hover:bg-fg/4";
 
