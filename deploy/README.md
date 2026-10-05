@@ -183,7 +183,7 @@ Not automatic: paying partner gyms their 70% share. The monthly amount owed is o
 
 ## 11. Use Supabase for the database (and, if you want, member files)
 
-Optional. By default the database is a Postgres container on this server, backed up every night into `deploy/backups`. [Supabase](https://supabase.com) can host it instead, so there is no database to look after here. Fitron uses Supabase only as a Postgres database and a file bucket. It does not use Supabase's own sign-in or its web API, and it needs none of the project's `SUPABASE_*` keys (project URL, publishable key, secret key): do not put them in `deploy/.env`.
+Optional. **Hosting on Vercel instead of a server? Follow [VERCEL.md](VERCEL.md); the certificate *file* below is for this Docker server.** By default the database is a Postgres container on this server, backed up every night into `deploy/backups`. [Supabase](https://supabase.com) can host it instead, so there is no database to look after here. Fitron uses Supabase only as a Postgres database and a file bucket. It does not use Supabase's own sign-in or its web API, and it needs none of the project's `SUPABASE_*` keys (project URL, publishable key, secret key): do not put them in `deploy/.env`.
 
 **Before you start**
 
