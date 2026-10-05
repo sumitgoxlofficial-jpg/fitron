@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/current";
-import { isFitronAdmin } from "@/lib/integrations/upi";
+import { isFitronAdmin } from "@/lib/integrations/fitron-team";
 import { partnerPayouts, trainerMembers, trainerOverview, trainerPaymentList, type TrainerListFilter } from "@/lib/services/trainer-admin";
 import { todayIso } from "@/lib/services/time";
 import { findPlan } from "@/lib/domain/pricing";
@@ -12,7 +12,7 @@ import { AdminTabs } from "../tabs";
 export const metadata = { title: "AI Trainer · FITRON" };
 
 const ACCESS: Record<string, [string, Tone]> = { ACTIVE: ["Paid", "ok"], TRIAL: ["Trial", "accent"], LOCKED: ["No plan", "neutral"] };
-const PAY: Record<string, [string, Tone]> = { PENDING: ["Started", "neutral"], SUBMITTED: ["UTR entered", "accent"], PAID: ["Confirmed", "ok"], REJECTED: ["Rejected", "alert"] };
+const PAY: Record<string, [string, Tone]> = { PENDING: ["Started", "neutral"], PAID: ["Paid", "ok"] };
 const STATUSES: [TrainerListFilter["status"], string][] = [["", "Everyone"], ["active", "Paying"], ["trial", "On trial"], ["locked", "No plan"], ["linked", "Linked to a gym"], ["new", "Joined in 30 days"]];
 const PAGE = 50;
 
@@ -56,7 +56,6 @@ export default async function TrainerAdminPage({ searchParams }: PageProps<"/fit
         <Stat label="Coach messages today" value={o.coachToday} />
         <Stat label={`Paid · ${fmtMonthShort(o.month)}`} value={formatRupees(o.thisMonth.total)} />
         <Stat label="Paid · last month" value={formatRupees(o.lastMonth.total)} />
-        <Stat label="UTRs to check" value={o.waiting} tone={o.waiting ? "alert" : undefined} />
       </div>
 
       {members && (
@@ -160,7 +159,7 @@ export default async function TrainerAdminPage({ searchParams }: PageProps<"/fit
                     <th className={TH}>Started</th>
                     <th className={TH}>Member</th>
                     <th className={TH}>What</th>
-                    <th className={TH}>Ref · UTR</th>
+                    <th className={TH}>Ref</th>
                     <th className={`${TH} text-right`}>Total</th>
                     <th className={TH}>Status</th>
                   </tr>
@@ -182,18 +181,11 @@ export default async function TrainerAdminPage({ searchParams }: PageProps<"/fit
                           {p.what} · {p.kind}
                           {p.periodEnd ? <span className="text-muted"> · till {fmtShort(p.periodEnd)}</span> : null}
                         </td>
-                        <td className={`${TD} font-mono text-xs`}>
-                          {p.ref}
-                          {p.utr ? ` · ${p.utr}` : ""}
-                        </td>
+                        <td className={`${TD} font-mono text-xs`}>{p.ref}</td>
                         <td className={`${TD} text-right tabular-nums`}>{formatRupees(p.total)}</td>
                         <td className={TD}>
                           <Badge tone={tone}>{label}</Badge>
-                          {p.mode === "DEMO" && <Badge tone="neutral">demo</Badge>}
-                          <div className="text-xs text-muted">
-                            {p.status === "PAID" && p.paidAt ? `${fmtStamp(p.paidAt)}${p.reviewedBy ? ` · ${p.reviewedBy}` : ""}` : ""}
-                            {p.status === "REJECTED" ? `${p.reviewedBy ?? ""}${p.rejectReason ? ` · ${p.rejectReason}` : ""}` : ""}
-                          </div>
+                          <div className="text-xs text-muted">{p.status === "PAID" && p.paidAt ? fmtStamp(p.paidAt) : ""}</div>
                         </td>
                       </tr>
                     );

@@ -16,7 +16,7 @@ const base: CheckInput = {
   backupAgeDays: 1,
   backupHref: "/settings/backup",
   idleMinutes: 30,
-  plan: { name: "Professional", standing: { kind: "PAID", until: "31 Dec 2026" }, checking: false },
+  plan: { name: "Professional", standing: { kind: "PAID", until: "31 Dec 2026" } },
   demo: false,
   demoMembers: 0,
 };
@@ -69,13 +69,12 @@ describe("go-live checklist", () => {
   });
 
   it("subscription standings", () => {
-    const sub = (standing: CheckInput["plan"]["standing"], checking = false) => item({ plan: { name: "Professional", standing, checking } }, "subscription");
+    const sub = (standing: CheckInput["plan"]["standing"]) => item({ plan: { name: "Professional", standing } }, "subscription");
     expect(sub({ kind: "CUSTOM" })).toMatchObject({ ok: true, detail: "Professional plan · set up by FITRON" });
     expect(sub({ kind: "PAID", until: "31 Dec 2026" })).toMatchObject({ ok: true, detail: "Professional plan · till 31 Dec 2026" });
     expect(sub({ kind: "TRIAL", daysLeft: 5 })).toMatchObject({ ok: false, recommended: true, detail: "Free trial · 5 days left" });
     expect(sub({ kind: "GRACE", readOnlyFrom: "12 Oct 2026" })).toMatchObject({ ok: false, recommended: false, detail: "Plan ended · renew before 12 Oct 2026" });
     expect(sub({ kind: "LAPSED" })).toMatchObject({ ok: false, recommended: false, detail: "Locked — pay to continue" });
-    expect(sub({ kind: "LAPSED" }, true)).toMatchObject({ recommended: true, detail: "Payment being checked" });
   });
 
   it("backup age", () => {

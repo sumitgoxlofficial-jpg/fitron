@@ -8,10 +8,9 @@ import { BRANCH_PLAN_KEY, razorpayPlan, RENEWING_STATUSES } from "@/lib/domain/r
 import { branchPrice, gstInside, gymTerms, longDate, nextPeriod, planPrice, planStanding, planWritable, reminderSubject, renewalReminder, standings, type Cycle, type GymTerms, type PlanStanding, type Standing, type SubscriptionSettings } from "@/lib/domain/saas";
 import { findService, servicePaise } from "@/lib/domain/services";
 import { createOrder, fitronKeyId, getFitronPayment, verifyCheckout, verifySubscriptionPayment } from "@/lib/integrations/razorpay";
-import { cleanUtr, fitronAdmins, fitronUpi, qrSvg, upiLink } from "@/lib/integrations/upi";
 import { sendEmail } from "@/lib/integrations/email";
 import { audit } from "./audit";
-import { isUniqueViolation, UserError } from "./errors";
+import { UserError } from "./errors";
 import { notify } from "./notifications";
 import { getGymProfile, getSetting } from "./settings";
 import { getSubscriptionSettings, gymWhatsAppNumber, renewalEmails } from "./subscription";
@@ -54,21 +53,18 @@ export type GymPlan = {
   cycle: Cycle;
   terms: GymTerms;
   standing: PlanStanding;
-  /** A UPI payment for the plan is waiting for the FITRON team to check its UTR. */
-  checking: boolean;
 };
 
 /** The gym's FITRON plan: which one, its limits, and whether it is on trial, paid, in grace or lapsed. */
 export async function gymPlan(orgId: string, today = todayIso(), tx: Tx = db): Promise<GymPlan> {
   const org = await tx.organization.findUniqueOrThrow({ where: { id: orgId }, select: { plan: true, planCycle: true, trialEndsAt: true } });
-  const [paid, checking] = await Promise.all([planPaidUntil(tx, orgId), tx.branchSubscription.count({ where: { orgId, kind: "PLAN", status: "SUBMITTED" } })]);
+  const paid = await planPaidUntil(tx, orgId);
   return {
     key: org.plan,
     name: findPlan(org.plan)?.name ?? org.plan,
     cycle: org.planCycle as Cycle,
     terms: gymTerms(org),
     standing: planStanding(trialLastDay(org.trialEndsAt), paid, today),
-    checking: checking > 0,
   };
 }
 
@@ -86,13 +82,10 @@ export const CLOSED_MESSAGE = "This branch is closed. Reopen it in Settings › 
 export const READ_ONLY_MESSAGE = "This branch is read-only because its extra-branch plan has lapsed. Its records are safe; a Super Admin can renew it in Settings › Plan & billing.";
 export const PLAN_LAPSED_MESSAGE = "Your FITRON plan has ended, so the gym is read-only. Your records are safe; a Super Admin can choose a plan in Settings › Plan & billing.";
 
-/**
- * No new members or invoices when the gym's trial or paid plan has run out (a UPI payment being
- * checked keeps it open), or in an extra branch whose paid period and grace have both run out.
- */
+/** No new members or invoices when the gym's trial or paid plan has run out, or in an extra branch whose paid period and grace have both run out. */
 export async function assertBranchWritable(tx: Tx, orgId: string, branchId: string) {
   const plan = await gymPlan(orgId, todayIso(), tx);
-  if (!planWritable(plan.standing) && !plan.checking) throw new UserError(PLAN_LAPSED_MESSAGE);
+  if (!planWritable(plan.standing)) throw new UserError(PLAN_LAPSED_MESSAGE);
   const row = await tx.branch.findFirst({ where: { orgId, id: branchId }, select: { active: true } });
   if (row && !row.active) throw new UserError(CLOSED_MESSAGE);
   const count = await tx.branch.count({ where: { orgId, active: true } });
@@ -138,12 +131,11 @@ export async function claimSlot(tx: Prisma.TransactionClient, orgId: string, bra
 }
 
 export async function billingHistory(u: CurrentUser) {
-  return db.branchSubscription.findMany({ where: { orgId: u.orgId, status: { in: ["PAID", "SUBMITTED", "REJECTED"] } }, orderBy: { createdAt: "desc" }, take: 50 });
+  return db.branchSubscription.findMany({ where: { orgId: u.orgId, status: "PAID" }, orderBy: { createdAt: "desc" }, take: 50 });
 }
 
 export type Checkout =
   | { mode: "DEMO"; id: string; total: number }
-  | { mode: "UPI"; id: string; total: number; upiId: string; payee: string; ref: string; link: string; qr: string }
   /** Razorpay Checkout for one payment (a period at a time, or an add-on). */
   | { mode: "LIVE"; id: string; total: number; keyId: string; orderId: string; name: string; description: string; prefill: { name: string; email: string } }
   /** Razorpay Checkout for a plan that renews itself: the first payment authorises every later one. */
@@ -151,9 +143,6 @@ export type Checkout =
 
 /** An add-on's `amount` is in whole rupees and only counts for quoted add-ons (see services.ts). */
 export type PaymentFor = { kind: "PLAN"; plan: string } | { kind: "BRANCH"; branchId: string | null } | { kind: "SERVICE"; service: string; amount?: number };
-
-/** The short code a gym writes in the UPI note so the FITRON team can match the money. */
-export const paymentRef = (id: string) => `FIT-${id.slice(-8).toUpperCase()}`;
 
 function describe(what: PaymentFor, cycle: Cycle | "ONCE") {
   if (what.kind === "SERVICE") return findService(what.service)?.name ?? "Add-on";
@@ -166,8 +155,8 @@ function describe(what: PaymentFor, cycle: Cycle | "ONCE") {
  * Starts a payment to FITRON for the gym's plan (a period of it, or a change to another plan), a Gym Partnership
  * plan, an extra branch (a new slot, or another period for an existing branch) or a one-time add-on. Listed prices
  * include GST. With Fitron's Razorpay keys set, a plan or branch that has a Razorpay plan is a subscription that
- * renews itself, and anything else is one Razorpay payment; otherwise it is paid by UPI QR + UTR when FITRON_UPI_ID
- * is set, else simulated (development only: a production server refuses).
+ * renews itself, and anything else is one Razorpay payment; without them the payment is simulated (development
+ * only: a production server refuses).
  */
 export async function startPayment(u: CurrentUser, what: PaymentFor, cycle: Cycle | "ONCE"): Promise<Checkout> {
   const plan = await gymPlan(u.orgId);
@@ -201,9 +190,8 @@ export async function startPayment(u: CurrentUser, what: PaymentFor, cycle: Cycl
     price = branchPrice(cycle);
   }
   const keyId = fitronKeyId();
-  const upi = keyId ? null : fitronUpi();
   // Demo payments move no money and are marked paid by the gym itself, so a live server never starts one.
-  if (!upi && !keyId && process.env.NODE_ENV === "production") throw new UserError("Payments to FITRON aren't switched on yet. Write to hello@fitron.in and we will set up your plan.");
+  if (!keyId && process.env.NODE_ENV === "production") throw new UserError("Payments to FITRON aren't switched on yet. Write to hello@fitron.in and we will set up your plan.");
   const renews = keyId && what.kind !== "SERVICE" ? razorpayPlan(what.kind === "PLAN" ? what.plan : BRANCH_PLAN_KEY, cycle) : null;
   if (renews && what.kind !== "SERVICE") {
     // The same plan and cycle already renewing, or that branch already renewing: a second subscription would charge twice.
@@ -211,7 +199,7 @@ export async function startPayment(u: CurrentUser, what: PaymentFor, cycle: Cycl
     const twin = live.find((s) => s.cycle === cycle && (what.kind === "PLAN" ? s.plan === what.plan : !!what.branchId && s.branchId === what.branchId));
     if (twin) throw new UserError(`${describe(what, cycle).replace(/, 1 (month|year)$/, "")} already renews automatically${twin.nextChargeAt ? ` (next charge ${longDate(toIso(twin.nextChargeAt))})` : ""}. To change it, pick another plan, or cancel the renewal under Automatic renewals.`);
   }
-  const mode = renews ? "SUBSCRIPTION" : keyId ? "LIVE" : upi ? "UPI" : "DEMO";
+  const mode = renews ? "SUBSCRIPTION" : keyId ? "LIVE" : "DEMO";
   // Razorpay first: if it refuses, nothing is left half-made here.
   const rz = renews ? await createSubscription({ kind: what.kind === "PLAN" ? "GYM_PLAN" : "BRANCH", plan: what.kind === "PLAN" ? what.plan : null, cycle: cycle as Cycle, expectedTotal: price.total, orgId: u.orgId, branchId: what.kind === "BRANCH" ? what.branchId : null }) : null;
   const sub = await db.branchSubscription.create({
@@ -228,11 +216,6 @@ export async function startPayment(u: CurrentUser, what: PaymentFor, cycle: Cycl
     },
   });
   const description = `${describe(what, cycle)} (GST included)`;
-  if (upi) {
-    const ref = paymentRef(sub.id);
-    const link = upiLink({ id: upi.id, name: upi.name, amount: price.total, note: `${ref} ${describe(what, cycle)}`.slice(0, 50) });
-    return { mode: "UPI", id: sub.id, total: price.total, upiId: upi.id, payee: upi.name, ref, link, qr: await qrSvg(link) };
-  }
   if (!keyId) return { mode: "DEMO", id: sub.id, total: price.total };
   const seller = fitronSeller();
   const prefill = { name: u.name, email: u.email };
@@ -243,34 +226,6 @@ export async function startPayment(u: CurrentUser, what: PaymentFor, cycle: Cycl
 }
 
 export const startBranchPayment = (u: CurrentUser, cycle: Cycle, branchId: string | null) => startPayment(u, { kind: "BRANCH", branchId }, cycle);
-
-/** The gym paid by UPI and typed the UTR. The FITRON team is told to check it. */
-export async function submitUtr(u: CurrentUser, id: string, raw: string) {
-  const utr = cleanUtr(raw);
-  if (!utr) throw new UserError("A UTR is the 12-digit number your UPI app shows after paying. Check it and try again.");
-  const sub = await db.branchSubscription.findFirst({ where: { id, orgId: u.orgId, mode: "UPI" } });
-  if (!sub) throw new UserError("Payment not found.");
-  if (sub.status !== "PENDING") throw new UserError("This payment already has a UTR. Start a new payment if you paid again.");
-  // A UTR is one bank transfer: it can't pay for both a gym plan and an AI Trainer plan.
-  if (await db.trainerPayment.findFirst({ where: { utr }, select: { id: true } })) throw new UserError("This UTR was already entered for another payment. Check the number in your UPI app.");
-  try {
-    await db.$transaction(async (tx) => {
-      const after = await tx.branchSubscription.update({ where: { id }, data: { status: "SUBMITTED", utr, submittedAt: new Date() } });
-      await audit(tx, { orgId: u.orgId, userId: u.id, action: "billing.utr-submitted", entity: "BranchSubscription", entityId: id, before: sub, after });
-    });
-  } catch (e) {
-    if (isUniqueViolation(e)) throw new UserError("This UTR was already entered for another payment. Check the number in your UPI app.");
-    throw e;
-  }
-  const what = sub.kind === "PLAN" ? `Gym Accounting ${findPlan(sub.plan)?.name ?? sub.plan}` : sub.kind === "SERVICE" ? (findService(sub.plan)?.name ?? "an add-on") : "an extra branch";
-  for (const to of fitronAdmins()) {
-    await sendEmail({
-      to,
-      subject: `UPI payment to check: ${(sub.total / 100).toFixed(2)} from ${u.orgName}`,
-      text: `${u.orgName} says they paid Rs ${(sub.total / 100).toFixed(2)} for ${what} (${sub.cycle.toLowerCase()}).\n\nUTR: ${utr}\nReference: ${paymentRef(sub.id)}\nBy: ${u.name} <${u.email}>\n\nCheck your bank or UPI app for this UTR, then confirm or reject it:\n${process.env.APP_URL?.trim() || "https://fitron.in"}/fitron-admin`,
-    }).catch((e) => log.error("saas.utr_email_failed", e));
-  }
-}
 
 async function invoiceNumber(tx: Prisma.TransactionClient, today: string) {
   const [{ n }] = await tx.$queryRaw<{ n: bigint }[]>`SELECT nextval('fitron_invoice_seq') AS n`;
@@ -284,7 +239,7 @@ async function invoiceNumber(tx: Prisma.TransactionClient, today: string) {
  * subscription the gym has already moved off); its period starts after the current paid period, or after
  * the trial if that is still running. An add-on has no period and changes nothing else.
  */
-async function completeIn(tx: Prisma.TransactionClient, where: { id: string } | { razorpayOrderId: string }, paymentId: string | null, reviewer?: string, opts: { keepPlan?: boolean } = {}) {
+async function completeIn(tx: Prisma.TransactionClient, where: { id: string } | { razorpayOrderId: string }, paymentId: string | null, opts: { keepPlan?: boolean } = {}) {
   const today = todayIso();
   const sub = await tx.branchSubscription.findFirst({ where });
   if (!sub) return null;
@@ -309,7 +264,6 @@ async function completeIn(tx: Prisma.TransactionClient, where: { id: string } | 
       ...(p ? { periodStart: fromIso(p.start), periodEnd: fromIso(p.end) } : {}),
       razorpayPaymentId: paymentId,
       invoiceNo: await invoiceNumber(tx, today),
-      ...(reviewer ? { reviewedBy: reviewer, reviewedAt: new Date(), rejectReason: null } : {}),
     },
   });
   const action = fresh.kind === "PLAN" ? "billing.plan-paid" : fresh.kind === "SERVICE" ? "billing.service-paid" : "billing.branch-paid";
@@ -317,11 +271,11 @@ async function completeIn(tx: Prisma.TransactionClient, where: { id: string } | 
   return after;
 }
 
-const complete = (where: { id: string } | { razorpayOrderId: string }, paymentId: string | null, reviewer?: string) => db.$transaction((tx) => completeIn(tx, where, paymentId, reviewer));
+const complete = (where: { id: string } | { razorpayOrderId: string }, paymentId: string | null) => db.$transaction((tx) => completeIn(tx, where, paymentId));
 
-/** Demo mode only (neither FITRON_UPI_ID nor Fitron's Razorpay keys set): the payment is simulated. Never on a live server. */
+/** Demo mode only (Fitron's Razorpay keys not set): the payment is simulated. Never on a live server. */
 export async function confirmDemoPayment(u: CurrentUser, id: string) {
-  if (process.env.NODE_ENV === "production") throw new UserError("Payments to FITRON are confirmed by the FITRON team. Write to hello@fitron.in.");
+  if (process.env.NODE_ENV === "production") throw new UserError("Payments to FITRON are made online with Razorpay and confirmed by it. Write to hello@fitron.in if you need help.");
   const sub = await db.branchSubscription.findFirst({ where: { id, orgId: u.orgId } });
   if (!sub || sub.mode !== "DEMO") throw new UserError("Payment not found.");
   return complete({ id }, null);
@@ -365,7 +319,7 @@ async function recordGymCharge(subId: string, paymentId: string, amount: number 
     }
     // A subscription the gym has already moved off (new plan paid, or renewal cancelled) must not flip the plan back.
     const movedOn = sub.kind === "GYM_PLAN" && !!sub.cancelledAt && !!(await tx.branchSubscription.findFirst({ where: { orgId: sub.orgId, kind: "PLAN", status: "PAID", createdAt: { gt: sub.createdAt }, NOT: { razorpaySubscriptionId: subId } }, select: { id: true } }));
-    const done = await completeIn(tx, { id: row.id }, paymentId, undefined, { keepPlan: movedOn });
+    const done = await completeIn(tx, { id: row.id }, paymentId, { keepPlan: movedOn });
     await markCharged(tx, subId);
     return { row: done!, fresh: true, sub, renewal };
   });
@@ -421,40 +375,10 @@ export async function cancelAutoRenewal(u: CurrentUser, id: string) {
   await db.$transaction((tx) => audit(tx, { orgId: u.orgId, userId: u.id, action: "billing.autorenew-cancelled", entity: "RazorpaySubscription", entityId: id, before: sub, after: { ...sub, status: "cancelled" } }));
 }
 
-/** UPI payments waiting for the FITRON team, oldest first, across all gyms. */
-export async function paymentsToCheck() {
-  const subs = await db.branchSubscription.findMany({ where: { mode: "UPI", status: "SUBMITTED" }, orderBy: { submittedAt: "asc" }, take: 200 });
-  const recent = await db.branchSubscription.findMany({ where: { mode: "UPI", reviewedAt: { not: null } }, orderBy: { reviewedAt: "desc" }, take: 20 });
-  const orgs = await db.organization.findMany({ where: { id: { in: [...subs, ...recent].map((s) => s.orgId) } }, select: { id: true, name: true } });
-  const name = new Map(orgs.map((o) => [o.id, o.name]));
-  const row = (s: (typeof subs)[number]) => ({ ...s, gym: name.get(s.orgId) ?? "", ref: paymentRef(s.id), what: s.kind === "PLAN" ? `${findPlan(s.plan)?.name ?? s.plan} plan` : s.kind === "SERVICE" ? (findService(s.plan)?.name ?? "Add-on") : "Extra branch" });
-  return { waiting: subs.map(row), recent: recent.map(row) };
-}
-
 async function tellGym(orgId: string, text: string, subject: string) {
   await db.$transaction((tx) => notify(tx, { orgId, type: "BILLING", text, link: "/settings/billing" }));
   const owners = await db.user.findMany({ where: { orgId, active: true, deletedAt: null, role: { name: "Super Admin" } }, select: { email: true, name: true } });
   for (const o of owners) await sendEmail({ to: o.email, subject, text: `Hi ${o.name},\n\n${text}\n\nFITRON\nhello@fitron.in` }).catch((e) => log.error("saas.billing_email_failed", e));
-}
-
-/** The FITRON team found the UTR in the bank statement (or didn't). Confirming makes it paid and issues the invoice. */
-export async function reviewPayment(reviewer: { email: string }, id: string, decision: "CONFIRM" | "REJECT", reason = "") {
-  const sub = await db.branchSubscription.findFirst({ where: { id, mode: "UPI", status: { in: ["SUBMITTED", "REJECTED"] } } });
-  if (!sub) throw new UserError("This payment isn't waiting for a check.");
-  const amount = `Rs ${(sub.total / 100).toFixed(2)}`;
-  if (decision === "CONFIRM") {
-    const done = await complete({ id }, null, reviewer.email);
-    await tellGym(sub.orgId, `We received your UPI payment of ${amount} (UTR ${sub.utr}). It's active now and the invoice is in Settings › Plan & billing.`, "Your FITRON payment is confirmed");
-    return done;
-  }
-  if (!reason.trim()) throw new UserError("Say why, so the gym knows what to fix.");
-  // The audit row has no gym user as actor (the reviewer belongs to the FITRON team); who decided, and why, are in `after`.
-  await db.$transaction(async (tx) => {
-    const after = await tx.branchSubscription.update({ where: { id }, data: { status: "REJECTED", reviewedBy: reviewer.email, reviewedAt: new Date(), rejectReason: reason.trim() } });
-    await audit(tx, { orgId: sub.orgId, userId: null, action: "billing.utr-rejected", entity: "BranchSubscription", entityId: id, before: sub, after });
-  });
-  await tellGym(sub.orgId, `We couldn't match your UPI payment of ${amount} (UTR ${sub.utr}): ${reason.trim()}. Check the UTR in your UPI app and pay again, or reply to this email.`, "We couldn't confirm your FITRON payment");
-  return null;
 }
 
 type RzpPayment = { id?: string; order_id?: string; status?: string; amount?: number };
@@ -562,7 +486,7 @@ async function deliverReminder(orgId: string, cfg: SubscriptionSettings, text: s
 export async function billingReminders(orgId: string, today: string): Promise<ReminderCounts> {
   const [cfg, plan, { branches }] = await Promise.all([getSubscriptionSettings(orgId), gymPlan(orgId, today), branchStandings(orgId, today)]);
   const n: ReminderCounts = { sent: 0, whatsapp: 0, email: 0 };
-  const r = renewalReminder(plan.standing, plan.name, today, cfg.remindDays, plan.checking);
+  const r = renewalReminder(plan.standing, plan.name, today, cfg.remindDays);
   if (r) await deliverReminder(orgId, cfg, r.text, null, n);
   for (const b of branches) {
     const s: Standing = b.standing;

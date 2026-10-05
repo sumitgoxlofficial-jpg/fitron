@@ -29,7 +29,7 @@ export default function RefundPage() {
       </section>
       <section>
         <h2 id="how">How to ask</h2>
-        <p>Write to <a href="mailto:hello@fitron.in?subject=Refund%20request">hello@fitron.in</a> or use the <a href="/contact?topic=support">contact form</a> with your registered email and the payment reference (UTR or Razorpay ID). We reply within 2 working days.</p>
+        <p>Write to <a href="mailto:hello@fitron.in?subject=Refund%20request">hello@fitron.in</a> or use the <a href="/contact?topic=support">contact form</a> with your registered email and the Razorpay payment ID. We reply within 2 working days.</p>
         <p>Approved refunds go back to the original payment method within 5 to 7 working days. GST is refunded with the amount it was charged on.</p>
       </section>
       <section>

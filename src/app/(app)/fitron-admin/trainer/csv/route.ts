@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth/current";
-import { isFitronAdmin } from "@/lib/integrations/upi";
+import { isFitronAdmin } from "@/lib/integrations/fitron-team";
 import { partnerPayouts, trainerMembers, trainerPaymentList, type TrainerListFilter } from "@/lib/services/trainer-admin";
 import { toCsv } from "@/lib/services/reports";
 import { todayIso } from "@/lib/services/time";
@@ -27,19 +27,16 @@ export async function GET(req: Request) {
         { key: "what", label: "Plan" },
         { key: "kind", label: "Kind" },
         { key: "ref", label: "Ref" },
-        { key: "utr", label: "UTR" },
         { key: "base", label: "Before GST (Rs)" },
         { key: "gst", label: "GST (Rs)" },
         { key: "total", label: "Total (Rs)" },
         { key: "mode", label: "Mode" },
         { key: "status", label: "Status" },
-        { key: "paidAt", label: "Confirmed" },
-        { key: "reviewedBy", label: "Checked by" },
-        { key: "rejectReason", label: "Rejected because" },
+        { key: "paidAt", label: "Paid" },
         { key: "periodStart", label: "Period from" },
         { key: "periodEnd", label: "Period to" },
       ],
-      rows: rows.map((p) => ({ ...p, started: stamp(p.createdAt), createdAt: stamp(p.createdAt), submittedAt: stamp(p.submittedAt), paidAt: stamp(p.paidAt), base: p.base / 100, gst: p.gst / 100, total: p.total / 100, utr: p.utr ?? "", gym: p.gym ?? "", reviewedBy: p.reviewedBy ?? "", rejectReason: p.rejectReason ?? "", periodStart: p.periodStart ?? "", periodEnd: p.periodEnd ?? "" })),
+      rows: rows.map((p) => ({ ...p, started: stamp(p.createdAt), createdAt: stamp(p.createdAt), paidAt: stamp(p.paidAt), base: p.base / 100, gst: p.gst / 100, total: p.total / 100, gym: p.gym ?? "", periodStart: p.periodStart ?? "", periodEnd: p.periodEnd ?? "" })),
     });
   } else if (what === "payouts") {
     const m = sp.get("month") ?? "";

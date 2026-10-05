@@ -102,7 +102,6 @@ export default async function FitronInvoicePage({ params }: PageProps<"/settings
             </div>
           </dl>
           {sub.razorpayPaymentId && <p className="text-muted">Paid online · Razorpay {sub.razorpayPaymentId}</p>}
-          {sub.utr && <p className="text-muted">Paid by UPI · UTR {sub.utr}</p>}
         </div>
       </Card>
     </>

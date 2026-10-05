@@ -24,7 +24,6 @@ describe.skipIf(!hasDb)("Settings › Subscription (database)", () => {
   beforeAll(() => {
     vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "");
     vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", "");
-    vi.stubEnv("FITRON_UPI_ID", "");
   });
   afterAll(() => vi.unstubAllEnvs());
 

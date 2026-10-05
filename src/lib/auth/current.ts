@@ -75,7 +75,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     branch,
     branchIds,
     can: (p) => perms.has(p),
-    planBlocked: plan.standing.kind === "LAPSED" && !plan.checking,
+    planBlocked: plan.standing.kind === "LAPSED",
     plan: planView,
     has: (f) => planHas(planView, f),
   };

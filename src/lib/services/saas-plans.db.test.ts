@@ -1,34 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { hasDb, makeGym, pick } from "@/test/db";
-
-const sent: { to: string; subject: string; text: string }[] = [];
-vi.mock("@/lib/integrations/email", () => ({
-  emailReady: () => true,
-  sendEmail: async (m: { to: string; subject: string; text: string }) => {
-    sent.push(m);
-    return { sent: true };
-  },
-}));
-
-const { createMember } = await import("./members");
-const { saveBranch } = await import("./settings");
-const { billingHistory, gymPlan, paymentsToCheck, reviewPayment, startPayment, submitUtr } = await import("./saas");
+import { createMember } from "./members";
+import { saveBranch } from "./settings";
+import { billingHistory, confirmDemoPayment, gymPlan, startPayment } from "./saas";
 
 const DAY = 86_400_000;
-const utr = () => String(Math.floor(1e11 + Math.random() * 9e11));
 let phone = 9_700_000_000;
 const member = (name: string) => ({ name, gender: "Female" as const, phone: String(phone++), source: "Walk-in" as const, tags: [] });
 
-describe.skipIf(!hasDb)("FITRON plans paid by UPI + UTR (database)", () => {
+describe.skipIf(!hasDb)("FITRON plans (database)", () => {
+  // Payments to FITRON go through Razorpay only. With its keys unset the app runs in demo mode (not in production).
   beforeAll(() => {
-    vi.stubEnv("FITRON_UPI_ID", "fitron@okaxis");
-    vi.stubEnv("FITRON_UPI_NAME", "FITRON");
-    vi.stubEnv("FITRON_ADMIN_EMAILS", "Team@Fitron.in");
+    vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "");
+    vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", "");
   });
   afterAll(() => vi.unstubAllEnvs());
 
-  it("runs a trial, locks when it ends, and reopens once the FITRON team confirms the UTR", async () => {
+  it("runs a trial, locks when it ends, and reopens once the plan is paid", async () => {
     const gym = await makeGym();
     await db.organization.update({ where: { id: gym.org.id }, data: { plan: "enterprise", trialEndsAt: new Date(Date.now() + 7 * DAY) } });
     const owner = await gym.user("Super Admin");
@@ -43,57 +32,43 @@ describe.skipIf(!hasDb)("FITRON plans paid by UPI + UTR (database)", () => {
     await expect(startPayment(owner, { kind: "PLAN", plan: "professional" }, "MONTHLY")).rejects.toThrow(/2 branches/);
     await expect(startPayment(owner, { kind: "PLAN", plan: "ai-pro" }, "MONTHLY")).rejects.toThrow(/Gym Accounting or Gym Partnership plan/);
     const c = await startPayment(owner, { kind: "PLAN", plan: "enterprise" }, "MONTHLY");
-    if (c.mode !== "UPI") throw new Error("expected UPI");
+    expect(c.mode).toBe("DEMO");
     expect(c.total).toBe(3_99_900); // the listed Enterprise price, GST inside
-    expect(c.link).toMatch(/^upi:\/\/pay\?pa=fitron@okaxis&pn=FITRON&am=3999\.00&cu=INR&tn=FIT-/);
-    expect(c.qr).toMatch(/^<svg/);
+    // Started is not paid: the plan stays locked and the history shows only what was paid.
+    expect((await gymPlan(gym.org.id)).standing.kind).toBe("LAPSED");
+    expect((await billingHistory(owner)).map((h) => h.id)).not.toContain(c.id);
 
-    await expect(submitUtr(owner, c.id, "12345")).rejects.toThrow(/12-digit/);
-    const number = utr();
-    sent.length = 0;
-    await submitUtr(owner, c.id, `${number.slice(0, 4)} ${number.slice(4)}`);
-    expect(sent.map((m) => m.to)).toEqual(["team@fitron.in"]);
-    expect(sent[0]!.text).toContain(number);
-    await expect(submitUtr(owner, c.id, number)).rejects.toThrow(/already has a UTR/);
-
-    // While the team checks, the gym keeps working.
-    expect((await gymPlan(gym.org.id)).checking).toBe(true);
-    await createMember(inA, member("Waiting Wasim"));
-    expect((await paymentsToCheck()).waiting.map((p) => p.id)).toContain(c.id);
-
-    // The same UTR can't pay twice.
-    const again = await startPayment(owner, { kind: "PLAN", plan: "enterprise" }, "MONTHLY");
-    await expect(submitUtr(owner, again.id, number)).rejects.toThrow(/already entered/);
-
-    await expect(reviewPayment({ email: "team@fitron.in" }, c.id, "REJECT", " ")).rejects.toThrow(/why/);
-    sent.length = 0;
-    const paid = await reviewPayment({ email: "team@fitron.in" }, c.id, "CONFIRM");
-    expect(paid).toMatchObject({ status: "PAID", reviewedBy: "team@fitron.in", utr: number });
+    const paid = await confirmDemoPayment(owner, c.id);
+    expect(paid).toMatchObject({ status: "PAID", mode: "DEMO" });
     expect(paid?.invoiceNo).toMatch(/^FIT\//);
-    expect(sent.map((m) => m.subject)).toEqual(["Your FITRON payment is confirmed"]);
     const plan = await gymPlan(gym.org.id);
-    expect(plan).toMatchObject({ key: "enterprise", cycle: "MONTHLY", checking: false });
+    expect(plan).toMatchObject({ key: "enterprise", cycle: "MONTHLY" });
     expect(plan.standing.kind).toBe("PAID");
     await createMember(inA, member("Paid Pooja"));
-    await expect(reviewPayment({ email: "team@fitron.in" }, c.id, "CONFIRM")).rejects.toThrow(/isn't waiting/);
+    expect((await billingHistory(owner)).map((h) => h.id)).toContain(c.id);
+    // Paying twice for the same demo payment changes nothing.
+    expect((await confirmDemoPayment(owner, c.id))?.invoiceNo).toBe(paid?.invoiceNo);
   });
 
-  it("tells the gym when a UTR doesn't match", async () => {
+  it("takes no payment on a live server until Razorpay is set up", async () => {
     const gym = await makeGym();
     await db.organization.update({ where: { id: gym.org.id }, data: { plan: "enterprise", trialEndsAt: new Date(Date.now() + 3 * DAY) } });
     const owner = await gym.user("Super Admin");
-    const c = await startPayment(owner, { kind: "BRANCH", branchId: null }, "YEARLY");
-    await submitUtr(owner, c.id, utr());
-    sent.length = 0;
-    await reviewPayment({ email: "team@fitron.in" }, c.id, "REJECT", "No payment with this UTR");
-    expect(sent[0]).toMatchObject({ to: owner.email, subject: "We couldn't confirm your FITRON payment" });
-    const h = await billingHistory(owner);
-    expect(h.find((x) => x.id === c.id)).toMatchObject({ status: "REJECTED", rejectReason: "No payment with this UTR", invoiceNo: null });
-    // The decision is in the gym's audit log, with the reviewer and the reason, and no gym user as the actor.
-    const row = await db.auditLog.findFirstOrThrow({ where: { orgId: gym.org.id, action: "billing.utr-rejected", entityId: c.id } });
-    expect(row).toMatchObject({ actorType: "SYSTEM", userId: null, entity: "BranchSubscription" });
-    expect(row.after).toMatchObject({ status: "REJECTED", reviewedBy: "team@fitron.in", rejectReason: "No payment with this UTR" });
-    expect(row.hash).toBeTruthy();
+    const before = await db.branchSubscription.count({ where: { orgId: gym.org.id } });
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      await expect(startPayment(owner, { kind: "PLAN", plan: "enterprise" }, "YEARLY")).rejects.toThrow(/Payments to FITRON aren't switched on yet/);
+      await expect(startPayment(owner, { kind: "BRANCH", branchId: null }, "YEARLY")).rejects.toThrow(/aren't switched on yet/);
+      // A demo payment started elsewhere can't be marked paid on a live server either.
+      vi.stubEnv("NODE_ENV", "test");
+      const demo = await startPayment(owner, { kind: "BRANCH", branchId: null }, "YEARLY");
+      vi.stubEnv("NODE_ENV", "production");
+      await expect(confirmDemoPayment(owner, demo.id)).rejects.toThrow(/made online with Razorpay/);
+    } finally {
+      vi.stubEnv("NODE_ENV", "test");
+    }
+    // Nothing was left half-made by the refused ones: only the one demo row exists.
+    expect(await db.branchSubscription.count({ where: { orgId: gym.org.id } })).toBe(before + 1);
   });
 
   it("caps Starter at 100 active members and one branch", async () => {

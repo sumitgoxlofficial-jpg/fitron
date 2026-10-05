@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/current";
-import { isFitronAdmin } from "@/lib/integrations/upi";
+import { isFitronAdmin } from "@/lib/integrations/fitron-team";
 import { listContent, saveContent } from "@/lib/services/trainer-content";
 import { UserError } from "@/lib/services/errors";
 import { Badge, Button, Input, Notice, PageHeader, TABLE, TD, TH, TR, ScrollRegion } from "@/components/ui";

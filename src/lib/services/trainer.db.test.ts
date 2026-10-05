@@ -1,9 +1,10 @@
-import { randomInt, randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { createHmac, randomUUID } from "node:crypto";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { hasDb } from "@/test/db";
 import { db } from "@/lib/db";
 import { appUrl } from "./accounts";
 import { addDays } from "@/lib/domain/dates";
+import { RAZORPAY_PLANS } from "@/lib/domain/razorpay-plans";
 import { COACH_DAILY_LIMIT } from "@/lib/domain/trainer";
 import {
   deleteTrainerAccount,
@@ -18,19 +19,58 @@ import {
   saveTrainerState,
   startTrainerPayment,
   startTrainerTrial,
-  submitTrainerUtr,
   takeCoachMessage,
 } from "./trainer";
-import { reviewTrainerPayment, trainerPaymentsToCheck } from "./trainer-admin";
+import { confirmTrainerSubscription } from "./trainer-billing";
 import { coachSystem, profileLines } from "./trainer-coach";
 import { currentPlan } from "./trainer-session";
 import { fromIso, toIso, todayIso } from "./time";
 
 const email = () => `t-${randomUUID().slice(0, 8)}@test.local`;
-const utr = () => String(randomInt(100_000, 999_999)) + String(randomInt(100_000, 999_999));
 const member = (id: string) => db.trainerMember.findUniqueOrThrow({ where: { id } });
 
+const SECRET = "test-secret";
+const planAmounts = new Map(Object.values(RAZORPAY_PLANS).flatMap((c) => Object.values(c).map((p) => [p!.id, p!.amount] as const)));
+
+/**
+ * FITRON's Razorpay keys, and a stand-in for Razorpay's API that knows the live plans and accepts every payment.
+ * `pay` runs the member through Checkout's success step for a payment they started, as the browser would.
+ */
+function razorpayOn() {
+  vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
+  vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", SECRET);
+  const amounts = new Map<string, number>();
+  const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const path = new URL(url).pathname.replace(/^\/v1/, "");
+      const id = path.split("/")[2] ?? "";
+      if (path.startsWith("/plans/")) return reply({ id, item: { amount: planAmounts.get(id), currency: "INR" } });
+      if (path === "/subscriptions") return reply({ id: `sub_${randomUUID().slice(0, 10)}`, status: "created" });
+      if (path.endsWith("/cancel")) return reply({ id, status: "cancelled" });
+      if (path.startsWith("/payments/")) return reply({ id, status: "captured", amount: amounts.get(id) ?? 0 });
+      return reply({ error: { description: `fake Razorpay has no ${init?.method ?? "GET"} ${path}` } }, 404);
+    }),
+  );
+  return {
+    pay: async (memberId: string, a: Parameters<typeof startTrainerPayment>[1]) => {
+      const pay = await startTrainerPayment(memberId, a);
+      const paymentId = `pay_${randomUUID().slice(0, 10)}`;
+      amounts.set(paymentId, pay.total);
+      const signature = createHmac("sha256", SECRET).update(`${paymentId}|${pay.subscriptionId}`).digest("hex");
+      await confirmTrainerSubscription(memberId, pay.id, { paymentId, subscriptionId: pay.subscriptionId, signature });
+      return pay;
+    },
+  };
+}
+
 describe.skipIf(!hasDb)("AI Trainer (database)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
   it("an email link creates the account once and works only once", async () => {
     const e = email();
     const r = await requestTrainerLink(e.toUpperCase());
@@ -99,56 +139,43 @@ describe.skipIf(!hasDb)("AI Trainer (database)", () => {
     expect(await takeCoachMessage(p, today)).toEqual({ ok: true, used: 26, limit: 100 });
   });
 
-  it("a UPI payment waits for FITRON, and confirming it starts the plan after the trial", async () => {
+  it("nothing can be paid until FITRON's Razorpay keys are set", async () => {
+    vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "");
+    vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", "");
+    const m = await findOrCreateTrainer(email(), "EMAIL");
+    await startTrainerTrial(m.id, "ai-pro");
+    await expect(startTrainerPayment(m.id, { plan: "ai-premium", cycle: "YEARLY", kind: "purchase" })).rejects.toThrow(/Payments aren't switched on yet/);
+    // The member's input is still checked first, and no payment row is left behind.
+    await expect(startTrainerPayment(m.id, { plan: "elite", cycle: "MONTHLY", kind: "purchase" })).rejects.toThrow(/Pick AI Pro/);
+    expect(await db.trainerPayment.count({ where: { memberId: m.id } })).toBe(0);
+  });
+
+  it("a payment through Razorpay starts the plan after the trial", async () => {
+    const rz = razorpayOn();
     const m = await findOrCreateTrainer(email(), "EMAIL", "Ravi");
     await startTrainerTrial(m.id, "ai-pro");
-    const pay = await startTrainerPayment(m.id, { plan: "ai-premium", cycle: "YEARLY", kind: "purchase" });
-    // The listed ₹4,999 is what is paid; the GST is inside it.
-    expect(pay).toMatchObject({ mode: "DEMO", base: 423_644, gst: 76_256, total: 4_99_900 });
-    if (pay.mode !== "DEMO") throw new Error("expected a demo payment");
-    expect(pay.link).toMatch(/^upi:\/\/pay\?/);
-    expect(pay.link).toContain("am=4999.00");
-    expect((await db.trainerPayment.findUniqueOrThrow({ where: { id: pay.id } })).gstIncluded).toBe(true);
     await expect(startTrainerPayment(m.id, { plan: "elite", cycle: "MONTHLY", kind: "purchase" })).rejects.toThrow(/Pick AI Pro/);
+    const pay = await rz.pay(m.id, { plan: "ai-premium", cycle: "YEARLY", kind: "purchase" });
+    // The listed ₹4,999 is what is paid; the GST is inside it.
+    expect(pay).toMatchObject({ mode: "SUBSCRIPTION", base: 423_644, gst: 76_256, total: 4_99_900, keyId: "rzp_test_x" });
+    const row = await db.trainerPayment.findUniqueOrThrow({ where: { id: pay.id } });
+    expect(row).toMatchObject({ status: "PAID", gstIncluded: true, mode: "SUBSCRIPTION" });
 
-    await expect(submitTrainerUtr(m.id, pay.id, "12345")).rejects.toThrow(/12-digit UTR/);
-    const u = utr();
-    expect(await submitTrainerUtr(m.id, pay.id, ` ${u.slice(0, 6)} ${u.slice(6)} `)).toMatchObject({ status: "SUBMITTED", utr: u });
-    await expect(submitTrainerUtr(m.id, pay.id, utr())).rejects.toThrow(/already has a UTR/);
-    const again = await startTrainerPayment(m.id, { plan: "ai-pro", cycle: "MONTHLY", kind: "purchase" });
-    await expect(submitTrainerUtr(m.id, again.id, u)).rejects.toThrow(/already entered/);
-
-    const list = await trainerPaymentsToCheck();
-    expect(list.waiting.find((r) => r.id === pay.id)).toMatchObject({ member: "Ravi", what: "AI Premium, yearly", total: 4_99_900, utr: u, mode: "DEMO" });
-
-    const admin = { email: "team@fitron.in" };
-    await expect(reviewTrainerPayment(admin, pay.id, "REJECT", " ")).rejects.toThrow(/Say why/);
-    await reviewTrainerPayment(admin, pay.id, "REJECT", "Not in the statement");
-    expect((await db.trainerPayment.findUniqueOrThrow({ where: { id: pay.id } })).status).toBe("REJECTED");
-
-    const done = await reviewTrainerPayment(admin, pay.id, "CONFIRM");
     const after = await member(m.id);
     const trialEnd = todayIso(after.trialEndsAt!);
-    expect(done?.status).toBe("PAID");
-    expect(toIso(done!.periodStart!)).toBe(trialEnd);
+    expect(toIso(row.periodStart!)).toBe(trialEnd);
     expect(after).toMatchObject({ plan: "ai-premium", cycle: "YEARLY", planCancelled: false });
-    expect(toIso(after.paidUntil!)).toBe(toIso(done!.periodEnd!));
+    expect(toIso(after.paidUntil!)).toBe(toIso(row.periodEnd!));
     expect(toIso(after.paidUntil!) > addDays(trialEnd, 360)).toBe(true);
     expect((await loadTrainer(m.id)).member.access).toBe("ACTIVE");
-    await expect(reviewTrainerPayment(admin, pay.id, "CONFIRM")).rejects.toThrow(/isn't waiting/);
-    await expect(reviewTrainerPayment(admin, pay.id, "REJECT", "late click")).rejects.toThrow(/isn't waiting/);
-    expect((await trainerPaymentsToCheck()).recent.find((r) => r.id === pay.id)?.status).toBe("PAID");
   });
 
   it("moving down to AI Pro waits until the AI Premium time already paid for runs out", async () => {
+    const rz = razorpayOn();
     const m = await findOrCreateTrainer(email(), "EMAIL");
-    const admin = { email: "team@fitron.in" };
-    const premium = await startTrainerPayment(m.id, { plan: "ai-premium", cycle: "MONTHLY", kind: "purchase" });
-    await submitTrainerUtr(m.id, premium.id, utr());
-    await reviewTrainerPayment(admin, premium.id, "CONFIRM");
-    const pro = await startTrainerPayment(m.id, { plan: "ai-pro", cycle: "MONTHLY", kind: "renew" });
-    await submitTrainerUtr(m.id, pro.id, utr());
-    const done = await reviewTrainerPayment(admin, pro.id, "CONFIRM");
+    await rz.pay(m.id, { plan: "ai-premium", cycle: "MONTHLY", kind: "purchase" });
+    const pro = await rz.pay(m.id, { plan: "ai-pro", cycle: "MONTHLY", kind: "renew" });
+    const done = await db.trainerPayment.findUniqueOrThrow({ where: { id: pro.id } });
     // Still Premium for the month already paid; Pro starts the day after.
     expect((await member(m.id)).plan).toBe("ai-premium");
     expect(await currentPlan(await member(m.id))).toMatchObject({ plan: "ai-premium" });
@@ -156,18 +183,14 @@ describe.skipIf(!hasDb)("AI Trainer (database)", () => {
     await db.trainerPayment.update({ where: { id: pro.id }, data: { periodStart: fromIso(todayIso()) } });
     expect(await currentPlan(await member(m.id))).toMatchObject({ plan: "ai-pro" });
     expect((await member(m.id)).plan).toBe("ai-pro");
-    expect(done?.periodStart && toIso(done.periodStart) > todayIso()).toBe(true);
+    expect(done.periodStart && toIso(done.periodStart) > todayIso()).toBe(true);
   });
 
   it("moving up to AI Premium starts at once", async () => {
+    const rz = razorpayOn();
     const m = await findOrCreateTrainer(email(), "EMAIL");
-    const admin = { email: "team@fitron.in" };
-    const pro = await startTrainerPayment(m.id, { plan: "ai-pro", cycle: "MONTHLY", kind: "purchase" });
-    await submitTrainerUtr(m.id, pro.id, utr());
-    await reviewTrainerPayment(admin, pro.id, "CONFIRM");
-    const up = await startTrainerPayment(m.id, { plan: "ai-premium", cycle: "MONTHLY", kind: "upgrade" });
-    await submitTrainerUtr(m.id, up.id, utr());
-    await reviewTrainerPayment(admin, up.id, "CONFIRM");
+    await rz.pay(m.id, { plan: "ai-pro", cycle: "MONTHLY", kind: "purchase" });
+    await rz.pay(m.id, { plan: "ai-premium", cycle: "MONTHLY", kind: "upgrade" });
     expect(await currentPlan(await member(m.id))).toMatchObject({ plan: "ai-premium" });
   });
 
@@ -175,6 +198,7 @@ describe.skipIf(!hasDb)("AI Trainer (database)", () => {
     const m = await findOrCreateTrainer(email(), "EMAIL");
     await saveTrainerState(m.id, { profile: { ob: { name: "Del", weight: "80" } }, day: { water: 1 } });
     await saveTrainerChat(m.id, "c1", "Hi", [{ role: "user", text: "Hi" }]);
+    razorpayOn();
     const pay = await startTrainerPayment(m.id, { plan: "ai-pro", cycle: "MONTHLY", kind: "purchase" });
     await db.trainerSession.create({ data: { id: `secret-${m.id}`, memberId: m.id, expiresAt: new Date(Date.now() + 86_400_000), ip: "203.0.113.5", userAgent: "Phone" } });
     await db.trainerCoachUsage.create({ data: { memberId: m.id, date: fromIso(todayIso()), count: 3 } });

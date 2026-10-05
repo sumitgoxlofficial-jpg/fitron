@@ -2,9 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { requirePermission } from "@/lib/auth/current";
 import { db } from "@/lib/db";
-import { activeMemberCount, autoRenewals, billingHistory, branchStandings, gymPlan, paymentRef } from "@/lib/services/saas";
+import { activeMemberCount, autoRenewals, billingHistory, branchStandings, gymPlan } from "@/lib/services/saas";
 import { fitronKeyId } from "@/lib/integrations/razorpay";
-import { fitronUpi, isFitronAdmin } from "@/lib/integrations/upi";
 import { PLANS, rupeesLabel } from "@/lib/domain/pricing";
 import { SERVICES, findService } from "@/lib/domain/services";
 import { branchPrice, GRACE_DAYS, gymPlanCards, type PlanStanding, type Standing } from "@/lib/domain/saas";
@@ -29,8 +28,7 @@ function StandingBadge({ s }: { s: Standing }) {
   return <Badge tone="alert">Read-only</Badge>;
 }
 
-function PlanBadge({ s, checking }: { s: PlanStanding; checking: boolean }) {
-  if (checking && (s.kind === "TRIAL" || s.kind === "LAPSED")) return <Badge tone="accent">Payment being checked</Badge>;
+function PlanBadge({ s }: { s: PlanStanding }) {
   if (s.kind === "CUSTOM") return <Badge tone="ok">Set up by FITRON</Badge>;
   if (s.kind === "TRIAL") return <Badge tone="accent">Free trial till {fmtDate(s.until)}</Badge>;
   if (s.kind === "PAID") return <Badge tone="ok">Paid till {fmtDate(s.until)}</Badge>;
@@ -53,11 +51,6 @@ function Sub({ title, sub, id, children }: { title: string; sub?: React.ReactNod
 
 const KICKER = "text-[11px] tracking-[0.1em] text-muted uppercase";
 
-const STATUS: Record<string, string> = {
-  PAID: "",
-  SUBMITTED: "Being checked",
-  REJECTED: "Not matched",
-};
 const REMIND_LABEL: Record<number, string> = {
   14: "14 days before",
   7: "7 days before",
@@ -77,16 +70,9 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
   const upgrade = typeof sp.upgrade === "string" && sp.upgrade in FEATURES ? (sp.upgrade as Feature) : null;
   const [{ branches, freeSlots, terms }, history, plan, members, sub, gymNumber, renewals] = await Promise.all([branchStandings(u.orgId), billingHistory(u), gymPlan(u.orgId), activeMemberCount(db, u.orgId), getSubscriptionSettings(u.orgId), gymWhatsAppNumber(u.orgId), autoRenewals(u.orgId)]);
   const paidTotal = history.filter((h) => h.status === "PAID").reduce((a, h) => a + h.total, 0);
-  // Fitron's Razorpay keys win over the UPI QR: plans renew themselves and the QR is not shown (see startPayment).
+  // Payments to FITRON go through Razorpay; without its keys a live server takes none (see startPayment).
   const razorpay = fitronKeyId() !== null;
-  const upi = razorpay ? null : fitronUpi();
-  const demo = !upi && !razorpay;
-  const admin = isFitronAdmin(u.email);
-  const toCheck = admin
-    ? await db.branchSubscription.count({
-        where: { mode: "UPI", status: "SUBMITTED" },
-      })
-    : 0;
+  const demo = !razorpay;
   const y = branchPrice("YEARLY");
   const m = branchPrice("MONTHLY");
   const openBranches = branches.filter((b) => b.standing.kind !== "CLOSED");
@@ -105,23 +91,10 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
               <strong>{FEATURES[upgrade].label}</strong> is on the <strong>{planFor(upgrade).name}</strong> plan ({FEATURES[upgrade].card}). Your gym is on {plan.name}. Pick {planFor(upgrade).name} below; it opens as soon as the payment is confirmed.
             </Notice>
           )}
-          {demo && <Notice>Demo mode: FITRON&apos;s UPI ID isn&apos;t set on this server, so payments are simulated and no money is charged.</Notice>}
+          {demo && <Notice>Demo mode: FITRON&apos;s Razorpay keys aren&apos;t set on this server, so payments are simulated and no money is charged.</Notice>}
           {razorpay && (
             <Notice tone="neutral">
               You pay online with Razorpay (UPI AutoPay, card or net banking). A plan renews by itself each month or year until you stop it under Automatic renewals; GST is included in every price.
-            </Notice>
-          )}
-          {upi && (
-            <Notice tone="neutral">
-              You pay by UPI to {upi.name} ({upi.id}) and enter the UTR. We check it and email you, usually within a working day; your gym keeps working meanwhile.
-            </Notice>
-          )}
-          {admin && (
-            <Notice tone="ok">
-              FITRON team: {toCheck} UPI payment{toCheck === 1 ? "" : "s"} to check.{" "}
-              <Link href="/fitron-admin" className="font-semibold underline">
-                Open payment checks
-              </Link>
             </Notice>
           )}
         </div>
@@ -134,7 +107,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
                 <div className="mt-0.5 text-[22px] font-semibold">{terms.custom ? "Set up by FITRON" : `${plan.name} · ${plan.cycle === "YEARLY" ? "yearly" : "monthly"}`}</div>
               </div>
             </div>
-            <PlanBadge s={s} checking={plan.checking} />
+            <PlanBadge s={s} />
           </div>
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(140px,1fr))]">
             {[
@@ -153,7 +126,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
             <p className="text-sm">FITRON set up your gym by hand, so it has no member limit and {terms.includedBranches} branches are included. Extra branches are paid below. Write to hello@fitron.in to move to a listed plan.</p>
           ) : (
             <div className="flex flex-col gap-4 text-sm">
-              {s.kind === "LAPSED" && !plan.checking && <p className="text-alert">Your plan has ended, so no new members or invoices can be added. Nothing is deleted; paying switches it back on at once.</p>}
+              {s.kind === "LAPSED" && <p className="text-alert">Your plan has ended, so no new members or invoices can be added. Nothing is deleted; paying switches it back on at once.</p>}
               {s.kind === "GRACE" && (
                 <p className="text-muted">
                   Your paid period ended on {fmtDate(s.until)}. Renew before {fmtDate(s.readOnlyFrom)} to keep adding members and invoices.
@@ -297,7 +270,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
                     <th className={TH}>Receipt</th>
                     <th className={TH}>Date</th>
                     <th className={TH}>Plan</th>
-                    <th className={TH}>UTR</th>
+                    <th className={TH}>Payment ID</th>
                     <th className={TH}>Valid till</th>
                     <th className={cx(TH, "text-right")}>Amount</th>
                     <th className={TH}><span className="sr-only">Actions</span></th>
@@ -313,15 +286,13 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
                           : `Extra branch · ${h.branchId ? (branches.find((b) => b.id === h.branchId)?.name ?? "") : "not used yet"}`;
                     return (
                       <tr key={h.id} className={TR}>
-                        <td className={cx(TD, "whitespace-nowrap")}>{h.invoiceNo ?? paymentRef(h.id)}</td>
-                        <td className={cx(TD, "whitespace-nowrap")}>{fmtDate(h.paidAt ?? h.submittedAt ?? h.createdAt)}</td>
+                        <td className={cx(TD, "whitespace-nowrap")}>{h.invoiceNo ?? "—"}</td>
+                        <td className={cx(TD, "whitespace-nowrap")}>{fmtDate(h.paidAt ?? h.createdAt)}</td>
                         <td className={TD}>
                           {what}
                           {h.mode === "DEMO" ? " · demo" : h.mode === "SUBSCRIPTION" ? " · renews automatically" : ""}
-                          {STATUS[h.status] && <div className={h.status === "REJECTED" ? "text-alert" : "text-muted"}>{STATUS[h.status]}</div>}
-                          {h.rejectReason && <div className="text-alert">{h.rejectReason}</div>}
                         </td>
-                        <td className={cx(TD, "tabular-nums")}>{h.utr ?? (h.razorpayPaymentId ? `Razorpay ${h.razorpayPaymentId}` : "—")}</td>
+                        <td className={cx(TD, "tabular-nums")}>{h.razorpayPaymentId ?? "—"}</td>
                         <td className={cx(TD, "whitespace-nowrap")}>{h.status === "PAID" && h.periodEnd ? fmtDate(h.periodEnd) : "—"}</td>
                         <td className={cx(TD, "text-right font-semibold tabular-nums")}>{formatInr(h.total)}</td>
                         <td className={cx(TD, "text-right")}>

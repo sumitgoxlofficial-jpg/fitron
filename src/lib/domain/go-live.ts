@@ -22,7 +22,7 @@ export type CheckInput = {
   backupAgeDays: number | null;
   backupHref: string;
   idleMinutes: number;
-  plan: { name: string; standing: Standing; checking: boolean };
+  plan: { name: string; standing: Standing };
   demo: boolean;
   demoMembers: number;
 };
@@ -72,10 +72,8 @@ export function checklist(i: CheckInput): { items: Item[]; done: number; total: 
   const backupOk = i.backupAgeDays !== null && i.backupAgeDays <= 7;
   const backupDetail = i.backupAgeDays === null ? "No backup yet" : i.backupAgeDays === 0 ? "Last backup today" : `Last backup ${plural(i.backupAgeDays, "day")} ago`;
   const s = i.plan.standing;
-  const checking = i.plan.checking && (s.kind === "TRIAL" || s.kind === "LAPSED");
-  const subDetail = checking
-    ? "Payment being checked"
-    : s.kind === "PAID"
+  const subDetail =
+    s.kind === "PAID"
       ? `${i.plan.name} plan · till ${s.until}`
       : s.kind === "CUSTOM"
         ? `${i.plan.name} plan · set up by FITRON`
@@ -147,7 +145,7 @@ export function checklist(i: CheckInput): { items: Item[]; done: number; total: 
       key: "subscription",
       label: "Fitron subscription active",
       ok: s.kind === "PAID" || s.kind === "CUSTOM",
-      recommended: s.kind === "TRIAL" || checking,
+      recommended: s.kind === "TRIAL",
       detail: subDetail,
       button: { label: "Plan & billing", href: "/settings/billing" },
     },

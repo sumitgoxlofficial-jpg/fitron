@@ -1,4 +1,4 @@
-import { randomInt, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { hasDb, makeGym } from "@/test/db";
 import { db } from "@/lib/db";
@@ -9,7 +9,6 @@ import { ensureTrainerCode, linkTrainerGym } from "./trainer-gym";
 import { fromIso, todayIso } from "./time";
 
 const email = () => `a-${randomUUID().slice(0, 8)}@test.local`;
-const utr = () => String(randomInt(100_000, 999_999)) + String(randomInt(100_000, 999_999));
 
 describe.skipIf(!hasDb)("AI Trainer admin (database)", () => {
   it("lists members by state and search, and sums what they paid", async () => {
@@ -17,7 +16,7 @@ describe.skipIf(!hasDb)("AI Trainer admin (database)", () => {
     const tag = randomUUID().slice(0, 6);
     const paying = await findOrCreateTrainer(email(), "GOOGLE", `Paying ${tag}`);
     await db.trainerMember.update({ where: { id: paying.id }, data: { paidUntil: fromIso(today), onboardedAt: new Date() } });
-    await db.trainerPayment.create({ data: { memberId: paying.id, plan: "ai-pro", cycle: "MONTHLY", kind: "purchase", base: 29_900, gst: 5_382, total: 35_282, mode: "UPI", status: "PAID", paidAt: new Date(), utr: utr() } });
+    await db.trainerPayment.create({ data: { memberId: paying.id, plan: "ai-pro", cycle: "MONTHLY", kind: "purchase", base: 29_900, gst: 5_382, total: 35_282, mode: "SUBSCRIPTION", status: "PAID", paidAt: new Date() } });
     const trial = await findOrCreateTrainer(email(), "EMAIL", `Trial ${tag}`);
     await saveTrainerState(trial.id, { onboarded: true });
     await startTrainerTrial(trial.id);
@@ -50,8 +49,8 @@ describe.skipIf(!hasDb)("AI Trainer admin (database)", () => {
     const m = await findOrCreateTrainer(email(), "EMAIL", "Linked");
     await linkTrainerGym(m.id, code);
     const now = new Date();
-    await db.trainerPayment.create({ data: { memberId: m.id, plan: "ai-premium", cycle: "MONTHLY", kind: "purchase", base: 49_900, gst: 8_982, total: 58_882, mode: "UPI", status: "PAID", paidAt: now, utr: utr() } });
-    await db.trainerPayment.create({ data: { memberId: m.id, plan: "ai-premium", cycle: "MONTHLY", kind: "renew", base: 49_900, gst: 8_982, total: 58_882, mode: "UPI", status: "SUBMITTED", submittedAt: now, utr: utr() } });
+    await db.trainerPayment.create({ data: { memberId: m.id, plan: "ai-premium", cycle: "MONTHLY", kind: "purchase", base: 49_900, gst: 8_982, total: 58_882, mode: "SUBSCRIPTION", status: "PAID", paidAt: now } });
+    await db.trainerPayment.create({ data: { memberId: m.id, plan: "ai-premium", cycle: "MONTHLY", kind: "renew", base: 49_900, gst: 8_982, total: 58_882, mode: "SUBSCRIPTION", status: "PENDING" } });
     const p = await partnerPayouts(todayIso().slice(0, 7));
     const row = p.rows.find((r) => r.id === g.org.id);
     expect(row).toMatchObject({ gym: g.org.name, code, members: 1, payments: 1, base: 49_900, share: Math.round(49_900 * PARTNER_SHARE) });

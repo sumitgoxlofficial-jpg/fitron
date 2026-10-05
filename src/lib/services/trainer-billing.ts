@@ -13,8 +13,7 @@ import { lockSubscription, markCharged, renewingSubscriptions, stopSubscription 
 import { fromIso, toIso, todayIso } from "./time";
 import { log } from "@/lib/log";
 
-// What a payment does for an AI Trainer member: the plan and the paid period. Shared by the FITRON team confirming a
-// UPI payment (trainer-admin.ts) and Razorpay charging a subscription that renews itself (below).
+// What a payment does for an AI Trainer member: the plan and the paid period, when Razorpay charges a subscription that renews itself (below).
 
 const label = (plan: string, cycle: string) => `${findPlan(plan)?.name ?? plan}, ${cycle === "YEARLY" ? "yearly" : "monthly"}`;
 
@@ -24,7 +23,7 @@ const label = (plan: string, cycle: string) => `${findPlan(plan)?.name ?? plan},
  * `keepPlan`: the payment came from a subscription the member has already moved off, so it extends the time but does
  * not switch the plan back.
  */
-export async function activateTrainerPaymentIn(tx: Prisma.TransactionClient, id: string, reviewer: string | null, opts: { keepPlan?: boolean } = {}) {
+export async function activateTrainerPaymentIn(tx: Prisma.TransactionClient, id: string, opts: { keepPlan?: boolean } = {}) {
   const today = todayIso();
   await tx.$queryRaw`SELECT id FROM "TrainerPayment" WHERE id = ${id} FOR UPDATE`;
   const fresh = await tx.trainerPayment.findUniqueOrThrow({ where: { id }, include: { member: true } });
@@ -37,7 +36,7 @@ export async function activateTrainerPaymentIn(tx: Prisma.TransactionClient, id:
   await tx.trainerMember.update({ where: { id: m.id }, data: { plan, ...(opts.keepPlan ? {} : { cycle: fresh.cycle }), paidUntil: fromIso(period.end), planCancelled: false } });
   return tx.trainerPayment.update({
     where: { id },
-    data: { status: "PAID", paidAt: new Date(), periodStart: fromIso(period.start), periodEnd: fromIso(period.end), ...(reviewer ? { reviewedBy: reviewer, reviewedAt: new Date() } : {}), rejectReason: null },
+    data: { status: "PAID", paidAt: new Date(), periodStart: fromIso(period.start), periodEnd: fromIso(period.end) },
     include: { member: true },
   });
 }
@@ -70,7 +69,7 @@ export async function recordTrainerCharge(subId: string, paymentId: string, amou
     await tx.trainerPayment.update({ where: { id: row.id }, data: { razorpayPaymentId: paymentId } });
     // A subscription the member has already moved off (another plan paid, or renewal stopped) must not switch the plan back.
     const movedOn = !!sub.cancelledAt && !!(await tx.trainerPayment.findFirst({ where: { memberId: sub.memberId, status: "PAID", createdAt: { gt: sub.createdAt }, NOT: { razorpaySubscriptionId: subId } }, select: { id: true } }));
-    const done = await activateTrainerPaymentIn(tx, row.id, null, { keepPlan: movedOn });
+    const done = await activateTrainerPaymentIn(tx, row.id, { keepPlan: movedOn });
     await markCharged(tx, subId);
     return { row: done, fresh: true, sub, renewal };
   });

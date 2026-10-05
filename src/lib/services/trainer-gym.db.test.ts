@@ -80,11 +80,11 @@ describe.skipIf(!hasDb)("Gym Partnership (database)", () => {
 
     const month = todayIso().slice(0, 7);
     const paid = (memberId: string, base: number, paidAt: Date, status = "PAID") =>
-      db.trainerPayment.create({ data: { memberId, plan: "ai-pro", cycle: "MONTHLY", kind: "purchase", base, gst: Math.round(base * 0.18), total: Math.round(base * 1.18), mode: "UPI", status, paidAt, utr: String(Math.floor(Math.random() * 1e12)).padStart(12, "0") } });
+      db.trainerPayment.create({ data: { memberId, plan: "ai-pro", cycle: "MONTHLY", kind: "purchase", base, gst: Math.round(base * 0.18), total: Math.round(base * 1.18), mode: "SUBSCRIPTION", status, paidAt } });
     await paid(t.id, 29_900, new Date());
     await paid(t.id, 49_900, new Date());
     await paid(t.id, 1_99_900, new Date(Date.now() - 40 * 86_400_000)); // last month
-    await paid(t.id, 29_900, new Date(), "SUBMITTED"); // not confirmed
+    await paid(t.id, 29_900, new Date(), "PENDING"); // not paid yet
     await paid(other.id, 29_900, new Date()); // not this gym's member
 
     const p = await partnership(owner, month);

@@ -86,7 +86,6 @@ describe.skipIf(!hasDb)("Razorpay subscriptions for gym plans (database)", () =>
   beforeAll(() => {
     vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
     vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", SECRET);
-    vi.stubEnv("FITRON_UPI_ID", "");
   });
   afterAll(() => {
     vi.unstubAllEnvs();
@@ -435,7 +434,7 @@ describe.skipIf(!hasDb)("Razorpay subscriptions for gym plans (database)", () =>
     await expect(startPayment(owner, { kind: "PLAN", plan: "starter" }, "ONCE")).rejects.toThrow(/monthly or yearly/);
   });
 
-  it("without Razorpay keys, add-ons and partner plans still go through the UPI or demo flow", async () => {
+  it("without Razorpay keys, add-ons and partner plans go through the demo flow (development only)", async () => {
     vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "");
     vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", "");
     try {
@@ -446,10 +445,8 @@ describe.skipIf(!hasDb)("Razorpay subscriptions for gym plans (database)", () =>
       const p = await startPayment(owner, { kind: "PLAN", plan: "partner-referral" }, "MONTHLY");
       await confirmDemoPayment(owner, p.id);
       expect((await db.organization.findUniqueOrThrow({ where: { id: gym.org.id } })).plan).toBe("partner-referral");
-      // With UPI set and Razorpay not, it is the UPI QR.
-      vi.stubEnv("FITRON_UPI_ID", "fitron@okaxis");
-      expect(await startPayment(owner, { kind: "PLAN", plan: "starter" }, "MONTHLY")).toMatchObject({ mode: "UPI", total: 99_900 });
-      // With both set, Razorpay wins: the plan renews itself instead of being paid by hand.
+      expect(await startPayment(owner, { kind: "PLAN", plan: "starter" }, "MONTHLY")).toMatchObject({ mode: "DEMO", total: 99_900 });
+      // With the keys set, the plan renews itself instead of being paid by hand.
       vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
       vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", SECRET);
       fakeRazorpay();
@@ -457,7 +454,6 @@ describe.skipIf(!hasDb)("Razorpay subscriptions for gym plans (database)", () =>
     } finally {
       vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
       vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", SECRET);
-      vi.stubEnv("FITRON_UPI_ID", "");
     }
   });
 });
@@ -466,7 +462,6 @@ describe.skipIf(!hasDb)("Razorpay subscriptions for AI Trainer members (database
   beforeAll(() => {
     vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
     vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", SECRET);
-    vi.stubEnv("FITRON_UPI_ID", "");
   });
   afterAll(() => {
     vi.unstubAllEnvs();

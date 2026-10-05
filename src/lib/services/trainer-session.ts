@@ -43,7 +43,7 @@ export async function currentTrainer() {
 
 /**
  * A move down to AI Pro is confirmed to start after the AI Premium time already paid for (see
- * reviewTrainerPayment). Once that day comes, the member's saved plan follows the latest payment.
+ * activateTrainerPaymentIn). Once that day comes, the member's saved plan follows the latest payment.
  */
 export async function currentPlan<M extends { id: string; plan: string }>(m: M): Promise<M> {
   if (m.plan !== "ai-premium") return m;
