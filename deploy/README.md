@@ -173,7 +173,7 @@ On the device, open **Menu › Comm. › Cloud Server Setting**. Set the server 
 
 ## Everyday care
 
-- **Updates:** `cd ~/fitron && bash deploy/update.sh`. This gets the latest version and applies any database changes.
+- **Updates:** `cd ~/fitron && bash deploy/update.sh`. This gets the latest version, applies any database changes and restarts the scheduler, so new scheduled jobs start.
 - **Backups:** saved nightly in `~/fitron/deploy/backups` and kept for 14 days. Copy them off the server now and then, for example from your computer:
   `scp -i key ubuntu@YOUR_SERVER_IP:fitron/deploy/backups/*.dump .`
   For extra safety, turn on a free boot-volume backup in Oracle under **Block Storage › Boot Volumes › Backups**.
