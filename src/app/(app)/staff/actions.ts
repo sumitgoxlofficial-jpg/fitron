@@ -9,6 +9,7 @@ import { formatRupees } from "@/lib/format";
 import { staffInput } from "@/lib/validation/staff";
 import { failed, fieldErrors, type FormState } from "@/lib/validation/common";
 import { createStaff, setStaffActive, updateStaff } from "@/lib/services/staff";
+import { adminResetTwoStep } from "@/lib/services/two-step";
 import { UserError } from "@/lib/services/errors";
 
 export async function saveStaff(id: string | null, _: FormState, fd: FormData): Promise<FormState> {
@@ -93,4 +94,17 @@ export async function savePayment(id: string, _: FormState, fd: FormData): Promi
   }
   revalidatePath("/staff");
   back(fd, msg);
+}
+
+/** For someone who lost their phone and their recovery codes: turns their two-step sign-in off and signs them out everywhere. */
+export async function resetStaffTwoStep(id: string): Promise<void> {
+  const u = await requirePermission("staff.manage");
+  try {
+    await adminResetTwoStep(u, id);
+  } catch (e) {
+    if (e instanceof UserError) redirect(`/staff?error=${encodeURIComponent(e.message)}`);
+    throw e;
+  }
+  revalidatePath("/staff");
+  redirect(`/staff?ok=${encodeURIComponent("Two-step sign-in turned off. They are signed out and can set it up again in My profile.")}`);
 }

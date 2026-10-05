@@ -15,3 +15,9 @@ export const passwordChangeInput = z
   .refine((d) => d.password === d.confirm, { path: ["confirm"], message: "The two passwords don't match." });
 
 export type PasswordChangeInput = z.infer<typeof passwordChangeInput>;
+
+// Two-step sign-in (src/lib/services/two-step.ts): a 6-digit code, or a recovery code where a code is asked for.
+const code = z.string().trim().min(1, { error: "Enter the code." }).max(20, { error: "That code is too long." });
+export const twoStepConfirmInput = z.object({ code });
+export const twoStepOffInput = z.object({ password: z.string().min(1, { error: "Enter your password." }), code });
+export const twoStepRecoveryInput = z.object({ password: z.string().min(1, { error: "Enter your password." }) });

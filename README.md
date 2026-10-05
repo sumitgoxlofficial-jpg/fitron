@@ -51,6 +51,7 @@ This creates the gym, its first branch, the default roles and the Super Admin ac
 ## What works so far
 
 - Sign-in with Argon2id passwords, server-side sessions, 30-minute idle sign-out, login rate limit.
+- Two-step sign-in for staff (My profile › Two-step sign-in): a code from an authenticator app after the password or Google, with ten one-use recovery codes. A Super Admin can turn it off for someone who lost their phone (Staff). The secrets are encrypted with `BIOMETRIC_KEY`.
 - Roles and permissions (Super Admin, Admin, Accountant, Receptionist, Trainer), enforced on every page and action. Trainers see only their assigned members.
 - Branch switcher; every query is limited to the branches a user may see.
 - Members: search and filters, add, edit, suspend, soft delete, profile with computed status and dues. Phone numbers are unique among active members.

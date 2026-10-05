@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CheckCircleIcon, CurrencyInrIcon, MinusIcon, PencilSimpleIcon, ShieldCheckIcon, UserMinusIcon, UserPlusIcon } from "@phosphor-icons/react/dist/ssr";
+import { CheckCircleIcon, CurrencyInrIcon, MinusIcon, PencilSimpleIcon, ShieldCheckIcon, ShieldSlashIcon, UserMinusIcon, UserPlusIcon } from "@phosphor-icons/react/dist/ssr";
 import { requireUser, upgradePath } from "@/lib/auth/current";
 import { listRoles, listStaff } from "@/lib/services/staff";
 import { payrollOverview } from "@/lib/services/payroll";
@@ -13,7 +13,8 @@ import { fmtDate, fmtMonthShort, fmtStamp, formatRupees, initials } from "@/lib/
 import { monthLabel } from "@/lib/domain/periods";
 import { payrollMonths, salaryLabel } from "@/lib/domain/payroll";
 import { todayIso } from "@/lib/services/time";
-import { toggleStaff } from "./actions";
+import { resetStaffTwoStep, toggleStaff } from "./actions";
+import { ConfirmButton } from "@/components/confirm-button";
 import { AdvanceForm, PayForm, SalaryForm } from "./payroll-forms";
 
 export const metadata = { title: "Staff & roles · Fitron" };
@@ -97,6 +98,8 @@ export default async function StaffPage({ searchParams }: PageProps<"/staff">) {
                 <span className="truncate">{s.email}</span>
                 <span className="text-muted">Salary</span>
                 <span>{salaryLabel(s.role.name, s.salary)}</span>
+                <span className="text-muted">Two-step</span>
+                <span>{s.totpEnabledAt ? "On" : "Off"}</span>
               </div>
               <div className="flex gap-1.5 border-t border-line pt-3">
                 <LinkButton href={`/staff/${s.id}/edit`} className="flex-1">
@@ -108,6 +111,13 @@ export default async function StaffPage({ searchParams }: PageProps<"/staff">) {
                     <CurrencyInrIcon size={16} weight="duotone" />
                     Salary
                   </LinkButton>
+                )}
+                {s.id !== u.id && s.totpEnabledAt && (
+                  <form action={resetStaffTwoStep.bind(null, s.id)}>
+                    <ConfirmButton variant="ghost" confirm={`Turn off two-step sign-in for ${s.name}? They will be signed out everywhere and can set it up again.`} title="Turn off two-step sign-in" aria-label={`Turn off two-step sign-in for ${s.name}`}>
+                      <ShieldSlashIcon size={18} weight="duotone" />
+                    </ConfirmButton>
+                  </form>
                 )}
                 {s.id !== u.id && (
                   <form action={toggleStaff.bind(null, s.id, !s.active)}>

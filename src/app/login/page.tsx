@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current";
 import { LoginForm } from "./login-form";
 import { CreateAccountForm } from "./create-account-form";
+import { TwoStepForm } from "./two-step-form";
+import { readChallenge } from "@/lib/auth/two-step-challenge";
 import { Notice } from "@/components/ui";
 import { safeNext } from "@/lib/auth/next";
 import { CookieBanner } from "@/components/cookie-banner";
@@ -31,6 +33,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const inHref = next ? `/login?${new URLSearchParams({ next })}` : "/login";
   const tab = "rounded-[5px] px-3.5 py-1.5 text-[13px] font-semibold";
   const gMsg = googleMessage(q.google, q.email);
+  // The second step of a two-step sign-in, once the password (or Google) has been accepted.
+  const twoStep = !up && q.step === "2" ? await readChallenge() : null
   // Back from Google on a sign-up: it has confirmed the email and name, so the form starts at the gym's details.
   const google = up && q.google === "1" ? unsign<{ email: string; name: string }>((await cookies()).get(GOOGLE_SIGNUP_COOKIE)?.value) : null;
   const stats: [string, string][] = [
@@ -60,11 +64,21 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       </section>
       <section className="flex items-center justify-center px-6 py-10">
         <div className="flex w-full max-w-[400px] flex-col gap-[18px]">
-          <nav className="inline-flex gap-[2px] self-start rounded-md bg-surface p-[3px]" aria-label="Sign in or create account">
+{!twoStep && (
+                      <nav className="inline-flex gap-[2px] self-start rounded-md bg-surface p-[3px]" aria-label="Sign in or create account">
             <Link href={inHref} aria-current={up ? undefined : "page"} className={`${tab} ${up ? "text-fg" : "bg-accent text-accent-ink"}`}>Sign in</Link>
             <Link href={upHref} aria-current={up ? "page" : undefined} className={`${tab} ${up ? "bg-accent text-accent-ink" : "text-fg"}`}>Create account</Link>
           </nav>
-          {up ? (
+          )}
+          {twoStep ? (
+            <>
+              <div>
+                <h2 className="text-[28px] font-semibold">Two-step sign-in</h2>
+                <p className="m-0 text-sm text-neutral-700">Your password was right. Now enter the code from your authenticator app.</p>
+              </div>
+              <TwoStepForm />
+            </>
+          ) : up ? (
             <>
               {gMsg && <Notice tone="alert">{gMsg}</Notice>}
               <CreateAccountForm key={google?.email ?? "email"} plan={plan} cycle={cycle} googleOn={googleReady()} google={google ? { email: google.email, name: google.name } : undefined} />
@@ -75,6 +89,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
                 <h2 className="text-[28px] font-semibold">Sign in to Fitron</h2>
                 <p className="m-0 text-sm text-neutral-700">Use your staff email or Google account.</p>
               </div>
+              {(q.twostep === "expired" || (q.step === "2" && !twoStep)) && <Notice tone="alert">That sign-in took too long or could not be finished. Sign in again.</Notice>}
               {typeof q.idle === "string" && /^\d+$/.test(q.idle) && <Notice tone="alert">You were signed out after {q.idle} minutes of inactivity.</Notice>}
               {q.reset && <Notice tone="ok">Password changed. Sign in with your new password.</Notice>}
               {q.verified && <Notice tone="ok">Email confirmed. Sign in to open your console.</Notice>}

@@ -6,6 +6,9 @@ import { getProfile } from "@/lib/services/profile";
 import { Avatar, photoUrl } from "@/components/avatar";
 import { Card, Empty, cx } from "@/components/ui";
 import { PasswordForm, PhotoForm, ProfileForm } from "./profile-forms";
+import { TwoStepPanel } from "./two-step-panel";
+import { pendingSetup, twoStepStatus } from "@/lib/services/two-step";
+import { qrSvg } from "@/lib/integrations/upi";
 
 export const metadata = { title: "My profile · Fitron" };
 
@@ -23,7 +26,8 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 
 export default async function ProfilePage({ searchParams }: PageProps<"/profile">) {
   const u = await requireUser();
-  const tab = (await searchParams).tab === "password" ? "password" : "profile";
+  const tabQ = (await searchParams).tab;
+  const tab = tabQ === "password" ? "password" : tabQ === "twostep" ? "twostep" : "profile";
   const session = await readSession();
   const me = await getProfile(u, session?.id ?? null);
   const branch = u.branch === "ALL" ? "All branches" : (u.branches.find((b) => b.id === u.branch)?.name ?? "");
@@ -49,6 +53,9 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         <Link href="/profile?tab=password" role="tab" aria-selected={tab === "password"} className={tabCls(tab === "password")}>
           Password
         </Link>
+        <Link href="/profile?tab=twostep" role="tab" aria-selected={tab === "twostep"} className={tabCls(tab === "twostep")}>
+          Two-step sign-in
+        </Link>
       </div>
 
       {tab === "profile" ? (
@@ -67,10 +74,12 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
             <p className="text-xs text-muted">Your email, role and branches are set by the Super Admin in Staff.</p>
           </div>
         </Card>
-      ) : (
+      ) : tab === "password" ? (
         <Card>
           <PasswordForm />
         </Card>
+      ) : (
+        <TwoStepTab userId={u.id} />
       )}
 
       <div id="activity" className="-mb-6 scroll-mt-24" />
@@ -91,5 +100,19 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         )}
       </Card>
     </div>
+  );
+}
+
+/** Two-step sign-in: whether it is on, and the setup in progress with its QR code. */
+async function TwoStepTab({ userId }: { userId: string }) {
+  const u = await requireUser();
+  const [status, setup] = await Promise.all([twoStepStatus(userId), pendingSetup(u)]);
+  return (
+    <Card>
+      <TwoStepPanel
+        status={{ enabled: status.enabled, enabledOn: status.enabledAt ? when(status.enabledAt) : null, recoveryLeft: status.recoveryLeft }}
+        setup={setup ? { grouped: setup.grouped, qr: await qrSvg(setup.otpauth) } : null}
+      />
+    </Card>
   );
 }

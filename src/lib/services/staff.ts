@@ -29,6 +29,7 @@ export const listStaff = (u: CurrentUser) =>
       payAccount: true,
       active: true,
       lastLoginAt: true,
+      totpEnabledAt: true,
       role: { select: { id: true, name: true } },
       branches: { select: { branch: { select: { id: true, name: true } } } },
     },

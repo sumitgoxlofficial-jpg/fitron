@@ -14,7 +14,9 @@ vi.mock("@/lib/integrations/google", async (importOriginal) => ({
 vi.mock("@/lib/auth/session", () => ({ createSession: vi.fn() }));
 vi.mock("@/lib/services/trainer-session", () => ({ createTrainerSession: vi.fn() }));
 
-import { GOOGLE_FLOW_COOKIE, sign, type GoogleFlow } from "@/lib/integrations/google";
+import { GOOGLE_FLOW_COOKIE, sign, unsign, type GoogleFlow } from "@/lib/integrations/google";
+import { codeAt, stepAt } from "@/lib/auth/totp";
+import { beginTwoStep, confirmTwoStep } from "@/lib/services/two-step";
 import { createSession } from "@/lib/auth/session";
 import { createTrainerSession } from "@/lib/services/trainer-session";
 import { GET } from "./route";
@@ -65,6 +67,24 @@ describe.skipIf(!hasDb)("Google callback, between Gym Accounting and the AI Trai
     expect(where(res)).toBe("/dashboard");
     expect(createSession).toHaveBeenCalledWith(owner.id);
     expect(createTrainerSession).not.toHaveBeenCalled();
+  });
+
+  it("asks for the second step, and opens no session yet, for staff who use two-step sign-in", async () => {
+    const g = await makeGym();
+    const owner = await g.user("Super Admin");
+    const { secret } = await beginTwoStep(owner);
+    await confirmTwoStep(owner, codeAt(secret, stepAt(Date.now())));
+    google.email = (await db.user.findUniqueOrThrow({ where: { id: owner.id } })).email;
+    const res = await callback("staff");
+    expect(where(res)).toBe("/login?step=2");
+    expect(createSession).not.toHaveBeenCalled();
+    const set = res.headers.get("set-cookie") ?? "";
+    expect(set).toContain("fitron_2fa=");
+    // The cookie says who, where to, and that Google got them this far; it is signed and short-lived, and is not a session.
+    const value = decodeURIComponent(set.match(/fitron_2fa=([^;]+)/)![1]!);
+    expect(unsign<{ uid: string; next: string; via: string; exp: number }>(value)).toMatchObject({ uid: owner.id, next: "/dashboard", via: "google" });
+    expect(set).not.toContain("fitron_session");
+    expect(await db.auditLog.count({ where: { entityId: owner.id, action: "auth.login" } })).toBe(0);
   });
 
   it("does not take someone who is creating a gym away to the AI Trainer", async () => {
