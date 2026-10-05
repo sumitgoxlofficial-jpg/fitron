@@ -34,8 +34,19 @@ const TOUR_SEEN = () => {
   };
 };
 
+/**
+ * The address each browser context appears to come from. Sent as x-forwarded-for, as the proxy in production does, but
+ * only to our own server: a header like that on a request to another site (Google Fonts, say) makes the browser ask that
+ * site's permission first, and the font is then refused. So it is added by a route on our origin, not as an extra header
+ * for every request, and it can be changed mid-test (see signIn).
+ */
+const addresses = new WeakMap<BrowserContext, string>();
+export const comeFrom = (ctx: BrowserContext, ip = fakeIp()) => void addresses.set(ctx, ip);
+
 export async function newContext(browser: Browser, options: BrowserContextOptions = {}, { showTour = false } = {}): Promise<BrowserContext> {
-  const ctx = await browser.newContext({ baseURL: BASE_URL, locale: "en-IN", timezoneId: "Asia/Kolkata", ...options, extraHTTPHeaders: { "x-forwarded-for": fakeIp(), ...options.extraHTTPHeaders } });
+  const ctx = await browser.newContext({ baseURL: BASE_URL, locale: "en-IN", timezoneId: "Asia/Kolkata", ...options });
+  comeFrom(ctx);
+  await ctx.route(`${BASE_URL}/**`, (route) => route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": addresses.get(ctx)! } }));
   // The cookie banner would sit over the page; "all" is what pressing Accept stores.
   await ctx.addCookies([{ name: "fitron_consent", value: "all", url: BASE_URL }]);
   await ctx.addInitScript(RECORD_VIOLATIONS);
@@ -148,7 +159,7 @@ export async function signUp(page: Page, { plan = "professional", tag = "gym" }:
 
 export async function signIn(page: Page, gym: Pick<Gym, "email" | "password">, password = gym.password) {
   // Sign-ins are limited per address (5 a minute); a test that signs in many times does not come from one address.
-  await page.context().setExtraHTTPHeaders({ "x-forwarded-for": fakeIp() });
+  comeFrom(page.context());
   await page.goto("/login");
   await page.getByLabel("Email").fill(gym.email);
   await page.getByLabel("Password").fill(password);
