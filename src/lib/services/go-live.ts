@@ -20,6 +20,7 @@ import { getTax } from "./tax";
 import { todayIso } from "./time";
 import { getWaSettings } from "./whatsapp";
 import pkg from "../../../package.json";
+import { allowDelete } from "./db-guard";
 
 /** Settings › Go live: every check reads the gym's real state. */
 export async function goLiveChecklist(u: CurrentUser) {
@@ -104,6 +105,8 @@ export async function clearDemoData(u: CurrentUser) {
 
   return db.$transaction(
     async (tx) => {
+      // The database refuses to delete money records unless told why, and then only for a gym flagged demo.
+      await allowDelete(tx, "demo-clear");
       const removed: Record<string, number> = {};
       const count = (key: string, r: { count: number }) => (removed[key] = r.count);
       count("autopayEvents", await tx.autopayEvent.deleteMany({ where: { mandate: { orgId } } }));

@@ -28,7 +28,14 @@ describe.skipIf(!hasDb)("audit chain", () => {
     const g = await makeGym();
     for (const n of [1, 2, 3]) await w(g.org.id, n);
     const mid = (await db.auditLog.findMany({ where: { orgId: g.org.id }, orderBy: { id: "asc" } }))[1]!;
-    await db.$executeRaw`UPDATE "AuditLog" SET action = 'x' WHERE id = ${mid.id}`;
+    // The database refuses to change an audit row (financial-guard.db.test.ts). Someone who owns the database could switch that
+    // off and edit history, which is the case the chain exists for, so the test does the same.
+    await db.$executeRawUnsafe('ALTER TABLE "AuditLog" DISABLE TRIGGER fitron_audit_append_only');
+    try {
+      await db.$executeRaw`UPDATE "AuditLog" SET action = 'x' WHERE id = ${mid.id}`;
+    } finally {
+      await db.$executeRawUnsafe('ALTER TABLE "AuditLog" ENABLE TRIGGER fitron_audit_append_only');
+    }
     expect(await verifyAuditChain(g.org.id)).toEqual({ checked: 3, bad: 1 });
   });
 

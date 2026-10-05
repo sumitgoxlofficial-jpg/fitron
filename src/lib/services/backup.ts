@@ -19,6 +19,7 @@ import {
   type TableSpec,
 } from "@/lib/domain/backup";
 import { audit } from "./audit";
+import { allowDelete } from "./db-guard";
 import { UserError, isUniqueViolation } from "./errors";
 import { notify } from "./notifications";
 
@@ -305,6 +306,8 @@ export async function restoreBackup(u: CurrentUser, source: RestoreSource, confi
   try {
     await db.$transaction(
       async (tx) => {
+        // The database refuses to delete money records unless told why; a restore replaces them with the file's.
+        await allowDelete(tx, "restore");
         const ctx: Ctx = {
           orgId,
           memberIds: (await tx.member.findMany({ where: { orgId }, select: { id: true } })).map((m) => m.id),

@@ -59,6 +59,7 @@ This creates the gym, its first branch, the default roles and the Super Admin ac
 - Staff: add, edit, reset password, deactivate (signs them out).
 - My profile (avatar menu, top right): edit your name and mobile, upload a photo, change your password (signs out your other devices), see your recent activity.
 - Every change is written to the audit log.
+- Financial records are kept by the database itself: invoices, payments, expenses, purchases, assets and the like cannot be deleted, and the audit log cannot be changed, by a bug or by a query typed into a SQL prompt. Only Go live › Clear demo data (on a demo gym) and Backup › Restore from file may remove them (`src/lib/services/db-guard.ts`).
 - Exercise form videos: the FITRON team pastes one YouTube (or .mp4) link per exercise on `/fitron-admin/trainer/content`; the AI Trainer plays it on the exercise card and in full screen instead of the demo's placeholder.
 - FITRON team console for the AI Trainer (`/fitron-admin/trainer`, FITRON_ADMIN_EMAILS): members by state with search and CSV, every payment with its UTR and decision, and each partner gym's monthly payout.
 - AI Trainer push reminders: with VAPID keys set, members who enable notifications get workout, water, meal and sleep nudges on their phone even with the app closed, plus trial-ending, renewal-due and rejected-payment notices; `deploy/scheduler.sh` calls `/api/jobs/trainer` hourly.
