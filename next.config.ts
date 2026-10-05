@@ -38,7 +38,9 @@ const nextConfig: NextConfig = {
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // The attendance screen scans member QR codes with the device camera, so the camera is allowed for our own pages
+          // (and only ours: an embedded frame still can't use it). Microphone and location are never used.
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
         ],
       },
       // Static files of the home page. Next sends public/ files with max-age=0, so every visit asked for the 1.2 MB 3D

@@ -57,6 +57,43 @@ TEXT = [
     ('<p class="pc-who">Advanced AI coaching and long-term progress tracking.</p>', '<p class="pc-who">Everything in AI Pro, with a higher daily AI Coach limit.</p>', "AI Premium: tagline"),
     # The number of sections in the sidebar (src/lib/nav.ts); site-links.test.ts keeps them equal.
     ('<span class="num-3d gold-3d">22</span><p>Gym modules', '<span class="num-3d gold-3d">24</span><p>Gym modules', "module count"),
+    # The same count appears twice more; landing-page.test.ts checks every "N modules" on the page against the sidebar.
+    ("</svg>22 modules: members, billing, GST, expenses, P&amp;L", "</svg>24 modules: members, billing, GST, expenses, P&amp;L", "Gym Accounting card: module count"),
+    ("Gym Accounting, all 22 modules", "Gym Accounting, all 24 modules", "partner perks: module count"),
+    # What search results show: the page leads with what people search for. Kept under about 60 and 160 characters
+    # (landing-page.test.ts). The visible headline is the design's and is left alone.
+    (
+        "<title>FITRON — Your AI personal trainer, and your gym's accounts</title>",
+        "<title>Gym Accounting Software &amp; AI Personal Trainer | FITRON</title>",
+        "page title",
+    ),
+    (
+        '<meta name="description" content="FITRON: an AI personal trainer for ₹299 a month, and gym accounting software with GST invoices, WhatsApp reminders and P&amp;L from ₹999 a month.">',
+        '<meta name="description" content="Gym accounting software with GST invoices, fees, WhatsApp reminders and P&amp;L from ₹999 a month, plus an AI personal trainer for ₹299 a month. 7-day free trial.">',
+        "meta description",
+    ),
+    (
+        '<meta property="og:title" content="FITRON: your AI trainer, and your gym\'s accounts">',
+        '<meta property="og:title" content="FITRON: gym accounting software and an AI personal trainer">',
+        "link preview title",
+    ),
+    # Links to the pages about Gym Accounting (src/lib/domain/gym-pages.ts): the product card, the footer and two FAQ answers.
+    (
+        '<a class="btn btn-gold" href="/signup?plan=professional">Start free trial <svg class="icon"><use href="#i-arrow"></use></svg></a><a class="btn btn-ghost" href="#products">Full details</a>',
+        '<a class="btn btn-gold" href="/signup?plan=professional">Start free trial <svg class="icon"><use href="#i-arrow"></use></svg></a><a class="btn btn-ghost" href="/gym-accounting">Full details</a>',
+        "Gym Accounting card: full details",
+    ),
+    (
+        '<li><a href="#products">Gym Accounting</a></li><li><a href="#together">Better together</a></li>',
+        '<li><a href="/gym-accounting">Gym Accounting</a></li><li><a href="/gym-management-software">Gym management software</a></li><li><a href="/gym-gst-billing">GST invoices for gyms</a></li><li><a href="#together">Better together</a></li>',
+        "footer links to the Gym Accounting pages",
+    ),
+    (
+        "as Excel or CSV files for your accountant.</p></details>",
+        'as Excel or CSV files for your accountant. <a href="/gym-gst-billing">How GST billing works.</a></p></details>',
+        "FAQ: GST link",
+    ),
+    ('<a href="#faq">More on gym accounting.</a>', '<a href="/gym-accounting">More on gym accounting.</a>', "FAQ: branches link"),
     (
         "never shown to the gym. <a href=\"/privacy\">Read the policies.</a>",
         "never shown to the gym. The AI replies are written by an AI provider that may process them outside India: the privacy policy says what is sent. <a href=\"/privacy\">Read the policies.</a>",
@@ -148,6 +185,8 @@ def structured_data(page):
         ai = name.endswith("AI Trainer")
         apps.append({
             "@type": "SoftwareApplication",
+            # The Gym Accounting entity is described in full on its own page (src/app/(site)/gym-page.tsx).
+            **({} if ai else {"@id": "https://fitron.in/gym-accounting#software", "url": "https://fitron.in/gym-accounting"}),
             "name": name,
             "applicationCategory": "HealthApplication" if ai else "BusinessApplication",
             "operatingSystem": "Web",
@@ -159,6 +198,7 @@ def structured_data(page):
             ],
         })
     graph = [
+        {"@type": "WebSite", "@id": "https://fitron.in/#website", "url": "https://fitron.in/", "name": "FITRON", "inLanguage": "en-IN", "publisher": org},
         {"@type": "Organization", "@id": "https://fitron.in/#org", "name": "FITRON", "url": "https://fitron.in/", "logo": "https://fitron.in/fitron-logo.png",
          "email": "hello@fitron.in", "telephone": "+91 62077 74673", "areaServed": "IN",
          "contactPoint": {"@type": "ContactPoint", "contactType": "customer support", "email": "hello@fitron.in", "telephone": "+91 62077 74673", "areaServed": "IN", "availableLanguage": "en"}},

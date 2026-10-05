@@ -20,7 +20,7 @@ const THEME_SCRIPT = `try{if(localStorage.getItem("fitron_theme")==="light")docu
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${sourceSerif.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en-IN" className={`${sourceSerif.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
