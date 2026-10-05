@@ -7,6 +7,7 @@ import { backupNudge, createBackup, pruneBackups } from "./backup";
 import { sizeText } from "@/lib/domain/backup";
 import { isUniqueViolation } from "./errors";
 import { notify } from "./notifications";
+import { sendMonthlyPl } from "./pl-email";
 import { computeRisk, dailyBrief } from "./insights";
 import { getAiSettings } from "./ai-settings";
 import { systemUser } from "@/lib/auth/system";
@@ -152,6 +153,11 @@ export const JOBS: Job[] = [
     name: "backup.nudge",
     label: "Weekly backup reminder",
     run: (orgId, _today, now) => backupNudge(orgId, now),
+  },
+  {
+    name: "reports.monthly",
+    label: "Last month's profit and loss, emailed to the owner",
+    run: (orgId, today, now) => sendMonthlyPl(orgId, today, now),
   },
 ];
 

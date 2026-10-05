@@ -18,11 +18,14 @@ function smtp() {
   return transport;
 }
 
-export async function sendEmail(mail: { to: string; subject: string; text: string; replyTo?: string }) {
+export type Attachment = { filename: string; content: Uint8Array; contentType: string };
+
+export async function sendEmail(mail: { to: string; subject: string; text: string; replyTo?: string; attachments?: Attachment[] }) {
   if (!emailReady()) {
-    log.info("email.demo", { to: mail.to, subject: mail.subject });
+    log.info("email.demo", { to: mail.to, subject: mail.subject, attachments: mail.attachments?.map((a) => a.filename).join(", ") });
     return { sent: false as const };
   }
-  await smtp().sendMail({ from: process.env.MAIL_FROM || "FITRON <hello@fitron.in>", ...mail });
+  const { attachments, ...rest } = mail;
+  await smtp().sendMail({ from: process.env.MAIL_FROM || "FITRON <hello@fitron.in>", ...rest, attachments: attachments?.map((a) => ({ filename: a.filename, content: Buffer.from(a.content), contentType: a.contentType })) });
   return { sent: true as const };
 }

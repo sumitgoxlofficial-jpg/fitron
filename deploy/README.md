@@ -127,7 +127,7 @@ nano deploy/.env
 | Your details on FITRON's invoices to gyms, and on the website's Contact page | `FITRON_LEGAL_NAME`, `FITRON_GSTIN`, `FITRON_ADDRESS` | Leave `FITRON_GSTIN` empty if you're not GST-registered yet. The Contact page shows your registered business name, address and GSTIN once the address or GSTIN is set (payment providers and Indian consumer rules usually expect them on the website) |
 | **Sign in with Google** | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | See "Google sign-in" below. Until both are set, the Google button stays hidden and email + password still work |
 | Fitron AI and the AI Trainer's coach | `ANTHROPIC_API_KEY` | from console.anthropic.com |
-| Email (sign-up confirmation, password reset, payment emails, website enquiries) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, `ENQUIRY_TO` | Verify fitron.in with your email provider (it gives you DNS records to add). Without email, new sign-ups are trusted without a confirmation link and password reset can't send its link |
+| Email (sign-up confirmation, password reset, payment emails, website enquiries, and each gym owner's monthly profit-and-loss email with its Excel statement) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, `ENQUIRY_TO` | Verify fitron.in with your email provider (it gives you DNS records to add). Without email, new sign-ups are trusted without a confirmation link and password reset can't send its link |
 | Documents in the cloud (optional) | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | e.g. a Cloudflare R2 bucket (free up to 10 GB); otherwise they're kept on the server |
 
 Then apply them:

@@ -24,7 +24,7 @@ function pagesUnder(dir: string, prefix = ""): string[] {
 
 // The FITRON team's own screens answer only to the team. Tabs of a page are separate addresses to check.
 const STATIC = pagesUnder(APP).filter((r) => !r.startsWith("/fitron-admin"));
-const TABS = ["/settings?tab=privacy", "/settings?tab=branches", "/settings?tab=billing", "/settings?tab=help", "/accounting?tab=ledger", "/profile?tab=twostep", "/profile?tab=password", "/reports/collections"];
+const TABS = ["/settings?tab=reminders", "/settings?tab=privacy", "/settings?tab=branches", "/settings?tab=billing", "/settings?tab=help", "/accounting?tab=ledger", "/profile?tab=twostep", "/profile?tab=password", "/reports/collections"];
 
 type Rich = { state: Awaited<ReturnType<import("@playwright/test").BrowserContext["storageState"]>>; gym: Gym; memberId: string; invoiceId: string };
 
