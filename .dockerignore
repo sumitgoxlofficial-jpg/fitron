@@ -11,3 +11,7 @@ coverage
 src/generated
 deploy/.env
 deploy/backups
+e2e
+playwright.config.ts
+test-results
+playwright-report

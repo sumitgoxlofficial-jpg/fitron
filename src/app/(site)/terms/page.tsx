@@ -1,6 +1,7 @@
 import { LegalPage } from "../legal";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Terms & Conditions · FITRON", description: "The terms for using FITRON AI Trainer, Gym Accounting and the Gym Partnership." };
+export const metadata = pageMetadata({ title: "Terms & Conditions · FITRON", description: "The terms for using FITRON AI Trainer, Gym Accounting and the Gym Partnership.", path: "/terms" });
 
 export default function TermsPage() {
   return (
