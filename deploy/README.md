@@ -174,6 +174,7 @@ On the device, open **Menu › Comm. › Cloud Server Setting**. Set the server 
 ## Everyday care
 
 - **Updates:** `cd ~/fitron && bash deploy/update.sh`. This gets the latest version, applies any database changes and restarts the scheduler, so new scheduled jobs start.
+- **WhatsApp reminders:** the daily job at 06:30 India time queues expiry, dues and birthday reminders, but the default quiet hours (21:00 to 08:00, Settings › WhatsApp) hold them. The scheduler asks the app to send held messages every 15 minutes (`/api/jobs/dispatch`), so they go out at 08:00. Nothing is sent twice.
 - **Backups:** saved nightly in `~/fitron/deploy/backups` and kept for 14 days. Copy them off the server now and then, for example from your computer:
   `scp -i key ubuntu@YOUR_SERVER_IP:fitron/deploy/backups/*.dump .`
   For extra safety, turn on a free boot-volume backup in Oracle under **Block Storage › Boot Volumes › Backups**.
