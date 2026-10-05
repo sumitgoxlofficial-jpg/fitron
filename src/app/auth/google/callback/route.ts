@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
+import { challengeCookie } from "@/lib/auth/two-step-challenge";
 import { safeNext } from "@/lib/auth/next";
 import { GOOGLE_FLOWS, GOOGLE_FLOW_COOKIE, GOOGLE_SIGNUP_COOKIE, exchangeCode, googleBackUrl, sign, unsign, type GoogleFlow, type GoogleProfile } from "@/lib/integrations/google";
 import { gymSignupHref } from "@/lib/domain/site-links";
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
   if (f.flow === "signup") {
     // An existing staff account just signs in; a new email goes on to the gym sign-up form.
     const user = await db.user.findFirst({ where: { email: me.email, active: true, deletedAt: null } });
-    if (user) return done(await staffIn(user.id, user.emailVerifiedAt, "/dashboard"));
+    if (user) return done(await staffIn(user, "/dashboard"));
     const res = to(gymSignupHref({ plan: f.plan, cycle: f.cycle, google: "1" }));
     res.cookies.set(GOOGLE_SIGNUP_COOKIE, sign({ email: me.email, name: me.name }, 30 * 60_000), { ...cookie, maxAge: 1800 });
     return done(res);
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
     }
     return done(to(`/login?google=nouser&email=${encodeURIComponent(me.email)}`));
   }
-  return done(await staffIn(user.id, user.emailVerifiedAt, safeNext(f.next)));
+  return done(await staffIn(user, safeNext(f.next)));
 }
 
 /**
@@ -73,10 +74,18 @@ export async function GET(req: NextRequest) {
  * was never proven to belong to this person (anyone can sign up with someone else's address and
  * wait), so it is replaced and any other sessions end; they can set their own with "Forgot password?".
  */
-async function staffIn(userId: string, verifiedAt: Date | null, next: string) {
-  if (!verifiedAt) {
+async function staffIn(user: { id: string; emailVerifiedAt: Date | null; totpEnabledAt: Date | null }, next: string) {
+  const userId = user.id;
+  if (!user.emailVerifiedAt) {
     await db.session.deleteMany({ where: { userId } });
     await db.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date(), passwordHash: await hashPassword(randomBytes(24).toString("base64url")) } });
+  }
+  // Two-step sign-in applies to Google too: Google has proved the email, but the code proves the person holding the phone.
+  if (user.totpEnabledAt) {
+    const res = to("/login?step=2");
+    const c = challengeCookie({ uid: userId, next, via: "google" });
+    res.cookies.set(c.name, c.value, c.options);
+    return res;
   }
   await createSession(userId);
   await recordSignIn(userId, "google");

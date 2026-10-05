@@ -116,10 +116,11 @@ export async function createGymAccount(d: GymSignup, emailVerified = false) {
 const compact = (o: Record<string, string | undefined>) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== "")) as Record<string, string>;
 
 /** A successful sign-in: stamps lastLoginAt and records how, in one transaction. */
-export async function recordSignIn(userId: string, via: "email" | "google") {
+/** `secondStep` says how a two-step sign-in finished: with an authenticator "code", or by using up a "recovery" code. */
+export async function recordSignIn(userId: string, via: "email" | "google", secondStep?: "code" | "recovery") {
   await db.$transaction(async (tx) => {
     const u = await tx.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
-    await audit(tx, { orgId: u.orgId, userId, action: "auth.login", entity: "User", entityId: userId, after: { via } });
+    await audit(tx, { orgId: u.orgId, userId, action: "auth.login", entity: "User", entityId: userId, after: secondStep ? { via, secondStep } : { via } });
   });
 }
 

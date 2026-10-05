@@ -116,6 +116,13 @@ model User {
   /// Null until the user clicks the link in the verification email
   emailVerifiedAt DateTime?       @db.Timestamptz
   authTokens      AuthToken[]
+  /// Two-step sign-in (authenticator app): the secret, sealed with AES-GCM (src/lib/services/two-step.ts). Set while a
+  /// person is setting it up, but only enforced once totpEnabledAt is set.
+  totpSecret      Bytes?
+  totpEnabledAt   DateTime?       @db.Timestamptz
+  /// The latest 30-second step a code was accepted for, so one code cannot be used twice
+  totpLastStep    Int?
+  recoveryCodes   RecoveryCode[]
   /// Monthly salary in paise; 0 = not set
   salary          Int             @default(0)
   joinedOn        DateTime?       @db.Date
@@ -126,6 +133,18 @@ model User {
   createdAt       DateTime        @default(now()) @db.Timestamptz
   updatedAt       DateTime        @updatedAt @db.Timestamptz
   deletedAt       DateTime?       @db.Timestamptz
+}
+
+/// One-use codes for signing in without the authenticator app. Only the SHA-256 of a code is kept.
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime? @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+
+  @@unique([userId, codeHash])
 }
 
 /// One-time links sent by email. `id` is the SHA-256 of the token in the link.
