@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Source_Serif_4 } from "next/font/google";
 import "./globals.css";
+import { THEME_SCRIPT } from "@/lib/theme-script";
 
 const sourceSerif = Source_Serif_4({
   variable: "--font-source-serif",
@@ -14,9 +15,6 @@ export const metadata: Metadata = {
   title: "Fitron",
   description: "Gym management and accounting",
 };
-
-// Applies the saved light/dark choice before the first paint, so pages never flash the wrong theme.
-const THEME_SCRIPT = `try{if(localStorage.getItem("fitron_theme")==="light")document.documentElement.dataset.theme="light"}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

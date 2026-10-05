@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as z from "zod";
+import "@/lib/zod-config";
 import { requirePermission } from "@/lib/auth/current";
 import { confirmCheckout, confirmDemoPayment, startPayment, submitUtr, type Checkout } from "@/lib/services/saas";
 import { saveBillingDetails as saveDetails, saveRenewalReminders as saveReminders } from "@/lib/services/subscription";

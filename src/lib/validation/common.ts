@@ -1,4 +1,5 @@
 import * as z from "zod";
+import "@/lib/zod-config";
 
 const blankToUndefined = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 

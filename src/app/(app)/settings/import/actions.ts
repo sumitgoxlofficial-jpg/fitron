@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
+import "@/lib/zod-config";
 import { requirePermission } from "@/lib/auth/current";
 import { formAction } from "@/lib/form-action";
 import { IMPORT_KINDS, type CheckedRow } from "@/lib/domain/import";

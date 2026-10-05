@@ -1,4 +1,5 @@
 import * as z from "zod";
+import "@/lib/zod-config";
 import { indianPhone, optionalDate, optionalPhone, optionalText, rupees } from "./common";
 import { METHODS } from "./billing";
 import { SOURCES } from "./member";

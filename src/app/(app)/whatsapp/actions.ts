@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
+import "@/lib/zod-config";
 import { requireFeature, requirePermission } from "@/lib/auth/current";
 import { formAction, simpleAction } from "@/lib/form-action";
 import type { FormState } from "@/lib/validation/common";

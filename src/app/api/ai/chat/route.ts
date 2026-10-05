@@ -1,4 +1,5 @@
 import * as z from "zod";
+import "@/lib/zod-config";
 import { getCurrentUser, PLAN_ENDED } from "@/lib/auth/current";
 import { aiReady } from "@/lib/integrations/anthropic";
 import { chat, type ChatEvent } from "@/lib/services/ai";

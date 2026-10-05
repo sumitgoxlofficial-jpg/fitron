@@ -1,4 +1,5 @@
 import * as z from "zod";
+import "@/lib/zod-config";
 import { indianPhone } from "./common";
 import { newPassword } from "./site";
 

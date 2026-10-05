@@ -1,4 +1,5 @@
 import * as z from "zod";
+import "@/lib/zod-config";
 import { indianPhone, optionalDate, optionalPhone, optionalText } from "./common";
 
 export const GENDERS = ["Male", "Female", "Other"] as const;

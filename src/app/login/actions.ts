@@ -1,6 +1,7 @@
 "use server";
 
 import * as z from "zod";
+import "@/lib/zod-config";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";

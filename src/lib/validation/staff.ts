@@ -1,4 +1,5 @@
 import * as z from "zod";
+import "@/lib/zod-config";
 import { indianPhone, optionalText } from "./common";
 
 export const staffInput = z.object({

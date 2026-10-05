@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
+import "@/lib/zod-config";
 import { requirePermission } from "@/lib/auth/current";
 import { putSetting } from "@/lib/services/settings";
 import { clearDemoData } from "@/lib/services/go-live";
