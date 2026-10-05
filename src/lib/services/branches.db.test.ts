@@ -16,7 +16,6 @@ describe.skipIf(!hasDb)("branches (database)", () => {
   beforeAll(() => {
     vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "");
     vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", "");
-    vi.stubEnv("FITRON_UPI_ID", "");
   });
   afterEach(() => vi.unstubAllGlobals());
 

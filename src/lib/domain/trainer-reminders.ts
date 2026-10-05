@@ -19,8 +19,6 @@ export type ReminderInput = {
   workoutTime: string | null;
   access: Access;
   planCancelled: boolean;
-  /** The latest payment is waiting for a check, or was rejected */
-  payment: "SUBMITTED" | "REJECTED" | null;
   workoutDone: boolean;
   /** Litres drunk today, and the goal */
   water: number;
@@ -63,7 +61,6 @@ export function dueReminders(i: ReminderInput): Reminder[] {
   const at = wt !== null && i.workoutTime ? ` at ${fmtClock(wt)}` : "";
 
   // The account comes first: these go even with every reminder switched off, since they are about money.
-  if (inWindow(now, H(6), H(22)) && i.payment === "REJECTED") add("rejected", "We couldn't confirm your payment", "Check the UTR from your UPI app, or pay again from the app.");
   if (inWindow(now, H(6), H(12))) {
     if (i.access.status === "TRIAL") {
       const left = daysBetween(i.access.endsAt.toISOString().slice(0, 10), i.today);

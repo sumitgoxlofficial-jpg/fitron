@@ -8,7 +8,6 @@ import type { Cycle } from "@/lib/domain/pricing";
 import { razorpayPlan } from "@/lib/domain/razorpay-plans";
 import { emailReady, sendEmail } from "@/lib/integrations/email";
 import { fitronKeyId } from "@/lib/integrations/razorpay";
-import { cleanUtr, fitronAdmins, fitronUpi, upiLink } from "@/lib/integrations/upi";
 import { appUrl } from "./accounts";
 import { isUniqueViolation, UserError } from "./errors";
 import { createSubscription, renewingSubscriptions, stopSubscription } from "./subscriptions";
@@ -16,10 +15,9 @@ import { trainerRenewal } from "./trainer-billing";
 import { gymView } from "./trainer-gym";
 import { sha256 } from "./trainer-session";
 import { fromIso, toIso, todayIso } from "./time";
-import { log } from "@/lib/log";
 
 // The AI Trainer member app (public/trainer, served at /trainer) keeps its data here:
-// accounts, what the member told the app, their daily log, coach chats, and UPI payments to FITRON.
+// accounts, what the member told the app, their daily log, coach chats, and payments to FITRON.
 
 const LINK_MINUTES = 30;
 
@@ -179,7 +177,7 @@ export async function loadTrainer(memberId: string, today = todayIso()) {
   const [days, chats, payments] = await Promise.all([
     db.trainerDay.findMany({ where: { memberId, date: { gte: fromIso(since) } }, orderBy: { date: "asc" } }),
     db.trainerChat.findMany({ where: { memberId }, orderBy: { updatedAt: "desc" }, take: 40 }),
-    db.trainerPayment.findMany({ where: { memberId, status: { in: ["SUBMITTED", "PAID", "REJECTED"] } }, orderBy: { createdAt: "desc" }, take: 20 }),
+    db.trainerPayment.findMany({ where: { memberId, status: "PAID" }, orderBy: { createdAt: "desc" }, take: 20 }),
   ]);
   const profile = (m.profile ?? {}) as Record<string, unknown>;
   const logs = days.map(dayLog);
@@ -301,14 +299,13 @@ export async function setTrainerRenewal(memberId: string, cancelled: boolean) {
 
 export const trainerPaymentRef = (id: string) => `FTR-${id.slice(-8).toUpperCase()}`;
 
-function paymentView(p: { id: string; plan: string; cycle: string; kind: string; total: number; status: string; utr: string | null; submittedAt: Date | null; rejectReason: string | null; periodEnd: Date | null; createdAt: Date }) {
-  return { id: p.id, ref: trainerPaymentRef(p.id), plan: p.plan, cycle: p.cycle, kind: p.kind, total: p.total, status: p.status, utr: p.utr, submittedAt: p.submittedAt?.toISOString() ?? null, rejectReason: p.rejectReason, periodEnd: p.periodEnd ? toIso(p.periodEnd) : null, createdAt: p.createdAt.toISOString() };
+function paymentView(p: { id: string; plan: string; cycle: string; kind: string; total: number; status: string; periodEnd: Date | null; createdAt: Date }) {
+  return { id: p.id, ref: trainerPaymentRef(p.id), plan: p.plan, cycle: p.cycle, kind: p.kind, total: p.total, status: p.status, periodEnd: p.periodEnd ? toIso(p.periodEnd) : null, createdAt: p.createdAt.toISOString() };
 }
 
 /**
- * Starts a payment to FITRON for a plan period. With Fitron's Razorpay keys set, the plan is a subscription that renews
- * itself and Checkout opens for it; otherwise it returns the UPI link the app turns into a QR. The listed price has the
- * GST inside it. Without either the payment is marked DEMO (development only); production refuses.
+ * Starts a payment to FITRON for a plan period: a Razorpay subscription that renews itself, and Checkout opens for it.
+ * The listed price has the GST inside it. Without Fitron's Razorpay keys nothing can be paid, here or in production.
  */
 export async function startTrainerPayment(memberId: string, a: { plan: string; cycle: string; kind: string }) {
   if (!isTrainerPlan(a.plan)) throw new UserError("Pick AI Pro or AI Premium.");
@@ -320,47 +317,14 @@ export async function startTrainerPayment(memberId: string, a: { plan: string; c
   const name = a.plan === "ai-premium" ? "AI Premium" : "AI Pro";
   const period = cycle === "YEARLY" ? "1 year" : "1 month";
   const keyId = fitronKeyId();
-  if (keyId && razorpayPlan(a.plan, cycle)) {
-    const m = await db.trainerMember.findUniqueOrThrow({ where: { id: memberId } });
-    // Already renewing this plan and cycle: a second subscription would charge twice.
-    if ((await renewingSubscriptions({ memberId, kind: "TRAINER" })).some((s) => s.plan === a.plan && s.cycle === cycle)) throw new UserError(`Your ${name} plan already renews automatically. To change it, pick another plan, or stop the renewal in Settings › Subscription first.`);
-    const rz = await createSubscription({ kind: "TRAINER", plan: a.plan, cycle, expectedTotal: price.total, memberId });
-    const p = await db.trainerPayment.create({ data: { memberId, plan: a.plan, cycle, kind, ...price, gstIncluded: true, mode: "SUBSCRIPTION", razorpaySubscriptionId: rz.id } });
-    return { id: p.id, ref: trainerPaymentRef(p.id), plan: a.plan, cycle, kind, ...price, mode: "SUBSCRIPTION" as const, keyId, subscriptionId: rz.id, name: "FITRON", description: `${name}, ${period} (GST included)`, prefill: { name: m.name, email: m.email } };
-  }
-  const upi = fitronUpi();
-  if (!upi && process.env.NODE_ENV === "production") throw new UserError("Payments aren't switched on yet. Start the free trial for now, or write to hello@fitron.in.");
-  const p = await db.trainerPayment.create({ data: { memberId, plan: a.plan, cycle, kind, ...price, gstIncluded: true, mode: upi ? "UPI" : "DEMO" } });
-  const ref = trainerPaymentRef(p.id);
-  const payee = upi ?? { id: "fitron.demo@upi", name: "FITRON (demo)" };
-  const link = upiLink({ id: payee.id, name: payee.name, amount: price.total, note: `${ref} ${name} ${period}`.slice(0, 50) });
-  return { id: p.id, ref, plan: a.plan, cycle, kind, ...price, mode: p.mode as "UPI" | "DEMO", upiId: payee.id, payee: payee.name, link };
-}
-
-/** The member paid and typed the UTR. The FITRON team is emailed to check it. */
-export async function submitTrainerUtr(memberId: string, id: string, raw: string) {
-  const utr = cleanUtr(raw);
-  if (!utr) throw new UserError("Enter the 12-digit UTR from your UPI app (numbers only).");
-  const p = await db.trainerPayment.findFirst({ where: { id, memberId }, include: { member: true } });
-  if (!p) throw new UserError("Payment not found. Close this and start again.");
-  if (p.status !== "PENDING") throw new UserError("This payment already has a UTR. Start a new payment if you paid again.");
-  // One UTR pays for one thing, across gym and trainer payments.
-  if (await db.branchSubscription.findFirst({ where: { utr }, select: { id: true } })) throw new UserError("This UTR was already entered for another payment. Check the number in your UPI app.");
-  try {
-    await db.trainerPayment.update({ where: { id }, data: { status: "SUBMITTED", utr, submittedAt: new Date() } });
-  } catch (e) {
-    if (isUniqueViolation(e)) throw new UserError("This UTR was already entered for another payment. Check the number in your UPI app.");
-    throw e;
-  }
-  const what = `${p.plan === "ai-premium" ? "AI Premium" : "AI Pro"} (${p.cycle.toLowerCase()})`;
-  for (const to of fitronAdmins()) {
-    await sendEmail({
-      to,
-      subject: `AI Trainer UPI payment to check: ${(p.total / 100).toFixed(2)} from ${p.member.email}`,
-      text: `${p.member.name || p.member.email} says they paid Rs ${(p.total / 100).toFixed(2)} for ${what}.\n\nUTR: ${utr}\nReference: ${trainerPaymentRef(p.id)}${p.mode === "DEMO" ? "\n(DEMO: FITRON_UPI_ID wasn't set, so no real money was asked for.)" : ""}\n\nCheck your bank or UPI app for this UTR, then confirm or reject it:\n${appUrl()}/fitron-admin`,
-    }).catch((e) => log.error("trainer.utr_email_failed", e));
-  }
-  return paymentView({ ...p, status: "SUBMITTED", utr, submittedAt: new Date() });
+  if (!keyId) throw new UserError("Payments aren't switched on yet. Start the free trial for now, or write to hello@fitron.in.");
+  if (!razorpayPlan(a.plan, cycle)) throw new UserError("This plan can't be paid online yet. Write to hello@fitron.in.");
+  const m = await db.trainerMember.findUniqueOrThrow({ where: { id: memberId } });
+  // Already renewing this plan and cycle: a second subscription would charge twice.
+  if ((await renewingSubscriptions({ memberId, kind: "TRAINER" })).some((s) => s.plan === a.plan && s.cycle === cycle)) throw new UserError(`Your ${name} plan already renews automatically. To change it, pick another plan, or stop the renewal in Settings › Subscription first.`);
+  const rz = await createSubscription({ kind: "TRAINER", plan: a.plan, cycle, expectedTotal: price.total, memberId });
+  const p = await db.trainerPayment.create({ data: { memberId, plan: a.plan, cycle, kind, ...price, gstIncluded: true, mode: "SUBSCRIPTION", razorpaySubscriptionId: rz.id } });
+  return { id: p.id, ref: trainerPaymentRef(p.id), plan: a.plan, cycle, kind, ...price, mode: "SUBSCRIPTION" as const, keyId, subscriptionId: rz.id, name: "FITRON", description: `${name}, ${period} (GST included)`, prefill: { name: m.name, email: m.email } };
 }
 
 // ── AI Coach limits ─────────────────────────────────────────────────────────

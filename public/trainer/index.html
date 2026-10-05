@@ -14,7 +14,6 @@
   };
 </script>
 <script src="./support.js"></script>
-<script src="./qrious.js"></script>
 </head>
 <body>
 <x-dc>
@@ -125,56 +124,6 @@
             <p style="font-size:13px;line-height:1.55;margin:14px 0 0;color:#8a8a90">{{ payGateNote }}</p>
             <sc-if value="{{ payGateHasErr }}" hint-placeholder-val="{{ false }}"><p role="alert" style="color:#e0a5a5;font-size:12px;margin:8px 0 0">{{ payGateErr }}</p></sc-if>
             <button style="margin-top:14px;width:100%;padding:15px;border-radius:15px;border:none;background:linear-gradient(135deg,#f5d576,#c9a227);color:#1a1206;font-weight:800;font-size:15px;cursor:pointer;opacity:{{ payGateOpacity }}" onClick="{{ payGateGo }}"><i class="ph-duotone ph-lock-simple"></i>&nbsp;{{ payGateBtn }}</button>
-          </sc-if>
-          <sc-if value="{{ payShowQr }}" hint-placeholder-val="{{ true }}">
-            <div style="margin-top:14px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(212,175,55,.16);display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <div style="font-size:11px;letter-spacing:1px;color:#8a8a90;font-weight:600">{{ payPlanCaps }} PLAN</div>
-                <div class="disp" style="font-weight:800;font-size:25px;color:#f5f5f2;margin-top:3px">{{ payAmount }} <span style="font-size:13px;color:#8a8a90;font-family:var(--ui);font-weight:500">{{ payPer }}</span></div>
-              </div>
-              <img src="assets/brand/fitron-mark-new.png" alt="FITRON" style="width:46px;height:46px;border-radius:50%;object-fit:cover;border:1px solid rgba(212,175,55,.4)">
-            </div>
-            <div style="position:relative;margin:16px auto 0;width:246px;box-sizing:border-box;padding:14px;background:#ffffff;border-radius:18px;box-shadow:0 16px 40px rgba(0,0,0,.5);cursor:pointer" onClick="{{ revealQr }}">
-              <canvas id="fitron-qr" width="480" height="480" style="width:218px;height:218px;display:block;filter:{{ payQrBlur }}"></canvas>
-              <sc-if value="{{ payQrHidden }}" hint-placeholder-val="{{ true }}">
-                <div style="position:absolute;inset:14px;border-radius:10px;background:rgba(10,10,12,.62);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:12px">
-                  <i class="ph-duotone ph-lock-key" style="font-size:28px;color:#f5d576"></i>
-                  <div style="color:#f5f5f2;font-weight:800;font-size:14px">Tap to reveal QR &amp; pay</div>
-                  <div style="color:#c9b98f;font-size:11px">A 10:00 timer starts on tap</div>
-                </div>
-              </sc-if>
-            </div>
-            <div style="margin-top:12px;text-align:center">
-              <div style="display:flex;align-items:center;justify-content:center;gap:9px">
-                <span style="height:26px;padding:0 7px;border-radius:7px;background:#fff;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.3)"><img src="assets/upi/upi-badge.png" alt="UPI" style="height:15px;width:auto;display:block"></span>
-                <div style="font-size:14px;font-weight:700;color:#f5f5f2">Scan with any UPI app</div>
-              </div>
-              <sc-if value="{{ payQrRevealed }}" hint-placeholder-val="{{ false }}">
-                <div style="margin-top:6px;font-size:12.5px;font-weight:700;color:#e8c766"><i class="ph-duotone ph-timer"></i>&nbsp;{{ payTimerText }}</div>
-              </sc-if>
-              <div style="margin-top:12px;display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:10px 14px">
-                <span style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="height:34px;padding:0 8px;border-radius:9px;background:#fff;display:flex;align-items:center;box-shadow:0 3px 8px rgba(0,0,0,.35)"><img src="assets/upi/upi-gpay.png" alt="Google Pay" style="height:24px;width:auto;display:block;object-fit:contain"></span><span style="font-size:10px;color:#9a9aa0;font-weight:600">Google Pay</span></span>
-                <span style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="width:34px;height:34px;border-radius:9px;background:#5f259f;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;box-shadow:0 3px 8px rgba(0,0,0,.35)">पे</span><span style="font-size:10px;color:#9a9aa0;font-weight:600">PhonePe</span></span>
-                <span style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="height:34px;padding:0 8px;border-radius:9px;background:#fff;display:flex;align-items:center;box-shadow:0 3px 8px rgba(0,0,0,.35)"><img src="assets/upi/upi-paytm.png" alt="Paytm" style="height:18px;width:auto;display:block;object-fit:contain"></span><span style="font-size:10px;color:#9a9aa0;font-weight:600">Paytm</span></span>
-                <span style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="height:34px;padding:0 8px;border-radius:9px;background:#fff;display:flex;align-items:center;box-shadow:0 3px 8px rgba(0,0,0,.35)"><img src="assets/upi/upi-bhim.png" alt="BHIM" style="height:16px;width:auto;display:block;object-fit:contain"></span><span style="font-size:10px;color:#9a9aa0;font-weight:600">BHIM</span></span>
-                <span style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="height:34px;width:34px;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,.35)"><img src="assets/upi/upi-navi.png" alt="Navi" style="height:26px;width:26px;display:block;object-fit:contain;border-radius:6px"></span><span style="font-size:10px;color:#9a9aa0;font-weight:600">Navi</span></span>
-              </div>
-              <div style="margin-top:10px;font-size:12px;color:#6b6b72">Paying to <span style="color:#c9b98f">{{ payPayee }}</span> · <span style="color:#c9b98f">{{ payUpiId }}</span></div>
-            </div>
-            <a href="{{ payUpiLink }}" style="margin-top:14px;box-sizing:border-box;padding:15px;border-radius:15px;background:linear-gradient(135deg,#f5d576,#c9a227);color:#1a1206;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;box-shadow:0 10px 30px rgba(201,162,39,.28)">{{ payBtnLabel }}</a>
-            <button style="margin-top:10px;width:100%;padding:13px;border-radius:15px;background:transparent;border:1px solid rgba(212,175,55,.35);color:#e8c766;font-family:var(--ui);font-weight:700;font-size:14px;cursor:pointer" onClick="{{ payToUtr }}">I've paid — enter UTR to verify →</button>
-            <div style="margin-top:14px;display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:13px;background:rgba(255,255,255,.03)">
-              <i class="ph-duotone ph-lock-simple" style="font-size:16px;color:#8fcf9a;flex:none;margin-top:1px"></i>
-              <div style="font-size:12px;color:#8a8a90;line-height:1.5">Payments are processed securely by your UPI app. FITRON never asks for or stores your UPI PIN.</div>
-            </div>
-          </sc-if>
-          <sc-if value="{{ payShowUtr }}" hint-placeholder-val="{{ false }}">
-            <p style="font-size:13px;line-height:1.55;margin:12px 0 0;color:#8a8a90">Enter the <b style="color:#f5f5f2">12-digit UTR / transaction ID</b> from your UPI app's payment receipt. FITRON checks it against the bank statement before activating your <span style="color:#e8c766">{{ payPlanName }}</span> plan ({{ payAmount }}).</p>
-            <label style="display:block;margin-top:14px;font-size:11px;letter-spacing:.05em;color:#c9b98f;font-weight:700">UTR / TRANSACTION ID</label>
-            <input inputmode="numeric" aria-label="UTR number" placeholder="Enter 12-digit UTR" value="{{ payUtr }}" onInput="{{ setPayUtr }}" style="margin-top:8px;width:100%;box-sizing:border-box;padding:14px 15px;border-radius:13px;background:#141416;border:1px solid rgba(212,175,55,.3);color:#f5f5f2;font-size:16px;letter-spacing:1px;outline:none">
-            <sc-if value="{{ payUtrHasErr }}" hint-placeholder-val="{{ false }}"><p style="color:#e0a5a5;font-size:12px;margin:8px 0 0">{{ payUtrErr }}</p></sc-if>
-            <button style="margin-top:12px;width:100%;padding:15px;border-radius:15px;border:none;background:linear-gradient(135deg,#f5d576,#c9a227);color:#1a1206;font-weight:800;font-size:15px;cursor:pointer" onClick="{{ submitUtr }}"><i class="ph-duotone ph-seal-check"></i>&nbsp;Submit for verification</button>
-            <button style="margin-top:10px;width:100%;padding:13px;border-radius:15px;background:transparent;border:1px solid rgba(212,175,55,.35);color:#e8c766;font-family:var(--ui);font-weight:700;font-size:14px;cursor:pointer" onClick="{{ payBackToQr }}">← Back to the QR code</button>
           </sc-if>
           <p style="font-size:11px;text-align:center;margin:12px 0 0;color:#6b6b72">{{ payFootNote }}</p>
         </div>
@@ -984,7 +933,7 @@ class Component extends DCLogic {
   state = {
     consent: { main: false, notif: true, city: true, at: '' }, cnErr: false,
     theme: (() => { try { const t = localStorage.getItem('aif-look'); return ['sunrise','blossom','midnight','onyx'].includes(t) ? t : 'sunrise'; } catch (e) { return 'sunrise'; } })(),
-    device: 'mobile', screen: 'login', loginRole: 'member', signup: false, water: 0, onboardStep: 1, moreOpen: false, billing: 'yearly', subMode: 'manage', trialEnds: '', planCancelled: false, cnFrom: '', payGateKind: '', dbUserId: '', dbMember: null, dbPending: [], dbMembers: [], dbStats: null, dbRecent: [], planLocked: false, linkErr: '', me: null, prog: null, review: null, coachUse: null, tier: 'ai-pro', payInfo: null, authNote: '', signinMode: false, devLink: '',
+    device: 'mobile', screen: 'login', loginRole: 'member', signup: false, water: 0, onboardStep: 1, moreOpen: false, billing: 'yearly', subMode: 'manage', trialEnds: '', planCancelled: false, cnFrom: '', payGateKind: '', dbUserId: '', dbMember: null, dbMembers: [], dbStats: null, dbRecent: [], planLocked: false, linkErr: '', me: null, prog: null, review: null, coachUse: null, tier: 'ai-pro', payInfo: null, authNote: '', signinMode: false, devLink: '',
     vw: (typeof window !== 'undefined' ? window.innerWidth : 1200), running: false, phase: 'work', step: 0, setIdx: 0, timeLeft: 0,
     habits: { workout:false, water:false, steps:false, protein:false, meals:false, sleep:false },
     reminders: { workout:true, meals:true, water:false, sleep:true }, notifPerm: 'default', notificationsOn: true, supps: { whey:true, pre:true }, editSupp: false,
@@ -1025,7 +974,7 @@ class Component extends DCLogic {
     plan: { Mon:'Chest', Tue:'Back', Wed:'Legs', Thu:'Shoulders', Fri:'Arms', Sat:'Full Body', Sun:'Rest' },
     messages: [],
     chatInput: '', typing: false, altOpen: null, coachLive: false, coachNote: '', orderNote: '',
-    payModal: null, payStep: 'pay', payUtr: '', payUtrErr: '', qrRevealed: false, payTimeLeft: 600,
+    payModal: null, payStep: 'wait',
     nowMins: (() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); })(),
   };
 
@@ -1355,9 +1304,6 @@ class Component extends DCLogic {
   _notices(d) {
     const m = d.member || {}, P = d.progress || {}, W = P.week || {}, t = d.today, out = [];
     const days = (iso) => iso ? Math.ceil((new Date(String(iso).length === 10 ? iso + 'T00:00:00' : iso) - Date.now()) / 864e5) : null;
-    const pay = d.payments || [], pending = pay.find(x => x.status === 'SUBMITTED'), rejected = pay[0] && pay[0].status === 'REJECTED' ? pay[0] : null;
-    if (pending) out.push({ id: 'pay-' + pending.id, icon: 'hourglass', text: 'Payment under review — UTR ' + pending.utr + '. Your plan activates once FITRON matches it, usually within a working day.', time: 'Pending' });
-    else if (rejected) out.push({ id: 'rej-' + rejected.id, icon: 'warning', text: "We couldn't confirm your last payment (UTR " + rejected.utr + '). Check the UTR, or pay again.', time: 'Action needed' });
     const tl = m.access === 'TRIAL' ? days(m.trialEndsAt) : null;
     if (tl !== null && tl <= 3) out.push({ id: 'trial-' + m.trialEndsAt, icon: 'clock', text: tl <= 0 ? 'Your free trial ends today. Choose a plan to keep your coach.' : 'Your free trial ends in ' + tl + ' day' + (tl === 1 ? '' : 's') + '. Choose a plan to keep your coach.', time: 'Trial' });
     const pl = m.access === 'ACTIVE' && !m.planCancelled ? days(m.paidUntil) : null;
@@ -1433,8 +1379,6 @@ class Component extends DCLogic {
     if (p.avatar) this._av = p.avatar;
     if (p.groc) this._g = p.groc;
     this._ch = (d.chats || []).map(c => ({ id: c.id, title: c.title, at: c.at, messages: c.messages }));
-    const pending = (d.payments || []).find(x => x.status === 'SUBMITTED');
-    const rejected = (d.payments || [])[0] && d.payments[0].status === 'REJECTED' ? d.payments[0] : null;
     this.setState(st => {
       const keep = ['ob','plan','schedule','suppInfo','supps','suppList','dietPref','reminders','notificationsOn','focusMode','theme'].reduce((o, k) => (p[k] !== undefined && p[k] !== null ? { ...o, [k]: p[k] } : o), {});
       const ob = { ...st.ob, ...(keep.ob || {}), email: m.email };
@@ -1448,8 +1392,7 @@ class Component extends DCLogic {
         signup: !m.onboarded, screen: !m.onboarded ? (m.consentedAt ? 'onboard' : 'consent') : (locked ? 'subscription' : (inApp ? st.screen : 'home')),
         onboardStep: !m.onboarded ? 1 : st.onboardStep,
         subMode: m.access === 'LOCKED' ? 'plans' : 'manage',
-        planMsg: pending ? 'Payment submitted — UTR ' + pending.utr + '. FITRON is checking it against the bank statement and will activate your plan, usually within a working day.'
-          : rejected ? "We couldn't confirm your last payment (UTR " + rejected.utr + '): ' + (rejected.rejectReason || 'no match') + '. Check the UTR, or pay again.' : '' };
+        planMsg: '' };
     }, () => { this._applyMember(m); this._savedP = JSON.stringify(this._profileSnap()); this._savedD = JSON.stringify(this._daySnap()); this._loaded = true; });
   }
   async persistProfile() { return this._flush(); }
@@ -1546,10 +1489,6 @@ class Component extends DCLogic {
     if (!r.ok) return this.setState({ planMsg: r.error });
     this.setState({ billing: 'monthly', planMsg: 'Your next payment will be Monthly — ' + this._price(this._tierNow(), 'MONTHLY').total + '/month, GST included. Pay again before your plan ends to keep going.' });
   };
-  // UPI payment — real money goes straight to the gym's UPI ID; the app only builds
-  // the QR / deep link and records the member's UTR for the admin to verify.
-  upiId() { return (this.state.payInfo && this.state.payInfo.upiId) || '…'; }
-  payeeName() { return (this.state.payInfo && this.state.payInfo.payee) || 'FITRON'; }
   _tierNow() { const m = this.state.me; return m && (m.access === 'ACTIVE' || m.access === 'TRIAL') ? m.plan : this.state.tier; }
   _tierName(t) { return t === 'ai-premium' ? 'AI Premium' : 'AI Pro'; }
   // FITRON's price list (src/lib/domain/pricing.ts): the listed price in rupees, GST already included in it.
@@ -1578,33 +1517,20 @@ class Component extends DCLogic {
     if (k === 'purchase') return { ...c, title: 'Unlock your plan' };
     return { ...c, title: 'Upgrade to Yearly' };
   }
-  // until the payment is ready, tapping the button stays on this page (a bare '#' would reload it: <base href>)
-  upiUri() { return (this.state.payInfo && this.state.payInfo.link) || location.pathname + location.search + '#'; }
-  drawQR(tries) {
-    tries = tries || 0;
-    const canvas = document.getElementById('fitron-qr');
-    if (!canvas || !window.QRious) {
-      if (tries < 40) this._qrt = setTimeout(() => this.drawQR(tries + 1), 120);
-      return;
-    }
-    if (!this.state.payInfo) { if (tries < 40) this._qrt = setTimeout(() => this.drawQR(tries + 1), 120); return; }
-    new window.QRious({ element: canvas, value: this.upiUri(), size: 480, background: '#ffffff', foreground: '#0a0a0c', level: 'M' });
-  }
-  // The server decides how this payment is made: a Razorpay subscription (Checkout opens, mode SUBSCRIPTION)
-  // or FITRON's UPI QR + UTR (mode UPI / DEMO). Until it answers the sheet shows a neutral 'wait' step.
+  // The server starts a Razorpay subscription (Checkout opens, mode SUBSCRIPTION), or says why it can't.
+  // Until it answers the sheet shows a neutral 'wait' step.
   openPay = async (kind) => {
-    this.stopPayTimer();
     const { tier, cycle } = this._payPlan(kind);
     const tok = this._payTok = (this._payTok || 0) + 1;
     this._rzBusy = false;
-    this.setState({ payModal: kind, payInfo: null, payStep: 'wait', payBusy: '', payErr: '', payUtr: '', payUtrErr: '', qrRevealed: false, payTimeLeft: 600 });
+    this.setState({ payModal: kind, payInfo: null, payStep: 'wait', payBusy: '', payErr: '' });
     const r = await this._api('pay', 'POST', { plan: tier, cycle, kind: kind === 'yearly' ? 'upgrade' : kind });
     if (!r.ok) { if (tok === this._payTok) this.setState({ payModal: null, planMsg: r.error }); return; }
     if (tok !== this._payTok || !this.state.payModal) return; // closed (or restarted) while the server was answering
     if (r.data.mode === 'SUBSCRIPTION') { this.setState({ payInfo: r.data, payStep: 'checkout' }, () => this.openCheckout()); return; }
-    this.setState({ payInfo: r.data, payStep: 'pay' }, () => this.drawQR(0));
+    this.setState({ payModal: null, payInfo: null, planMsg: "Payments aren't available right now. Please try again later." });
   };
-  closePay = () => { clearTimeout(this._qrt); this.stopPayTimer(); this._rzBusy = false; this.setState({ payModal: null, qrRevealed: false, payBusy: '', payErr: '' }); };
+  closePay = () => { this._rzBusy = false; this.setState({ payModal: null, payBusy: '', payErr: '' }); };
   // ---------- Razorpay Checkout (plans that renew themselves) ----------
   _loadRazorpay() {
     if (window.Razorpay) return Promise.resolve();
@@ -1684,40 +1610,6 @@ class Component extends DCLogic {
     return m;
   }
   _refreshSoon() { [5000, 15000].forEach((ms) => setTimeout(() => { if (this.state.me) this._refreshMember(); }, ms)); }
-  stopPayTimer = () => { clearInterval(this._payt); this._payt = null; };
-  // Tap-to-reveal: the QR stays blurred behind a lock until tapped; revealing starts a
-  // 10-minute countdown, and at 0:00 the QR locks again so a stale code is never scanned.
-  revealQr = () => {
-    if (this.state.qrRevealed) return;
-    this.stopPayTimer();
-    this.setState({ qrRevealed: true, payTimeLeft: 600 }, () => this.drawQR(0));
-    this._payt = setInterval(() => {
-      this.setState(s => {
-        if (!s.payModal) { this.stopPayTimer(); return {}; }
-        if (s.payTimeLeft <= 1) { this.stopPayTimer(); return { payTimeLeft: 600, qrRevealed: false }; }
-        return { payTimeLeft: s.payTimeLeft - 1 };
-      });
-    }, 1000);
-  };
-  payToUtr = () => this.setState({ payStep: 'utr', payUtrErr: '' });
-  payBackToQr = () => this.setState({ payStep: 'pay' }, () => this.drawQR(0));
-  setPayUtr = (e) => this.setState({ payUtr: e.target.value.replace(/\D/g, '').slice(0, 12), payUtrErr: '' });
-  submitUtr = async () => {
-    const utr = (this.state.payUtr || '').trim();
-    if (!/^\d{12}$/.test(utr)) { this.setState({ payUtrErr: 'Enter the 12-digit UTR from your UPI app (numbers only).' }); return; }
-    const info = this.state.payInfo;
-    if (!info) { this.setState({ payUtrErr: 'The payment is still loading. Try again in a moment.' }); return; }
-    const r = await this._api('pay/' + info.id + '/utr', 'POST', { utr });
-    if (!r.ok) { this.setState({ payUtrErr: r.error }); return; }
-    clearTimeout(this._qrt);
-    this.stopPayTimer();
-    const kind = this.state.payModal;
-    this.setState(st => ({
-      payModal: null, payInfo: null,
-      planMsg: 'Payment submitted — UTR ' + utr + '. FITRON is checking it against the bank statement and will activate your plan, usually within a working day.',
-      ...(kind === 'purchase' && !st.planLocked ? { screen: 'home', signup: false } : {}),
-    }));
-  };
   verifyUpiPayment = (i) => this.setState(st => {
     const p = (st.payments || [])[i];
     if (!p || p.status !== 'Pending') return {};
@@ -2462,32 +2354,19 @@ class Component extends DCLogic {
       setSubPlans: () => this.setSubMode('plans'), setSubManage: () => this.setSubMode('manage'),
       openUpgrade: this.openUpgrade, openRenew: this.openRenew, openExtraMonth: this.openExtraMonth, cancelSub: this.cancelSub,
       startTrial: this.startTrial, planCancelled: !!st.planCancelled,
-      // live UTR queue (backend mode only; demo data is untouched otherwise)
-      dbBackendOn: false,
-      dbPendingRows: (st.dbPending || []).map(p => ({ ...p, when: new Date(p.submitted_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }), verify: () => {}, reject: () => {} })),
-      dbPendingEmpty: !(st.dbPending || []).length,
-      reloadPending: () => {},
       switchMonthly: this.switchMonthly,
       payYearly: () => this.openPay('yearly'), payMonth: () => this.openPay('month'), payRenew: () => this.openPay('renew'),
       closePay: this.closePay, stop: (e) => e.stopPropagation(), payOpen: !!st.payModal,
       payTitle: this.payCfg().title, payAmount: this.payCfg().amount, paySub: this.payCfg().sub,
       payPlanCaps: this.payCfg().plan.toUpperCase(), payPer: this.payCfg().per, payPlanName: this.payCfg().plan,
-      payBtnLabel: 'Pay ' + this.payCfg().amount + ' with UPI',
-      payShowQr: st.payStep === 'pay', payShowUtr: st.payStep === 'utr', payShowGate: st.payStep === 'wait' || st.payStep === 'checkout',
-      payKicker: st.payStep === 'pay' || st.payStep === 'utr' ? 'UPI payment · FITRON' : 'Secure payment · FITRON',
-      payHeading: st.payStep === 'pay' || st.payStep === 'utr' ? 'Complete Your UPI Payment' : 'Complete Your Payment',
-      payFootNote: st.payStep === 'pay' || st.payStep === 'utr' ? "You pay FITRON's UPI directly. Fitron never sees your card or bank details." : 'Payments are processed securely' + (st.payStep === 'checkout' ? ' by Razorpay' : '') + '. Fitron never sees your card or bank details.',
+      payShowGate: st.payStep === 'wait' || st.payStep === 'checkout',
+      payKicker: 'Secure payment · FITRON',
+      payHeading: 'Complete Your Payment',
+      payFootNote: 'Payments are processed securely' + (st.payStep === 'checkout' ? ' by Razorpay' : '') + '. Fitron never sees your card or bank details.',
       payGateNote: st.payStep === 'checkout' ? 'Renews automatically each ' + ((st.payInfo && st.payInfo.cycle) === 'YEARLY' ? 'year' : 'month') + ' until you stop it under Manage subscription. GST included.' : 'Pay securely online. GST included.',
       payGateBtn: st.payStep !== 'checkout' ? 'Getting your payment ready…' : st.payBusy === 'confirming' ? 'Confirming your payment…' : st.payBusy === 'opening' ? 'Opening secure payment…' : 'Pay & subscribe',
       payGateOpacity: st.payStep === 'checkout' && !st.payBusy ? 1 : .6, payGateGo: () => this.openCheckout(),
       payGateErr: st.payErr || '', payGateHasErr: !!st.payErr,
-      revealQr: this.revealQr, payQrRevealed: !!st.qrRevealed, payQrHidden: !st.qrRevealed,
-      payQrBlur: st.qrRevealed ? 'none' : 'blur(9px)',
-      payTimerText: 'Expires in ' + Math.floor((st.payTimeLeft || 0) / 60) + ':' + String((st.payTimeLeft || 0) % 60).padStart(2, '0'),
-      payUpiLink: this.upiUri(), payUpiId: this.upiId(), payPayee: this.payeeName(),
-      payToUtr: this.payToUtr, payBackToQr: this.payBackToQr,
-      payUtr: st.payUtr || '', setPayUtr: this.setPayUtr, submitUtr: this.submitUtr,
-      payUtrErr: st.payUtrErr || '', payUtrHasErr: !!st.payUtrErr,
 
       toggleFocus: this.toggleFocus, focusOn: !!st.focusMode,
       focusIcon: st.focusMode ? 'moon-stars' : 'bell', focusLabel: st.focusMode ? 'On' : 'Off',

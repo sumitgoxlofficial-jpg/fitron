@@ -141,10 +141,10 @@ const dayWord = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
 /**
  * The plan reminder to send today, if any: `remindDays` before the trial or paid period ends and
  * again the day before (so remindDays 1 fires once), on the first day of grace, and on the day the
- * gym turns read-only. Nothing while a UPI payment is being checked or for gyms FITRON set up by hand.
+ * gym turns read-only. Nothing for gyms FITRON set up by hand.
  */
-export function renewalReminder(s: PlanStanding, planName: string, today: IsoDate, remindDays: number, checking: boolean): RenewalReminder | null {
-  if (checking || s.kind === "CUSTOM") return null;
+export function renewalReminder(s: PlanStanding, planName: string, today: IsoDate, remindDays: number): RenewalReminder | null {
+  if (s.kind === "CUSTOM") return null;
   const fire = new Set([remindDays, 1]);
   if (s.kind === "TRIAL") {
     const daysLeft = daysBetween(s.until, today) + 1; // the sign-up day counts

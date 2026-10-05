@@ -38,7 +38,7 @@ Project **Settings › Environment Variables**, for **Production** only. Mark th
 | `APP_URL` | `https://fitron.in`. Used in the links inside emails |
 | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | the bucket from step 1.5. `S3_REGION` must be the project's own region; the default `auto` does not work with Supabase |
 
-Then everything in step 8 of [README.md](README.md) that you use: email (`SMTP_*`), `FITRON_UPI_ID` or the `FITRON_RAZORPAY_*` keys, `FITRON_ADMIN_EMAILS`, `ANTHROPIC_API_KEY`, the Google sign-in keys, `VAPID_*` for the AI Trainer's push reminders. Do not set `STORAGE_DIR`.
+Then everything in step 8 of [README.md](README.md) that you use: email (`SMTP_*`), the `FITRON_RAZORPAY_*` keys (gyms and AI Trainer members can't pay without them, and Razorpay needs its webhook pointing at `https://fitron.in/api/webhooks/fitron-billing`; see step 10 of that README), `FITRON_ADMIN_EMAILS`, `ANTHROPIC_API_KEY`, the Google sign-in keys, `VAPID_*` for the AI Trainer's push reminders. Do not set `STORAGE_DIR`.
 
 **Do not give Preview deployments the production database.** Leave these variables on Production only. A preview of a branch then shows the error screen on pages that need the database, which is expected, and the build never changes the live database.
 
@@ -60,7 +60,7 @@ Merge to `main`, or press **Redeploy** on the latest Production deployment. The 
 
 That creates the tables the first time and applies new ones later. If it can't apply them, the build **fails** and Vercel keeps serving the previous deployment. If no database address is set at all, the build carries on and prints a `WARNING` in the same place, so the pages that need no database still deploy.
 
-Then open `https://fitron.in/login?tab=up` and create the first account: the first account becomes Super Admin. Sign up with the email you put in `FITRON_ADMIN_EMAILS` if you want to confirm payments from `/fitron-admin`.
+Then open `https://fitron.in/login?tab=up` and create the first account: the first account becomes Super Admin. Sign up with the email you put in `FITRON_ADMIN_EMAILS` if you want to open the FITRON team console at `/fitron-admin/trainer`.
 
 After the two sign-up steps the new gym lands on a short setup (billing and GST, branch, plans, team, WhatsApp reminders, opening balances, how to start). It can be skipped with "I'll finish this later" and finished from the dashboard reminder. The team members it asks for need a first password, which is used once to create their account and is never kept in the saved answers.
 

@@ -72,26 +72,25 @@ describe("Fitron branch plan", () => {
 describe("renewalReminder", () => {
   const paid = (until: string) => ({ kind: "PAID" as const, until });
 
-  it("is quiet for gyms FITRON set up by hand and while a payment is being checked", () => {
-    expect(renewalReminder({ kind: "CUSTOM" }, "Professional", "2026-10-03", 7, false)).toBeNull();
-    expect(renewalReminder(paid("2026-10-10"), "Professional", "2026-10-03", 7, true)).toBeNull();
+  it("is quiet for gyms FITRON set up by hand", () => {
+    expect(renewalReminder({ kind: "CUSTOM" }, "Professional", "2026-10-03", 7)).toBeNull();
   });
 
   it("warns about the trial when the days left (sign-up day counted) hit the setting, and the day before it ends", () => {
     const trial = { kind: "TRIAL" as const, until: "2026-10-09" };
-    const r = renewalReminder(trial, "Professional", "2026-10-03", 7, false);
+    const r = renewalReminder(trial, "Professional", "2026-10-03", 7);
     expect(r).toMatchObject({ kind: "DUE", daysLeft: 7, until: "2026-10-09" });
     expect(r!.text).toContain("free trial ends in 7 days (9 Oct 2026)");
-    expect(renewalReminder(trial, "Professional", "2026-10-04", 7, false)).toBeNull(); // 6 left
-    expect(renewalReminder(trial, "Professional", "2026-10-08", 7, false)).toBeNull(); // 2 left
-    expect(renewalReminder(trial, "Professional", "2026-10-09", 7, false)!.text).toContain("ends in 1 day");
+    expect(renewalReminder(trial, "Professional", "2026-10-04", 7)).toBeNull(); // 6 left
+    expect(renewalReminder(trial, "Professional", "2026-10-08", 7)).toBeNull(); // 2 left
+    expect(renewalReminder(trial, "Professional", "2026-10-09", 7)!.text).toContain("ends in 1 day");
   });
 
   it.each([14, 7, 3, 1])("with remindDays %i, a paid plan fires on that day and the day before it ends only", (n) => {
     const until = "2026-10-31";
     for (let d = 0; d <= 20; d++) {
       const today = addDays(until, -d);
-      const r = renewalReminder(paid(until), "Enterprise", today, n, false);
+      const r = renewalReminder(paid(until), "Enterprise", today, n);
       if (d === n || d === 1) {
         expect(r, today).toMatchObject({ kind: "DUE", daysLeft: d });
         expect(r!.text).toContain("Your Enterprise plan ends in");
@@ -101,18 +100,18 @@ describe("renewalReminder", () => {
   });
 
   it("fires once when remindDays is 1", () => {
-    const days = Array.from({ length: 10 }, (_, d) => addDays("2026-10-31", -d)).filter((t) => renewalReminder(paid("2026-10-31"), "Starter", t, 1, false));
+    const days = Array.from({ length: 10 }, (_, d) => addDays("2026-10-31", -d)).filter((t) => renewalReminder(paid("2026-10-31"), "Starter", t, 1));
     expect(days).toEqual(["2026-10-30"]);
   });
 
   it("speaks on the first day of grace and on the day the gym turns read-only", () => {
     const grace = { kind: "GRACE" as const, until: "2026-10-31", readOnlyFrom: "2026-11-08" };
-    expect(renewalReminder(grace, "Starter", "2026-11-01", 7, false)).toMatchObject({ kind: "GRACE" });
-    expect(renewalReminder(grace, "Starter", "2026-11-01", 7, false)!.text).toContain("read-only on 8 Nov 2026");
-    expect(renewalReminder(grace, "Starter", "2026-11-02", 7, false)).toBeNull();
+    expect(renewalReminder(grace, "Starter", "2026-11-01", 7)).toMatchObject({ kind: "GRACE" });
+    expect(renewalReminder(grace, "Starter", "2026-11-01", 7)!.text).toContain("read-only on 8 Nov 2026");
+    expect(renewalReminder(grace, "Starter", "2026-11-02", 7)).toBeNull();
     const lapsed = { kind: "LAPSED" as const, since: "2026-11-08" };
-    expect(renewalReminder(lapsed, "Starter", "2026-11-08", 7, false)).toMatchObject({ kind: "LAPSED" });
-    expect(renewalReminder(lapsed, "Starter", "2026-11-09", 7, false)).toBeNull();
+    expect(renewalReminder(lapsed, "Starter", "2026-11-08", 7)).toMatchObject({ kind: "LAPSED" });
+    expect(renewalReminder(lapsed, "Starter", "2026-11-09", 7)).toBeNull();
   });
 
   it("makes an email subject from the first sentence", () => {

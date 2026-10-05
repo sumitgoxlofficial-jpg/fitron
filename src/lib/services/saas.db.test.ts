@@ -18,7 +18,6 @@ describe.skipIf(!hasDb)("Fitron branch plan (database)", () => {
   beforeAll(async () => {
     vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "");
     vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", "");
-    vi.stubEnv("FITRON_UPI_ID", "");
     gym = await makeGym();
     owner = await gym.user("Super Admin");
   });
@@ -77,7 +76,6 @@ describe.skipIf(!hasDb)("Fitron branch plan (database)", () => {
     const pid = `pay_${randomUUID().slice(0, 12)}`;
     vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
     vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", "secret");
-    vi.stubEnv("FITRON_UPI_ID", "");
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: oid, amount: 4_99_000, status: "created" }), { status: 200 })));
     const c = await startBranchPayment(owner, "YEARLY", fourth);
     expect(c).toMatchObject({ mode: "LIVE", orderId: oid, keyId: "rzp_test_x", total: 4_99_000 });
@@ -98,20 +96,16 @@ describe.skipIf(!hasDb)("Fitron branch plan (database)", () => {
   it("on a live server, a gym can't start or confirm a demo payment (it would mark its own plan paid)", async () => {
     vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "");
     vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", "");
-    vi.stubEnv("FITRON_UPI_ID", "");
     try {
       // A demo payment made before the server went live (or in development) can't be confirmed there either.
       const old = await startBranchPayment(owner, "MONTHLY", fourth);
       expect(old.mode).toBe("DEMO");
       vi.stubEnv("NODE_ENV", "production");
-      await expect(confirmDemoPayment(owner, old.id)).rejects.toThrow(/confirmed by the FITRON team/);
+      await expect(confirmDemoPayment(owner, old.id)).rejects.toThrow(/made online with Razorpay/);
       expect((await db.branchSubscription.findUniqueOrThrow({ where: { id: old.id } })).status).toBe("PENDING");
       const before = await db.branchSubscription.count({ where: { orgId: gym.org.id } });
       await expect(startBranchPayment(owner, "MONTHLY", fourth)).rejects.toThrow(/aren't switched on/);
       expect(await db.branchSubscription.count({ where: { orgId: gym.org.id } })).toBe(before);
-      // With FITRON's UPI ID set, the UPI QR flow works on a live server.
-      vi.stubEnv("FITRON_UPI_ID", "fitron@okaxis");
-      expect(await startBranchPayment(owner, "MONTHLY", fourth)).toMatchObject({ mode: "UPI", upiId: "fitron@okaxis" });
     } finally {
       vi.unstubAllEnvs();
     }

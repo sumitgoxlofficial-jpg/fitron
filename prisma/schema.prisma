@@ -1152,14 +1152,14 @@ model BranchSubscription {
   total                  Int
   periodStart            DateTime? @db.Date
   periodEnd              DateTime? @db.Date
-  /// PENDING | SUBMITTED (UTR entered, FITRON checking) | PAID | REJECTED | FAILED
+  /// PENDING | PAID | FAILED. (SUBMITTED and REJECTED belong to the UPI QR + UTR way of paying, which is gone: old rows keep them.)
   status                 String    @default("PENDING")
-  /// UPI (FITRON's UPI QR + UTR) | LIVE (Razorpay Checkout, one payment) | SUBSCRIPTION (Razorpay, renews itself) | DEMO
+  /// LIVE (Razorpay Checkout, one payment) | SUBSCRIPTION (Razorpay, renews itself) | DEMO (no keys, test server only). Old rows may say UPI.
   mode                   String
-  /// UPI only: the 12-digit UTR the gym typed after paying; one UTR pays for one thing
+  /// Legacy, UPI QR + UTR payments only (no longer made): the 12-digit UTR the gym typed after paying
   utr                    String?   @unique
   submittedAt            DateTime? @db.Timestamptz
-  /// The FITRON team member who confirmed or rejected the UTR
+  /// Legacy, UPI QR + UTR payments only: the FITRON team member who confirmed or rejected the UTR
   reviewedBy             String?
   reviewedAt             DateTime? @db.Timestamptz
   rejectReason           String?
@@ -1444,7 +1444,8 @@ model TrainerReview {
   @@unique([memberId, weekStart])
 }
 
-/// A member paid FITRON by UPI and typed the UTR; the FITRON team checks it (see fitron-admin).
+/// What an AI Trainer member paid FITRON: a Razorpay subscription charge, the first one and each renewal. The utr, submittedAt, reviewedBy,
+/// reviewedAt and rejectReason columns are legacy from the UPI QR way of paying, which is gone; no new row uses them.
 model TrainerPayment {
   id                     String        @id @default(cuid())
   memberId               String
@@ -1459,9 +1460,9 @@ model TrainerPayment {
   base                   Int
   gst                    Int
   total                  Int
-  /// UPI (FITRON_UPI_ID set) | SUBSCRIPTION (Razorpay, renews itself) | DEMO (no UPI ID configured; nothing to match)
+  /// SUBSCRIPTION (Razorpay, renews itself). Old rows may say UPI or DEMO.
   mode                   String
-  /// PENDING | SUBMITTED | PAID | REJECTED
+  /// PENDING | PAID. Old rows may also be SUBMITTED or REJECTED.
   status                 String        @default("PENDING")
   utr                    String?       @unique
   submittedAt            DateTime?     @db.Timestamptz

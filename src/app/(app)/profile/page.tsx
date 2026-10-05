@@ -8,7 +8,7 @@ import { Card, Empty, cx } from "@/components/ui";
 import { PasswordForm, PhotoForm, ProfileForm } from "./profile-forms";
 import { TwoStepPanel } from "./two-step-panel";
 import { pendingSetup, twoStepStatus } from "@/lib/services/two-step";
-import { qrSvg } from "@/lib/integrations/upi";
+import { qrSvg } from "@/lib/integrations/qr";
 
 export const metadata = { title: "My profile · Fitron" };
 

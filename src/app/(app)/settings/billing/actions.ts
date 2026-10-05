@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import * as z from "zod";
 import "@/lib/zod-config";
 import { requirePermission } from "@/lib/auth/current";
-import { cancelAutoRenewal, confirmCheckout, confirmDemoPayment, confirmSubscription, startPayment, submitUtr, type Checkout } from "@/lib/services/saas";
+import { cancelAutoRenewal, confirmCheckout, confirmDemoPayment, confirmSubscription, startPayment, type Checkout } from "@/lib/services/saas";
 import { saveBillingDetails as saveDetails, saveRenewalReminders as saveReminders } from "@/lib/services/subscription";
 import { billingDetailsInput, renewalInput } from "@/lib/validation/settings";
 import { UserError } from "@/lib/services/errors";
@@ -37,13 +37,6 @@ export async function startPaymentAction(what: unknown, cycle: string): Promise<
   const w = For.safeParse(what);
   if (!w.success) return { ok: false, error: "Pick what to pay for." };
   return wrap(() => startPayment(u, w.data, c.data));
-}
-
-export async function submitUtrAction(id: string, utr: string): Promise<Result> {
-  const u = await requirePermission("settings.manage", { allowBlocked: true });
-  const r = await wrap(() => submitUtr(u, id, utr));
-  revalidatePath("/", "layout");
-  return r.ok ? { ok: true, data: null } : r;
 }
 
 export async function confirmDemoAction(id: string): Promise<Result> {

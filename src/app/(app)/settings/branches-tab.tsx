@@ -8,7 +8,7 @@ import { ConfirmButton } from "@/components/confirm-button";
 import { ReasonForm } from "@/components/reason-form";
 import { Tag } from "@/components/tag";
 import { branchPrice, type Standing } from "@/lib/domain/saas";
-import { billingHistory, branchStandings, paymentRef } from "@/lib/services/saas";
+import { billingHistory, branchStandings } from "@/lib/services/saas";
 import { branchRecordCounts, getSetting } from "@/lib/services/settings";
 import { fmtDate, formatInr, formatRupees } from "@/lib/format";
 import { fromIso, todayIso, toIso } from "@/lib/services/time";
@@ -195,7 +195,7 @@ export async function BranchesTab({ u, sp }: { u: CurrentUser; sp: Record<string
                 const line = (
                   <div className="flex items-center justify-between gap-3 border-b border-line py-1.5 text-[13px]">
                     <span>
-                      {fmtDate(toIso(h.paidAt ?? h.createdAt))} · Extra branch · {h.cycle === "YEARLY" ? "yearly" : "monthly"} {h.invoiceNo ?? paymentRef(h.id)} · incl. GST {formatInr(h.gst)}
+                      {fmtDate(toIso(h.paidAt ?? h.createdAt))} · Extra branch · {h.cycle === "YEARLY" ? "yearly" : "monthly"} {h.invoiceNo ?? ""} · incl. GST {formatInr(h.gst)}
                     </span>
                     <span>{formatInr(h.total)}</span>
                   </div>

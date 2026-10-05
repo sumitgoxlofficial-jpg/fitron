@@ -87,7 +87,6 @@ export async function sendTrainerReminders(now = new Date()) {
       member: {
         include: {
           days: { where: { date: fromIso(today) }, take: 1 },
-          payments: { where: { status: { in: ["SUBMITTED", "REJECTED"] } }, orderBy: { createdAt: "desc" }, take: 1 },
         },
       },
     },
@@ -102,7 +101,6 @@ export async function sendTrainerReminders(now = new Date()) {
     const schedule = Array.isArray(profile.schedule) ? (profile.schedule as { key?: string; label?: string; time?: string }[]) : [];
     const workout = schedule.find((s) => s.key === "workout") ?? schedule.find((s) => /workout|training|gym/i.test(s.label ?? ""));
     const day = m.days[0];
-    const latest = m.payments[0];
     const due = dueReminders({
       today,
       clock,
@@ -113,7 +111,6 @@ export async function sendTrainerReminders(now = new Date()) {
       workoutTime: workout?.time ?? null,
       access: trainerAccess({ paidUntil: m.paidUntil ? toIso(m.paidUntil) : null, trialEndsAt: m.trialEndsAt }, today, now),
       planCancelled: m.planCancelled,
-      payment: latest ? (latest.status as "SUBMITTED" | "REJECTED") : null,
       workoutDone: !!day?.workoutDone,
       water: day?.water ?? 0,
       waterGoal: parseFloat(String(ob.water ?? "")) || 3,

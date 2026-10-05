@@ -8,7 +8,7 @@ FITRON is one product at **fitron.in** with three parts, all served by this one 
 | **AI Trainer** (AI coach) | `fitron.in/trainer` (the design is in `prototype/ai-trainer/`) | Gym members: workout and Indian meal plans, a 24/7 AI coach, habits and progress, from ₹299 a month |
 | **Gym Accounting** | `fitron.in/login`, then `/dashboard` | Gym owners and staff: members, renewals, GST invoices, payments, expenses, P&L, reports and Fitron AI, from ₹999 a month |
 
-Gyms sign up themselves from the website (`fitron.in/signup?plan=starter`, `professional` or `enterprise`), confirm their email, and get a 7-day free trial. They pay FITRON by scanning your UPI QR and entering the UTR, and you confirm it (step 9).
+Gyms sign up themselves from the website (`fitron.in/signup?plan=starter`, `professional` or `enterprise`), confirm their email, and get a 7-day free trial. They pay FITRON through Razorpay, and their plan turns on by itself when Razorpay confirms the payment (steps 9 and 10).
 
 This guide sets it all up on an **Oracle Cloud "Always Free"** server. The server is free with no time limit, and it can easily handle 100 staff and thousands of members. You get:
 
@@ -104,11 +104,11 @@ The script:
 
 - installs Docker and opens the server's firewall
 - asks for your web address
-- asks for your UPI ID (printed under your QR) and the email you'll confirm payments with
+- asks for your email, which opens the FITRON team console (you can skip it and add `FITRON_ADMIN_EMAILS` later)
 - generates the database password and secret keys
 - builds and starts everything
 
-The first build takes 5 to 10 minutes. At the end it asks for your gym name and owner login. Use the same email you gave for confirming payments: that login opens the payments page in step 9.
+The first build takes 5 to 10 minutes. At the end it asks for your gym name and owner login. Use the same email you gave for the team console: that login opens `/fitron-admin/trainer` (members, payments and partner payouts).
 
 Open `https://your-address` to see the website, and `https://your-address/login` to sign in. 🎉
 
@@ -124,7 +124,8 @@ nano deploy/.env
 |---|---|---|
 | WhatsApp (official) | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET` | In Meta: webhook `https://your-address/api/webhooks/whatsapp`, verify token = `WHATSAPP_VERIFY_TOKEN` from the file |
 | UPI Autopay (your gym's Razorpay) | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | Razorpay webhook `https://your-address/api/webhooks/razorpay` |
-| **Payments to FITRON** (your UPI QR) | `FITRON_UPI_ID` (the UPI ID printed under your QR, e.g. `fitron@okaxis`), `FITRON_UPI_NAME` (name shown in the payer's app), `FITRON_ADMIN_EMAILS` (your login email; several are comma separated). The installer fills in the UPI ID and email you typed | Nothing else. See step 9 |
+| **Payments to FITRON** (Razorpay) | `FITRON_RAZORPAY_KEY_ID`, `FITRON_RAZORPAY_KEY_SECRET`, `FITRON_RAZORPAY_WEBHOOK_SECRET`. Without them gyms and AI Trainer members can't pay (demo mode on a test server, a refusal on a live one) | Razorpay webhook `https://your-address/api/webhooks/fitron-billing`. See step 10 |
+| FITRON team console | `FITRON_ADMIN_EMAILS` (your login email; several are comma separated). The installer fills in the email you typed | Nothing else |
 | Your details on FITRON's invoices to gyms, and on the website's Contact page | `FITRON_LEGAL_NAME`, `FITRON_GSTIN`, `FITRON_ADDRESS` | Leave `FITRON_GSTIN` empty if you're not GST-registered yet. The Contact page shows your registered business name, address and GSTIN once the address or GSTIN is set (payment providers and Indian consumer rules usually expect them on the website) |
 | **Sign in with Google** | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | See "Google sign-in" below. Until both are set, the Google button stays hidden and email + password still work |
 | Fitron AI and the AI Trainer's coach | `ANTHROPIC_API_KEY` | from console.anthropic.com |
@@ -137,9 +138,9 @@ Then apply them:
 bash deploy/update.sh
 ```
 
-Never paste these keys into chat or email. They belong only in this file on the server. (`FITRON_UPI_ID` isn't secret: it's on your QR.)
+Never paste these keys into chat or email. They belong only in this file on the server.
 
-You don't need to set `APP_URL`: it's set from your domain automatically. FITRON's own Razorpay settings (`FITRON_RAZORPAY_*`, step 10) are optional; when they are set, they are used instead of the UPI QR.
+You don't need to set `APP_URL`: it's set from your domain automatically. FITRON's own Razorpay settings (`FITRON_RAZORPAY_*`, step 10) are how gyms and AI Trainer members pay you, so set them before you open sign-ups.
 
 ### Google sign-in
 
@@ -151,30 +152,28 @@ You don't need to set `APP_URL`: it's set from your domain automatically. FITRON
 
 How it behaves: staff whose email is already a FITRON login sign straight in. A new gym owner can press **Sign up with Google** on the sign-up page; Google confirms the email, so no confirmation link is sent and no password is needed (they can set one later with "Forgot your password?"). A Google account with no FITRON login is told to ask their gym's owner to add them.
 
-## 9. Confirm UPI payments from gyms and AI Trainer members
+## 9. How gyms and AI Trainer members pay you
 
-When a gym pays you, this is what happens:
+Nothing is confirmed by hand: Razorpay tells FITRON when a payment goes through, and the plan turns on by itself. When a gym pays you, this is what happens:
 
 1. In **Settings › Plan & billing**, the gym picks a plan (or an extra branch) and monthly or yearly.
-2. FITRON shows a QR for your UPI ID with the exact amount (GST included) and a reference such as `FIT-AB12CD34`. On a phone, "open your UPI app" fills everything in.
-3. The gym pays, then types the 12-digit **UTR** from their UPI app. One UTR can only be used once.
-4. You get an email ("UPI payment to check") at each address in `FITRON_ADMIN_EMAILS`. The gym keeps working while you check.
-5. Sign in, open `https://your-address/fitron-admin` (also linked from Settings › Plan & billing), find that UTR and amount in your bank or UPI app, and press **Money received**. If it isn't there, type why and press **Reject**.
+2. Razorpay Checkout opens with the exact amount (GST included). The gym pays with UPI, a card or net banking, whichever you enabled in step 10.
+3. FITRON checks Razorpay's signature and asks Razorpay whether the money was captured. Then it switches the gym to the plan at once, issues FITRON's invoice, and emails the gym. If Razorpay is still confirming, the gym is told so and the plan turns on within a few minutes, when the webhook arrives.
 
-Confirming switches the gym to the plan at once, issues FITRON's invoice, and emails the gym. Rejecting emails the gym the reason so they can check and pay again.
+**AI Trainer members** (the app at `https://your-address/trainer`) pay the same way: they pick AI Pro or AI Premium, monthly or yearly, and pay in Razorpay Checkout. Their plan starts the day after their free trial or current paid period ends, and they are emailed. Every payment, with its Razorpay payment ID, is listed on `/fitron-admin/trainer`.
 
-**AI Trainer members** (the app at `https://your-address/trainer`) pay the same way: they pick AI Pro or AI Premium, monthly or yearly, scan the QR (reference like `FTR-AB12CD34`), and type the UTR. Their payments are listed on the same `/fitron-admin` page under **AI Trainer members waiting**. Confirming starts their plan the day after their free trial or current paid period ends, and emails them. A UTR used by a gym can't be used by a member, and the other way round.
+You can see every payment in your Razorpay dashboard too. A gym's own record is in Settings › Plan & billing › Payment history.
 
 Plans and limits (from the pricing page): Starter is up to 100 active members and one branch, Professional up to 300 and one branch, Enterprise has no member limit and 3 branches, and more branches cost ₹499 a month. After a trial or paid period ends there are 7 days' grace, then the gym can still see everything but can't add members or invoices until it pays. Gyms you set up by hand with `npm run setup` aren't on a trial and have no limits.
 
 ## 10. Take payments with Razorpay (plans that renew themselves)
 
-Instead of the UPI QR, gyms and AI Trainer members can pay FITRON through Razorpay (UPI AutoPay, cards, net banking). A plan then renews by itself every month or year until the customer stops it (Settings › Plan & billing › Automatic renewals for gyms, Settings › Subscription in the AI Trainer). Every listed price includes GST.
+Gyms and AI Trainer members pay FITRON through Razorpay (UPI AutoPay, cards, net banking). A plan renews by itself every month or year until the customer stops it (Settings › Plan & billing › Automatic renewals for gyms, Settings › Subscription in the AI Trainer). Every listed price includes GST.
 
 1. In the Razorpay dashboard turn on **Subscriptions** (Subscriptions › Settings) and enable **every method you want customers to see**: Cards, UPI (AutoPay) and Net banking (e-mandate). FITRON does not filter methods: Razorpay's checkout shows whatever is enabled on your account, so card, UPI and net banking all appear once they are on. One-time payments (add-ons, yearly partner plans and yearly extra branches) show all methods enabled under Settings › Payment Methods, wallets included. FITRON's 14 plans (AI Pro, AI Premium, Starter, Professional, Enterprise, the three partner plans and the extra branch) are already made in the **live** account; their ids are in `src/lib/domain/razorpay-plans.ts`. Test mode has its own separate plans: to try payments with test keys, make the same plans there and change the ids in that file.
 2. Account & Settings › API Keys: create a key and put it in `deploy/.env` as `FITRON_RAZORPAY_KEY_ID` and `FITRON_RAZORPAY_KEY_SECRET`. These are **FITRON's** Razorpay account. The `RAZORPAY_*` keys in the table above are a gym's own account for its members' UPI Autopay; do not mix them up.
 3. Account & Settings › Webhooks: add `https://your-address/api/webhooks/fitron-billing`, choose a long random secret, put the same secret in `deploy/.env` as `FITRON_RAZORPAY_WEBHOOK_SECRET`, and tick these events: `subscription.activated`, `subscription.charged`, `subscription.halted`, `subscription.pending`, `subscription.cancelled`, `subscription.completed`, `payment.captured`, `payment.failed`.
-4. Run `bash deploy/update.sh`. With the keys set, Razorpay is used instead of the UPI QR (`FITRON_UPI_ID` is then ignored; clear the keys to go back to the QR).
+4. Run `bash deploy/update.sh`. Until the keys are set, a test server runs payments in demo mode (nothing is charged) and a live server takes no payment at all.
 5. Try it with a small real payment from a test gym, then check **Settings › Plan & billing** shows the plan as paid with an invoice, and **Automatic renewals** lists it.
 
 What is paid how: a monthly plan, a partner plan (monthly) and an extra branch (monthly) are Razorpay subscriptions. A yearly extra branch and a yearly partner plan have no Razorpay plan, so they are one payment that the gym renews by hand. One-time add-ons (onboarding, branding, data migration, custom integration, mobile app) are one payment each, and the FITRON team is not told automatically: check **Settings › Plan & billing › Payment history** or your Razorpay dashboard. If a renewal fails, Razorpay retries and the gym is told in the app and by email; if it gives up, the plan runs to the end of the period already paid, then the usual 7 days' grace and read-only apply.

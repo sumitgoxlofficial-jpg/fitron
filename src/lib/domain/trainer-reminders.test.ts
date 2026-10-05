@@ -11,7 +11,6 @@ const base: ReminderInput = {
   workoutTime: "6:30 PM",
   access: { status: "ACTIVE", until: "2026-12-01" },
   planCancelled: false,
-  payment: null,
   workoutDone: false,
   water: 1,
   waterGoal: 3,
@@ -54,10 +53,9 @@ describe("due reminders", () => {
     expect(keys({ clock: "03:00" })).toEqual([]);
   });
 
-  it("respects the master switch and full-focus mode, but still warns about money", () => {
-    expect(keys({ notificationsOn: false, payment: "REJECTED" })).toEqual([]);
+  it("respects the master switch and full-focus mode", () => {
+    expect(keys({ notificationsOn: false })).toEqual([]);
     expect(keys({ focusMode: true })).toEqual([]);
-    expect(keys({ prefs: {}, payment: "REJECTED" })).toEqual(["rejected"]);
   });
 
   it("warns before a trial or a plan ends, in the morning only", () => {

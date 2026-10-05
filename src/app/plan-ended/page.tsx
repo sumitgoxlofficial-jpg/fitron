@@ -6,7 +6,6 @@ import { gymPlan } from "@/lib/services/saas";
 import { getGymProfile } from "@/lib/services/settings";
 import { gymLogoUrl } from "@/components/gym-logo";
 import { fitronKeyId } from "@/lib/integrations/razorpay";
-import { fitronUpi } from "@/lib/integrations/upi";
 import { gymPlanCards } from "@/lib/domain/saas";
 import { addDays } from "@/lib/domain/dates";
 import { Notice } from "@/components/ui";
@@ -19,7 +18,7 @@ export const metadata = { title: "Choose a plan · Fitron" };
 
 /**
  * Where a gym lands once its free trial (or paid plan and its grace days) has ended: the landing
- * page's plans, to pay. Nothing else in the app opens until a payment is made or sent for checking.
+ * page's plans, to pay. Nothing else in the app opens until a payment is made.
  */
 export default async function PlanEndedPage() {
   const u = await requireUser({ allowBlocked: true });
@@ -32,10 +31,9 @@ export default async function PlanEndedPage() {
   ]);
   const ended = plan.standing.kind === "LAPSED" ? addDays(plan.standing.since, -1) : null;
   const canPay = u.can("settings.manage");
-  // Fitron's Razorpay keys win over the UPI QR (see startPayment): the plan renews by itself.
+  // Payments to FITRON go through Razorpay (see startPayment): the plan renews by itself.
   const razorpay = fitronKeyId() !== null;
-  const upi = razorpay ? null : fitronUpi();
-  const demo = !upi && !razorpay;
+  const demo = !razorpay;
 
   return (
     <div className="min-h-screen bg-bg">
@@ -70,8 +68,7 @@ export default async function PlanEndedPage() {
                 You chose the {plan.name} plan ({plan.cycle === "YEARLY" ? "yearly" : "monthly"}) when you signed up. Pay for it below with Razorpay (UPI AutoPay, card or net banking): it opens FITRON again straight away, and renews by itself each {plan.cycle === "YEARLY" ? "year" : "month"} until you stop it in Settings › Plan & billing. GST is included in the price.
               </Notice>
             )}
-            {demo && <Notice>Demo mode: FITRON&apos;s UPI ID isn&apos;t set on this server, so payments are simulated and no money is charged.</Notice>}
-            {upi && <Notice tone="neutral">Pay by UPI to {upi.name} ({upi.id}) and enter the UTR. FITRON opens straight away while we check it; we confirm by email, usually within a working day.</Notice>}
+            {demo && <Notice>Demo mode: FITRON&apos;s Razorpay keys aren&apos;t set on this server, so payments are simulated and no money is charged.</Notice>}
             <PlanCards plans={gymPlanCards()} current={plan.key} startCycle={plan.cycle} autoRenew={razorpay} labels={{ current: "Pay", other: "Choose" }} />
           </>
         ) : (

@@ -37,40 +37,38 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const today = todayIso();
   const left = s.kind === "TRIAL" ? daysBetween(s.until, today) + 1 : s.kind === "PAID" ? daysBetween(s.until, today) : 0;
   // Prototype: a paid plan nearing its end shows "ends in N days" as many days ahead as Settings › Subscription says.
-  const expiring = s.kind === "PAID" && !plan.checking && left <= sub.remindDays;
+  const expiring = s.kind === "PAID" && left <= sub.remindDays;
   const canPay = u.can("settings.manage");
   const banner =
-    plan.checking && (s.kind === "TRIAL" || s.kind === "LAPSED")
-      ? { alert: false, body: <>Thanks for paying. We&apos;re checking your UPI payment and will confirm by email.</> }
-      : s.kind === "TRIAL"
+    s.kind === "TRIAL"
+      ? {
+          alert: left <= 2,
+          body: (
+            <>
+              Free trial:{" "}
+              <strong>
+                {left} {left === 1 ? "day" : "days"} left
+              </strong>{" "}
+              · ends {fmtDate(s.until)}. Your account locks after the trial.
+            </>
+          ),
+          cta: `Upgrade from ${fromPrice}/month`,
+        }
+      : expiring
         ? {
-            alert: left <= 2,
+            alert: left <= 1,
             body: (
               <>
-                Free trial:{" "}
+                Your {plan.name} plan ends in{" "}
                 <strong>
-                  {left} {left === 1 ? "day" : "days"} left
+                  {left} {left === 1 ? "day" : "days"}
                 </strong>{" "}
-                · ends {fmtDate(s.until)}. Your account locks after the trial.
+                ({fmtDate(s.until)}). Pay now to keep everything running.
               </>
             ),
-            cta: `Upgrade from ${fromPrice}/month`,
+            cta: "Renew",
           }
-        : expiring
-          ? {
-              alert: left <= 1,
-              body: (
-                <>
-                  Your {plan.name} plan ends in{" "}
-                  <strong>
-                    {left} {left === 1 ? "day" : "days"}
-                  </strong>{" "}
-                  ({fmtDate(s.until)}). Pay now to keep everything running.
-                </>
-              ),
-              cta: "Renew",
-            }
-          : s.kind === "GRACE"
+        : s.kind === "GRACE"
           ? { alert: true, body: <>Your {plan.name} plan has ended. Renew before {fmtDate(s.readOnlyFrom)} to keep adding members and invoices.</>, cta: "Renew" }
           : s.kind === "LAPSED"
             ? { alert: true, body: <>Your FITRON plan has ended. Your data is safe; pay to keep adding members and invoices.</>, cta: "Choose a plan" }

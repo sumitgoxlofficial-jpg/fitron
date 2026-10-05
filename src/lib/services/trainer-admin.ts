@@ -3,75 +3,10 @@ import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { findPlan, PARTNER_SHARE } from "@/lib/domain/pricing";
 import { trainerAccess } from "@/lib/domain/trainer";
-import { sendEmail } from "@/lib/integrations/email";
-import { UserError } from "./errors";
 import { trainerPaymentRef } from "./trainer";
-import { activateTrainerPaymentIn } from "./trainer-billing";
 import { fromIso, toIso, todayIso } from "./time";
-import { log } from "@/lib/log";
-
-// For the FITRON team page (fitron-admin): AI Trainer members' UPI payments waiting for a check.
-// Same shape of work as gym payments in saas.ts (paymentsToCheck / reviewPayment).
 
 const label = (plan: string, cycle: string) => `${findPlan(plan)?.name ?? plan}, ${cycle === "YEARLY" ? "yearly" : "monthly"}`;
-
-/** AI Trainer UPI payments with a UTR to check (oldest first), and the 20 most recently checked. */
-export async function trainerPaymentsToCheck() {
-  const include = { member: { select: { email: true, name: true } } } as const;
-  const [waiting, recent] = await Promise.all([
-    db.trainerPayment.findMany({ where: { status: "SUBMITTED" }, orderBy: { submittedAt: "asc" }, take: 200, include }),
-    db.trainerPayment.findMany({ where: { reviewedAt: { not: null } }, orderBy: { reviewedAt: "desc" }, take: 20, include }),
-  ]);
-  const row = (p: (typeof waiting)[number]) => ({
-    id: p.id,
-    ref: trainerPaymentRef(p.id),
-    member: p.member.name || p.member.email,
-    email: p.member.email,
-    what: label(p.plan, p.cycle),
-    plan: p.plan,
-    cycle: p.cycle,
-    total: p.total,
-    utr: p.utr,
-    /** DEMO = made while FITRON_UPI_ID wasn't set; no real money was asked for */
-    mode: p.mode,
-    status: p.status,
-    submittedAt: p.submittedAt,
-    reviewedBy: p.reviewedBy,
-    reviewedAt: p.reviewedAt,
-    rejectReason: p.rejectReason,
-    periodEnd: p.periodEnd ? toIso(p.periodEnd) : null,
-  });
-  return { waiting: waiting.map(row), recent: recent.map(row) };
-}
-
-/**
- * The FITRON team found the UTR in the bank statement (CONFIRM) or didn't (REJECT, with a reason).
- * Confirming activates the member's plan for one period after what they already have.
- */
-export async function reviewTrainerPayment(reviewer: { email: string }, id: string, decision: "CONFIRM" | "REJECT", reason = "") {
-  const p = await db.trainerPayment.findFirst({ where: { id, status: { in: ["SUBMITTED", "REJECTED"] } }, include: { member: true } });
-  if (!p) throw new UserError("This payment isn't waiting for a check.");
-  const amount = `Rs ${(p.total / 100).toFixed(2)}`;
-  if (decision === "REJECT") {
-    if (!reason.trim()) throw new UserError("Say why, so the member knows what to fix.");
-    // Only while it's still waiting: never over a payment someone else just confirmed.
-    const rejected = await db.trainerPayment.updateMany({ where: { id, status: { in: ["SUBMITTED", "REJECTED"] } }, data: { status: "REJECTED", reviewedBy: reviewer.email, reviewedAt: new Date(), rejectReason: reason.trim().slice(0, 200) } });
-    if (!rejected.count) throw new UserError("This payment was just confirmed by someone else.");
-    await sendEmail({
-      to: p.member.email,
-      subject: "We couldn't confirm your FITRON payment",
-      text: `Hi ${p.member.name || "there"},\n\nWe couldn't match your UPI payment of ${amount} (UTR ${p.utr}): ${reason.trim()}.\nCheck the UTR in your UPI app and pay again from the app, or reply to this email.\n\nFITRON\nhello@fitron.in`,
-    }).catch((e) => log.error("trainer_admin.payment_email_failed", e));
-    return null;
-  }
-  const done = await db.$transaction((tx) => activateTrainerPaymentIn(tx, id, reviewer.email));
-  await sendEmail({
-    to: p.member.email,
-    subject: "Your FITRON plan is active",
-    text: `Hi ${p.member.name || "there"},\n\nWe received your UPI payment of ${amount} (UTR ${p.utr}). Your ${label(done.plan, done.cycle)} plan is active until ${done.periodEnd ? toIso(done.periodEnd) : ""}.\n\nFITRON\nhello@fitron.in`,
-  }).catch((e) => log.error("trainer_admin.payment_email_failed", e));
-  return done;
-}
 
 // ── The FITRON team's view of the whole AI Trainer (fitron-admin/trainer) ──────────────────────
 
@@ -85,11 +20,11 @@ const prevMonth = (month: string) => {
 };
 const live = { deletedEmailHash: null } as const;
 
-/** The numbers at the top of the page: members by state, money this month and last, what waits for a check. */
+/** The numbers at the top of the page: members by state, and money this month and last. */
 export async function trainerOverview(today = todayIso()) {
   const month = today.slice(0, 7);
   const last = prevMonth(month);
-  const [total, onboarded, active, trial, linked, newThisMonth, seenWeek, waiting, paidThis, paidLast, coachToday] = await Promise.all([
+  const [total, onboarded, active, trial, linked, newThisMonth, seenWeek, paidThis, paidLast, coachToday] = await Promise.all([
     db.trainerMember.count({ where: live }),
     db.trainerMember.count({ where: { ...live, onboardedAt: { not: null } } }),
     db.trainerMember.count({ where: { ...live, paidUntil: { gte: fromIso(today) } } }),
@@ -97,7 +32,6 @@ export async function trainerOverview(today = todayIso()) {
     db.trainerMember.count({ where: { ...live, orgId: { not: null } } }),
     db.trainerMember.count({ where: { ...live, createdAt: { gte: monthRange(month).start } } }),
     db.trainerMember.count({ where: { ...live, lastSeenAt: { gte: new Date(Date.now() - 7 * 86_400_000) } } }),
-    db.trainerPayment.count({ where: { status: "SUBMITTED" } }),
     db.trainerPayment.aggregate({ where: { status: "PAID", paidAt: { gte: monthRange(month).start, lt: monthRange(month).end } }, _sum: { total: true, base: true }, _count: true }),
     db.trainerPayment.aggregate({ where: { status: "PAID", paidAt: { gte: monthRange(last).start, lt: monthRange(last).end } }, _sum: { total: true, base: true }, _count: true }),
     db.trainerCoachUsage.aggregate({ where: { date: fromIso(today) }, _sum: { count: true } }),
@@ -112,7 +46,6 @@ export async function trainerOverview(today = todayIso()) {
     linked,
     newThisMonth,
     seenWeek,
-    waiting,
     thisMonth: { count: paidThis._count, total: paidThis._sum.total ?? 0, base: paidThis._sum.base ?? 0 },
     lastMonth: { count: paidLast._count, total: paidLast._sum.total ?? 0, base: paidLast._sum.base ?? 0 },
     coachToday: coachToday._sum.count ?? 0,
@@ -175,11 +108,11 @@ export async function trainerMembers(f: TrainerListFilter, today = todayIso()) {
   };
 }
 
-/** Every payment, newest first: what each member started, submitted, and how it was decided. */
+/** Every payment, newest first: what each member started and what was paid. */
 export async function trainerPaymentList(f: { status?: string; page?: number; pageSize?: number } = {}) {
   const page = Math.max(1, f.page ?? 1);
   const pageSize = Math.min(500, Math.max(1, f.pageSize ?? 50));
-  const where: Prisma.TrainerPaymentWhereInput = f.status && ["PENDING", "SUBMITTED", "PAID", "REJECTED"].includes(f.status) ? { status: f.status } : {};
+  const where: Prisma.TrainerPaymentWhereInput = f.status && ["PENDING", "PAID"].includes(f.status) ? { status: f.status } : {};
   const [total, rows] = await Promise.all([
     db.trainerPayment.count({ where }),
     db.trainerPayment.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize, include: { member: { select: { name: true, email: true, org: { select: { name: true } } } } } }),
@@ -201,12 +134,8 @@ export async function trainerPaymentList(f: { status?: string; page?: number; pa
       total: p.total,
       mode: p.mode,
       status: p.status,
-      utr: p.utr,
       createdAt: p.createdAt,
-      submittedAt: p.submittedAt,
       paidAt: p.paidAt,
-      reviewedBy: p.reviewedBy,
-      rejectReason: p.rejectReason,
       periodStart: p.periodStart ? toIso(p.periodStart) : null,
       periodEnd: p.periodEnd ? toIso(p.periodEnd) : null,
     })),

@@ -71,7 +71,7 @@ export async function goLiveChecklist(u: CurrentUser) {
     backupAgeDays: lastBackup ? Math.max(0, daysBetween(today, todayIso(lastBackup))) : null,
     backupHref: "/settings/backup",
     idleMinutes,
-    plan: { name: plan.name, standing, checking: plan.checking },
+    plan: { name: plan.name, standing },
     demo: org.demo,
     demoMembers,
   };

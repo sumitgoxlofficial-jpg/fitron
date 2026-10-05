@@ -29,7 +29,7 @@ export async function checkInPoint(branchId: string): Promise<CheckInPoint | nul
   if (!b) return null;
   const [plan, gym] = await Promise.all([gymPlan(b.orgId), getSetting<{ name?: string }>(b.orgId, "gym")]);
   const view = { key: b.org.plan, name: plan.name, custom: gymTerms(b.org).custom };
-  const lapsed = plan.standing.kind === "LAPSED" && !plan.checking;
+  const lapsed = plan.standing.kind === "LAPSED";
   return { branchId: b.id, orgId: b.orgId, branchName: b.name, gymName: gym?.name || b.org.name, open: planHas(view, "attendance") && !lapsed };
 }
 
