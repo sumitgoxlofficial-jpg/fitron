@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { PLANS, findPlan, lowestGymPrice, rupeesLabel, type PlanDef } from "./pricing";
+import { PARTNER_SHARE, PLANS, findPlan, lowestGymPrice, rupeesLabel, type PlanDef } from "./pricing";
+import { trainerPrice } from "./trainer";
 import { formatInr } from "./billing";
 
 describe("pricing", () => {
@@ -25,6 +26,22 @@ describe("pricing", () => {
     const page = readFileSync(new URL("../../../public/site/index.html", import.meta.url), "utf8");
     for (const p of PLANS) {
       for (const paise of Object.values(p.price)) expect(page, `${p.name} ${paise}`).toContain(rupeesLabel(paise).slice(1));
+    }
+  });
+
+  it("shows partners what the console pays them: 70% of the price before GST, for every AI Trainer price", () => {
+    const page = readFileSync(new URL("../../../public/site/index.html", import.meta.url), "utf8");
+    const rupees = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const rows = [...page.matchAll(/<tr><td>(₹[\d,]+) \/ (month|year)<\/td><td class="num g">([^<]+)<\/td><td class="num">([^<]+)<\/td><\/tr>/g)].map((m) => ({ price: m[1], per: m[2], gym: m[3], fitron: m[4] }));
+    expect(rows).toHaveLength(4);
+    for (const plan of ["ai-pro", "ai-premium"] as const) {
+      for (const [cycle, per] of [["MONTHLY", "month"], ["YEARLY", "year"]] as const) {
+        const { base, total } = trainerPrice(plan, cycle);
+        const share = Math.round(base * PARTNER_SHARE);
+        const row = rows.find((r) => r.price === rupeesLabel(total) && r.per === per);
+        expect(row, `${plan} ${cycle} is in the table`).toBeDefined();
+        expect(row, `${plan} ${cycle}`).toMatchObject({ gym: rupees(share), fitron: rupees(base - share) });
+      }
     }
   });
 

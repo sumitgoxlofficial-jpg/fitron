@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { findPlan, PARTNER_SHARE } from "@/lib/domain/pricing";
-import { partnerBasis, trainerAccess } from "@/lib/domain/trainer";
+import { trainerAccess } from "@/lib/domain/trainer";
 import { sendEmail } from "@/lib/integrations/email";
 import { UserError } from "./errors";
 import { trainerPaymentRef } from "./trainer";
@@ -213,18 +213,18 @@ export async function trainerPaymentList(f: { status?: string; page?: number; pa
   };
 }
 
-/** What FITRON owes each gym for a month under the Gym Partnership: PARTNER_SHARE of the listed price of its linked members' confirmed payments (`base` here is that price, see partnerBasis). */
+/** What FITRON owes each gym for a month under the Gym Partnership: PARTNER_SHARE of the price before GST of its linked members' confirmed payments. */
 export async function partnerPayouts(month: string) {
   const { start, end } = monthRange(month);
   const [gyms, paid] = await Promise.all([
     db.organization.findMany({ where: { trainerMembers: { some: live } }, select: { id: true, name: true, trainerCode: true, _count: { select: { trainerMembers: { where: live } } } }, orderBy: { name: "asc" } }),
-    db.trainerPayment.findMany({ where: { status: "PAID", paidAt: { gte: start, lt: end }, member: { orgId: { not: null } } }, select: { base: true, total: true, gstIncluded: true, member: { select: { orgId: true } } } }),
+    db.trainerPayment.findMany({ where: { status: "PAID", paidAt: { gte: start, lt: end }, member: { orgId: { not: null } } }, select: { base: true, total: true, member: { select: { orgId: true } } } }),
   ]);
   const sums = new Map<string, { count: number; base: number; total: number }>();
   for (const p of paid) {
     const s = sums.get(p.member.orgId!) ?? { count: 0, base: 0, total: 0 };
     s.count++;
-    s.base += partnerBasis(p);
+    s.base += p.base;
     s.total += p.total;
     sums.set(p.member.orgId!, s);
   }

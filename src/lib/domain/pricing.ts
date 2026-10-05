@@ -20,7 +20,7 @@ export type PlanDef = {
 };
 
 export const TRIAL_DAYS = 7;
-/** Gym Partnership: the gym's share of what its linked members pay FITRON for the AI Trainer (of the listed price, see partnerBasis). */
+/** Gym Partnership: the gym's share of what its linked members pay FITRON for the AI Trainer, of the price before GST (a payment's `base`). */
 export const PARTNER_SHARE = 0.7;
 
 export const PLANS = [

@@ -135,6 +135,14 @@ TEXT = [
         "Plans renew automatically through Razorpay (UPI AutoPay, card or net-banking mandate) for the period you chose, monthly or yearly. You can cancel any time from Settings › Plan &amp; billing in Gym Accounting, or Settings › Subscription in the AI Trainer. The plan stays active until the end of the period you have already paid for.",
         "FAQ: cancelling",
     ),
+    # The Gym Partnership's 70% is of the price before GST (the GST inside a listed price is not shared), as the Terms
+    # say ("after taxes") and as the console pays it (PARTNER_SHARE of a payment's `base`). The design worked it out
+    # from the listed price. pricing.test.ts checks these figures against the same functions the console uses.
+    (
+        '<tr><td>₹299 / month</td><td class="num g">₹209.30</td><td class="num">₹89.70</td></tr><tr><td>₹499 / month</td><td class="num g">₹349.30</td><td class="num">₹149.70</td></tr><tr><td>₹1,999 / year</td><td class="num g">₹1,399.30</td><td class="num">₹599.70</td></tr><tr><td>₹4,999 / year</td><td class="num g">₹3,499.30</td><td class="num">₹1,499.70</td></tr>',
+        '<tr><td>₹299 / month</td><td class="num g">₹177.37</td><td class="num">₹76.02</td></tr><tr><td>₹499 / month</td><td class="num g">₹296.02</td><td class="num">₹126.86</td></tr><tr><td>₹1,999 / year</td><td class="num g">₹1,185.85</td><td class="num">₹508.22</td></tr><tr><td>₹4,999 / year</td><td class="num g">₹2,965.51</td><td class="num">₹1,270.93</td></tr>',
+        "partner earnings table: 70% of the price before GST",
+    ),
     (
         "never shown to the gym. <a href=\"/privacy\">Read the policies.</a>",
         "never shown to the gym. The AI replies are written by an AI provider that may process them outside India: the privacy policy says what is sent. <a href=\"/privacy\">Read the policies.</a>",

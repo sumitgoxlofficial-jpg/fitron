@@ -32,7 +32,7 @@ export default async function PartnershipPage({ searchParams }: PageProps<"/part
     <div className="flex flex-col gap-6 pt-4">
       <ListHeader kicker="FITRON AI Trainer" title="Gym Partnership" />
       <Notice tone="accent">
-        Members who link their AI Trainer to your gym with code <strong className="font-mono text-base tracking-wider">{code}</strong> show their training here, next to their membership. You earn {pct}% of the listed price of what they pay FITRON for the AI Trainer while linked. Share this link with them:{" "}
+        Members who link their AI Trainer to your gym with code <strong className="font-mono text-base tracking-wider">{code}</strong> show their training here, next to their membership. You earn {pct}% of what they pay FITRON for the AI Trainer, before GST, while linked. Share this link with them:{" "}
         <a className="underline" href={link} target="_blank" rel="noopener">
           {link}
         </a>
@@ -66,7 +66,7 @@ export default async function PartnershipPage({ searchParams }: PageProps<"/part
                   <th className={TH}>Member</th>
                   <th className={TH}>Plan</th>
                   <th className={TH}>Ref</th>
-                  <th className={`${TH} text-right`}>Price paid</th>
+                  <th className={`${TH} text-right`}>Before GST</th>
                   <th className={`${TH} text-right`}>Your {pct}%</th>
                 </tr>
               </thead>

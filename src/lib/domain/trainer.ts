@@ -27,12 +27,6 @@ export function trainerPrice(plan: TrainerPlan, cycle: Cycle) {
   return gstInside(p.price[cycle]);
 }
 
-/**
- * What a gym's Gym Partnership share is worked out from: the listed price the member paid. Payments made with the
- * GST inside the listed price (`gstIncluded`) keep it in `total`; older ones added GST on top, so it is their `base`.
- * Either way a Rs 299 AI Pro month earns the partner 70% of Rs 299.
- */
-export const partnerBasis = (p: { base: number; total: number; gstIncluded: boolean }) => (p.gstIncluded ? p.total : p.base);
 
 export type Access = { status: "ACTIVE"; until: IsoDate } | { status: "TRIAL"; endsAt: Date } | { status: "LOCKED"; trialUsed: boolean };
 

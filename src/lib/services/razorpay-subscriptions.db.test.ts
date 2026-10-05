@@ -611,7 +611,7 @@ describe.skipIf(!hasDb)("Razorpay subscriptions for AI Trainer members (database
     expect(rz.cancelled()).toEqual([pay.subscriptionId]);
   });
 
-  it("works a gym's partner share out from the listed price: ₹299 earns ₹209.30 whether GST was inside the price or added on top", async () => {
+  it("works a gym's partner share out from the price before GST: a ₹299 month (GST inside) pays 70% of ₹253.39, and an older payment pays 70% of its own before-GST price", async () => {
     const gym = await makeGym();
     const owner = await gym.user("Super Admin");
     const month = new Date().toISOString().slice(0, 7);
@@ -625,7 +625,8 @@ describe.skipIf(!hasDb)("Razorpay subscriptions for AI Trainer members (database
     await make(true);
     await make(false);
     const p = await partnership(owner, month);
-    expect(p.paid.map((x) => [x.base, x.share])).toEqual([[29_900, 20_930], [29_900, 20_930]]);
-    expect(p.totals).toMatchObject({ base: 59_800, share: 41_860 });
+    // 70% of ₹253.39 is ₹177.37; the older payment's before-GST price was the full ₹299, so 70% of it is ₹209.30.
+    expect(p.paid.map((x) => [x.base, x.share])).toEqual([[25_339, 17_737], [29_900, 20_930]]);
+    expect(p.totals).toMatchObject({ base: 55_239, share: 38_667 });
   });
 });
