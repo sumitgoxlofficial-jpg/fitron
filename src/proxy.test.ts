@@ -14,12 +14,12 @@ const visit = (p: string, cookie = false) => proxy(new NextRequest(`http://local
 afterEach(() => vi.unstubAllEnvs());
 
 describe("which paths are open to visitors who are not signed in", () => {
-  it.each(["/", "/signin", "/login", "/signup", "/trainer", "/contact", "/privacy", "/terms", "/refund", "/verify-email", "/forgot-password", "/reset-password", "/auth/google/callback", "/api/health", "/api/client-error", "/api/csp-report", "/api/webhooks/razorpay", "/api/trainer/auth/link", "/api/coach", "/iclock/cdata", "/site/fitron-3d.js", "/robots.txt", "/sitemap.xml", ...GYM_PAGES.map((p) => p.path)])(
+  it.each(["/", "/signin", "/login", "/signup", "/trainer", "/contact", "/privacy", "/terms", "/refund", "/c/power-haus-gym/cm1abc", "/verify-email", "/forgot-password", "/reset-password", "/auth/google/callback", "/api/health", "/api/client-error", "/api/csp-report", "/api/webhooks/razorpay", "/api/trainer/auth/link", "/api/coach", "/iclock/cdata", "/site/fitron-3d.js", "/robots.txt", "/sitemap.xml", ...GYM_PAGES.map((p) => p.path)])(
     "%s",
     (p) => expect(isPublicPath(p)).toBe(true),
   );
 
-  it.each(["/dashboard", "/members", "/members/abc", "/settings/billing", "/invoices/new", "/api/ai/chat", "/plan-ended", "/contacts", "/loginx", "/trainers"])("is closed for %s", (p) => expect(isPublicPath(p)).toBe(false));
+  it.each(["/dashboard", "/members", "/members/abc", "/settings/billing", "/invoices/new", "/api/ai/chat", "/plan-ended", "/contacts", "/loginx", "/trainers", "/checkin", "/cx/y"])("is closed for %s", (p) => expect(isPublicPath(p)).toBe(false));
 
   it("includes every folder of src/app/(site) that has a page", () => {
     const site = path.join(__dirname, "app/(site)");

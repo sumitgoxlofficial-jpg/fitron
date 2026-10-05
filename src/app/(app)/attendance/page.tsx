@@ -4,6 +4,7 @@ import { CaretLeftIcon, CaretRightIcon, DoorOpenIcon, DownloadSimpleIcon, UserCi
 import { requirePermission } from "@/lib/auth/current";
 import { db } from "@/lib/db";
 import { busyHours, canOverrideEntry, dailyCounts, getAccessRules, idleMembers, listDay } from "@/lib/services/attendance";
+import { appUrl } from "@/lib/services/accounts";
 import { memberScope, summarize } from "@/lib/services/members";
 import { getSetting } from "@/lib/services/settings";
 import { nowHHMM, nowMs, todayIso } from "@/lib/services/time";
@@ -48,7 +49,7 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
   const inside = isToday ? day.inside : (insideNow ?? 0);
   const gymName = gym?.name || u.orgName;
   const branchName = u.branches.find((b) => b.id === branchId)?.name ?? "";
-  const qrText = `https://fitron.in/c/${encodeURIComponent(gymName.toLowerCase().replace(/[^a-z0-9]+/g, "-"))}/${branchId ?? ""}`;
+  const qrText = `${appUrl()}/c/${encodeURIComponent(gymName.toLowerCase().replace(/[^a-z0-9]+/g, "-"))}/${branchId ?? ""}`;
   const qr = await QRCode.toDataURL(qrText, { margin: 0, width: 220 });
   const rulesText = [
     rules.blockExpired ? `expired blocked after ${rules.graceDays} grace days` : "expired allowed",
