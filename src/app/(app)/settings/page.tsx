@@ -13,9 +13,10 @@ import { gymLogoUrl } from "@/components/gym-logo";
 import { LogoForm } from "./logo-form";
 import { TaxForm } from "./tax-form";
 import { SETTINGS_TABS, SectionTabs } from "@/components/section-tabs";
-import { makeTrainerCode, saveAi, saveAutopay, saveGym, saveCookieNotice, saveNumbering, savePrivacyNotice, savePrivacyOfficer, saveReminders, saveWhatsApp, sendTestAction, simulateLinkAction, testAutopayConnection, unlinkAction } from "./actions";
+import { makeTrainerCode, saveAi, saveAutopay, saveGym, saveCookieNotice, saveNumbering, savePrivacyNotice, savePrivacyOfficer, saveReminders, saveReports, saveWhatsApp, sendTestAction, simulateLinkAction, testAutopayConnection, unlinkAction } from "./actions";
 import { getReminderSettings, getWaSettings, listTemplates } from "@/lib/services/whatsapp";
 import { reminderSchedule } from "@/lib/services/reminders";
+import { monthlyPlOn } from "@/lib/services/pl-email";
 import { LinkWatcher } from "./link-watcher";
 import { Dialog } from "@/components/dialog";
 import { ConfirmButton } from "@/components/confirm-button";
@@ -80,12 +81,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const reminders =
     tab === "reminders"
       ? await (async () => {
-          const [stored, schedule, access, templates, runs] = await Promise.all([getReminderSettings(u.orgId), reminderSchedule(u.orgId), getAccessRules(u.orgId), listTemplates(u.orgId), recentRuns(u.orgId)]);
+          const [stored, schedule, access, templates, runs, monthlyPl] = await Promise.all([getReminderSettings(u.orgId), reminderSchedule(u.orgId), getAccessRules(u.orgId), listTemplates(u.orgId), recentRuns(u.orgId), monthlyPlOn(u.orgId)]);
           // The expiry days and birthday wishes are the templates' Auto-send switches, which the rule engine reads.
           const settings = { ...stored, ...schedule };
           const today = todayIso();
           return {
             settings,
+            monthlyPl,
             graceDays: access.graceDays,
             jobs: scheduledJobRows(settings, {
               winbackOn: templates.find((t) => t.key === "winback")?.autoSend ?? false,
@@ -264,6 +266,20 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               </Link>
               ).
             </p>
+          </form>
+          <form action={saveReports} className="flex flex-col gap-2.5">
+            <h4 className="text-lg">Reports by email</h4>
+            {!u.has("accounting") && <Notice>The monthly profit and loss is part of Accounting, on the Professional plan.</Notice>}
+            <label className="flex items-center gap-2.5 text-[15px]">
+              <input type="checkbox" name="monthlyPl" defaultChecked={reminders.monthlyPl} disabled={!u.has("accounting")} className="size-[18px] accent-accent" />
+              Email last month’s profit and loss to the Super Admins on the 1st
+            </label>
+            <p className="m-0 pl-7 text-xs text-muted">Revenue, expenses and the net result, with the statement attached as an Excel file. Goes to every active Super Admin who has an email address.</p>
+            {u.has("accounting") && (
+              <div>
+                <Button variant="primary">Save</Button>
+              </div>
+            )}
           </form>
           <div>
             <h4 className="mb-2 text-lg">Scheduled jobs</h4>

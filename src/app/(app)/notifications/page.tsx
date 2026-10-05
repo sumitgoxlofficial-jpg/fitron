@@ -37,7 +37,7 @@ const TYPE: Record<string, [string, Icon]> = {
   LEAD_FOLLOW_UP: ["Lead follow-ups", FunnelIcon],
   WA_FAILED: ["WhatsApp failed", WarningCircleIcon],
   AUTOPAY: ["Autopay", RepeatIcon],
-  JOB_FAILED: ["Daily job failed", GearSixIcon],
+  JOB_FAILED: ["Scheduled job failed", GearSixIcon],
   AI_BRIEF: ["Fitron AI brief", SparkleIcon],
   BILLING: ["Fitron billing", ArrowsClockwiseIcon],
   BACKUP_DUE: ["Backup due", DatabaseIcon],

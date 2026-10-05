@@ -29,6 +29,19 @@ test("a Starter gym keeps its own downloads and is refused the ones of a higher 
   for (const [url, what] of PROFESSIONAL_ONLY) expect(await status(url), `Professional can download ${what}`).toBe(200);
 });
 
+test("the Excel downloads are real workbooks, which Excel opens without a warning", async ({ page }) => {
+  await signUp(page, { plan: "professional", tag: "xlsx-downloads" });
+  for (const url of ["/reports/collections/xls", "/reports/pur-month/xls", "/reports/assets/xls", "/audit/xls"]) {
+    const r = await page.request.get(url, { maxRedirects: 0 });
+    expect(r.status(), url).toBe(200);
+    expect(r.headers()["content-type"], `${url} says it is a workbook`).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    expect(r.headers()["content-disposition"], `${url} is saved as .xlsx`).toMatch(/filename="[^"]+\.xlsx"/);
+    const body = await r.body();
+    expect(body.subarray(0, 2).toString(), `${url} is a zip`).toBe("PK");
+    for (const part of ["[Content_Types].xml", "xl/workbook.xml", "xl/styles.xml", "xl/worksheets/sheet1.xml"]) expect(body.includes(part), `${url} holds ${part}`).toBe(true);
+  }
+});
+
 test("the pages of a higher plan are closed to a Starter gym and its menu does not offer them", async ({ page }) => {
   await signUp(page, { plan: "starter", tag: "starter-pages" });
   await page.goto("/purchases");

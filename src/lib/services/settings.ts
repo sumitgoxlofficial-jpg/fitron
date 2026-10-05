@@ -17,7 +17,7 @@ export async function getSetting<T>(orgId: string, key: string): Promise<T | nul
 }
 
 /** Settings a Super Admin may change from the app. */
-export const EDITABLE_SETTINGS = ["gym", "tax", "numbering", "access", "whatsapp", "reminders", "autopay", "ai", "migration", "opening", "subscription", "security", "privacy"] as const;
+export const EDITABLE_SETTINGS = ["gym", "tax", "numbering", "access", "whatsapp", "reminders", "autopay", "ai", "migration", "opening", "subscription", "security", "privacy", "reports"] as const;
 export type EditableSetting = (typeof EDITABLE_SETTINGS)[number];
 
 /** Merges `value` into the setting and audits it, inside the caller's transaction. */

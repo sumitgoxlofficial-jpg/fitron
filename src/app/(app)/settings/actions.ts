@@ -12,7 +12,7 @@ import { deleteBranch, putSetting, saveBranch, setBranchActive, saveGymProfile, 
 import { getWaSettings, sendTest, setLinked } from "@/lib/services/whatsapp";
 import { connectorLogout, connectorStatus, providerReady } from "@/lib/integrations/whatsapp";
 import { removeGymLogo, setGymLogo } from "@/lib/services/gym-logo";
-import { aiInput, autopayInput, branchInput, cookieNoticeInput, gymInput, numberingInput, privacyNoticeInput, privacyOfficerInput, reminderInput, taxInput } from "@/lib/validation/settings";
+import { aiInput, autopayInput, branchInput, cookieNoticeInput, gymInput, numberingInput, privacyNoticeInput, privacyOfficerInput, reminderInput, reportsInput, taxInput } from "@/lib/validation/settings";
 import { assertCanErase, eraseCheck, eraseMember, findMemberByCode, savePrivacyNotice as storeNotice } from "@/lib/services/privacy";
 import { NOTICE_KEYS, type NoticeKey } from "@/lib/domain/privacy";
 import { todayIso } from "@/lib/services/time";
@@ -220,6 +220,15 @@ export async function saveReminders(fd: FormData) {
   await saveReminderSettings(u, parsed.data!);
   revalidatePath("/", "layout");
   back({ saved: "reminders" });
+}
+
+/** Settings › Reminders › Reports by email: whether the Super Admins get last month's profit and loss on the 1st. */
+export async function saveReports(fd: FormData) {
+  const u = await requirePermission("settings.manage");
+  if (!u.has("accounting")) back({ error: "The monthly profit and loss is part of Accounting, on the Professional plan.", section: "reminders" });
+  await save(reportsInput, fd, "reminders", async (v) => {
+    await putSetting(u, "reports", v);
+  });
 }
 
 /** Settings › Integrations & AI › UPI autopay: mode, retries and the gap between them (the provider is Razorpay only). */

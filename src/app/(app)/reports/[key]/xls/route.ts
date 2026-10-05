@@ -1,5 +1,6 @@
 import { getCurrentUser, PLAN_ENDED } from "@/lib/auth/current";
-import { REPORTS, toXls } from "@/lib/services/reports";
+import { REPORTS, toXlsx } from "@/lib/services/reports";
+import { XLSX_MIME } from "@/lib/xlsx";
 import { monthPeriod } from "@/lib/services/accounting";
 import { todayIso } from "@/lib/services/time";
 
@@ -19,7 +20,7 @@ export async function GET(req: Request, ctx: RouteContext<"/reports/[key]/xls">)
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
   const period = { from: isDate(from) ? from! : monthPeriod(today.slice(0, 7)).from, to: isDate(to) ? to! : today };
-  return new Response(toXls(def.title, await def.run(u, period)), {
-    headers: { "Content-Type": "application/vnd.ms-excel; charset=utf-8", "Content-Disposition": `attachment; filename="fitron-${key}.xls"`, "Cache-Control": "private, no-store" },
+  return new Response(toXlsx(def.title, await def.run(u, period)) as BodyInit, {
+    headers: { "Content-Type": XLSX_MIME, "Content-Disposition": `attachment; filename="fitron-${key}.xlsx"`, "Cache-Control": "private, no-store" },
   });
 }

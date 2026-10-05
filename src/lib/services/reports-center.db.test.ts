@@ -3,7 +3,8 @@ import { hasDb, makeGym, pick } from "@/test/db";
 import { createMember } from "./members";
 import { createInvoice } from "./billing";
 import { createExpense } from "./expenses";
-import { REPORTS, reportGroups, toXls } from "./reports";
+import { unzip } from "@/test/xlsx";
+import { REPORTS, reportGroups, toXlsx } from "./reports";
 import { CENTER } from "./reports-more";
 import { monthPeriod } from "./accounting";
 import { todayIso } from "./time";
@@ -47,11 +48,14 @@ describe.skipIf(!hasDb)("report centre (database)", () => {
     expect(pl).toMatchObject({ revenue: 100000, expenses: 30000, net: 70000, margin: 70 });
   });
 
-  it("the Excel download is an HTML table with rupee amounts", async () => {
+  it("the Excel download is a workbook with real numbers, rupees from paise", async () => {
     const r = await REPORTS.cashflow!.run(admin, monthPeriod(today.slice(0, 7)));
-    const x = toXls("Cash flow", r);
-    expect(x).toContain("<th>Collections</th>");
-    expect(x).toContain("<td>500.00</td>");
+    const parts = unzip(toXlsx("Cash flow", r));
+    const sheet = parts["xl/worksheets/sheet1.xml"]!;
+    expect(parts["xl/workbook.xml"]).toContain('name="Cash flow"');
+    expect(sheet).toContain("Collections"); // the column heading
+    expect(sheet).toMatch(/<c r="[A-Z]+\d+" s="2"><v>500<\/v><\/c>/); // 50000 paise, as a money number
+    expect(sheet).not.toContain("<f>");
   });
 });
 

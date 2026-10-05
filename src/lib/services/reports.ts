@@ -12,6 +12,7 @@ import { addMonths } from "@/lib/domain/dates";
 import { assetInfo, depreciationIn, fyLabel, fyOf, scheduleByFy, ymOf } from "@/lib/domain/assets";
 import { assetsFor, toLike } from "./assets";
 import { CENTER, MORE } from "./reports-more";
+import { buildXlsx, type XKind } from "@/lib/xlsx";
 
 export type Cell = string | number | null;
 /** money: paise shown as rupees; num / pct: right-aligned counts and percentages. */
@@ -369,12 +370,16 @@ export function toCsv(r: Report): string {
   return lines.join("\n") + "\n";
 }
 
-/** The "Excel" download: an HTML table Excel opens directly, as the prototype does, with amounts in rupees. */
-export function toXls(title: string, r: Report): string {
-  const esc = (v: Cell) => (v == null ? "" : String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;"));
-  const cell = (c: Column, v: Cell) => (c.money && typeof v === "number" ? (v / 100).toFixed(2) : v);
-  const head = `<tr>${r.columns.map((c) => `<th>${esc(c.label)}</th>`).join("")}</tr>`;
-  const body = r.rows.map((row) => `<tr>${r.columns.map((c) => `<td>${esc(cell(c, row[c.key] ?? null))}</td>`).join("")}</tr>`).join("");
-  const foot = r.totals ? `<tr>${r.columns.map((c, i) => `<th>${esc(i === 0 ? "Total" : cell(c, r.totals![c.key] ?? null))}</th>`).join("")}</tr>` : "";
-  return `<html><head><meta charset="utf-8"><title>${esc(title)}</title></head><body><table border="1">${head}${body}${foot}</table></body></html>`;
+/** The "Excel" download: a real .xlsx workbook (see src/lib/xlsx.ts): amounts in rupees as numbers, dates as dates, a bold frozen header and a totals row. */
+export function toXlsx(title: string, r: Report): Uint8Array {
+  const kind = (c: Column): XKind | undefined => (c.money ? "money" : c.kind === "pct" ? "pct" : c.kind === "num" ? "int" : undefined);
+  return buildXlsx(
+    {
+      name: title,
+      columns: r.columns.map((c) => ({ label: c.label, kind: kind(c) })),
+      rows: r.rows.map((row) => r.columns.map((c) => row[c.key] ?? null)),
+      totals: r.totals ? r.columns.map((c, i) => (i === 0 ? "Total" : (r.totals![c.key] ?? null))) : undefined,
+    },
+    { title },
+  );
 }

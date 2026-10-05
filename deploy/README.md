@@ -16,6 +16,7 @@ This guide sets it all up on an **Oracle Cloud "Always Free"** server. The serve
 - the Postgres database
 - daily reminders and other jobs at 06:30 India time
 - a backup every night at 02:00
+- a weekly test, on Sunday at 02:30, that each gym's latest in-app backup can really be restored
 
 It takes about 30 minutes. You only type commands in steps 5 to 7.
 
@@ -127,7 +128,7 @@ nano deploy/.env
 | Your details on FITRON's invoices to gyms, and on the website's Contact page | `FITRON_LEGAL_NAME`, `FITRON_GSTIN`, `FITRON_ADDRESS` | Leave `FITRON_GSTIN` empty if you're not GST-registered yet. The Contact page shows your registered business name, address and GSTIN once the address or GSTIN is set (payment providers and Indian consumer rules usually expect them on the website) |
 | **Sign in with Google** | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | See "Google sign-in" below. Until both are set, the Google button stays hidden and email + password still work |
 | Fitron AI and the AI Trainer's coach | `ANTHROPIC_API_KEY` | from console.anthropic.com |
-| Email (sign-up confirmation, password reset, payment emails, website enquiries) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, `ENQUIRY_TO` | Verify fitron.in with your email provider (it gives you DNS records to add). Without email, new sign-ups are trusted without a confirmation link and password reset can't send its link |
+| Email (sign-up confirmation, password reset, payment emails, website enquiries, and each gym owner's monthly profit-and-loss email with its Excel statement) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, `ENQUIRY_TO` | Verify fitron.in with your email provider (it gives you DNS records to add). Without email, new sign-ups are trusted without a confirmation link and password reset can't send its link |
 | Documents in the cloud (optional) | `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | e.g. a Cloudflare R2 bucket (free up to 10 GB); otherwise they're kept on the server |
 
 Then apply them:
@@ -176,6 +177,7 @@ On the device, open **Menu › Comm. › Cloud Server Setting**. Set the server 
 - **Backups:** saved nightly in `~/fitron/deploy/backups` and kept for 14 days. Copy them off the server now and then, for example from your computer:
   `scp -i key ubuntu@YOUR_SERVER_IP:fitron/deploy/backups/*.dump .`
   For extra safety, turn on a free boot-volume backup in Oracle under **Block Storage › Boot Volumes › Backups**.
+- **Backup restore test:** every Sunday at 02:30 India time the scheduler asks the app (`/api/jobs/weekly`) to take each gym's newest backup out of storage, check it against its checksum and restore it inside a transaction that is always rolled back. It proves the file reads, passes the restore's checks and still fits the database after any update; nothing is changed. The result shows in Settings › Backup (the "Restore test" line). If it fails, the gym's Super Admins get an email (when email is set up) and a notice in the app. While it runs, the gym's rows are held for a few seconds, which is why it runs at night. This tests the gym backups the app takes itself; it does not test the nightly server dump, which you check with `restore.sh` on a spare machine now and then.
 - **Restore a backup:** `bash deploy/restore.sh deploy/backups/fitron-YYYYMMDD-HHMM.dump`
 - **See what's running:** `cd ~/fitron/deploy && docker compose ps`
 - **See errors:** `cd ~/fitron/deploy && docker compose logs --tail 100 app`

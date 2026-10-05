@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ClockCounterClockwiseIcon, DatabaseIcon } from "@phosphor-icons/react/dist/ssr";
 import { requirePermission } from "@/lib/auth/current";
-import { backupStatus, lastAutoFailure, listBackups } from "@/lib/services/backup";
+import { backupStatus, lastAutoFailure, lastRestoreTest, listBackups } from "@/lib/services/backup";
 import { ageText, sizeText, summarise } from "@/lib/domain/backup";
 import { Badge, Button, Card, Empty, Field, Input, LinkButton, Notice, TABLE, TD, TH, TR, ScrollRegion } from "@/components/ui";
 import { Dialog, DialogButtons } from "@/components/dialog";
@@ -23,12 +23,20 @@ function Row({ k, v }: { k: string; v: string }) {
   );
 }
 
+/** One line about the weekly restore test: when it last ran and what it proved. */
+function restoreTestText(t: Awaited<ReturnType<typeof lastRestoreTest>>) {
+  if (!t) return "Every Sunday: the latest backup is restored in a trial run that is rolled back";
+  if (t.ok === false) return `Failed on ${fmtDate(t.day)}`;
+  if (t.ok === null) return `${fmtDate(t.day)}: ${t.note}`;
+  return `Passed on ${fmtDate(t.day)} · ${t.rows.toLocaleString("en-IN")} records restored cleanly`;
+}
+
 export default async function BackupPage({ searchParams }: PageProps<"/settings/backup">) {
   // Open to a gym whose plan lapsed, so it can still take and download its data.
   const u = await requirePermission("settings.manage", { allowBlocked: true });
   const sp = await searchParams;
   const superAdmin = u.role === "Super Admin";
-  const [status, backups, failure] = await Promise.all([backupStatus(u.orgId), listBackups(u.orgId), lastAutoFailure(u.orgId)]);
+  const [status, backups, failure, test] = await Promise.all([backupStatus(u.orgId), listBackups(u.orgId), lastAutoFailure(u.orgId), lastRestoreTest(u.orgId)]);
   const restore = typeof sp.restore === "string" && superAdmin ? sp.restore : null;
   const restoring = restore && restore !== "file" ? backups.find((b) => b.id === restore) : null;
   const now = new Date();
@@ -52,10 +60,17 @@ export default async function BackupPage({ searchParams }: PageProps<"/settings/
           </Notice>
         )}
 
+        {test?.ok === false && (
+          <Notice tone="alert">
+            The weekly restore test failed on {fmtDate(test.day)}: {test.error} Your data is not affected, but back up now and download the file. If it fails again next week, write to support@fitron.in.
+          </Notice>
+        )}
+
         <div className="flex flex-col gap-[18px]">
           <Row k="Automatic backup" v="Daily with the morning jobs, kept 30 days" />
           <Row k="Last automatic backup" v={status.lastAutoAt ? stamp(status.lastAutoAt) : "Not yet — it runs with the daily jobs"} />
           <Row k="Last manual backup" v={status.lastManualAt ? `${stamp(status.lastManualAt)} by ${status.lastManualBy}` : "Never"} />
+          <Row k="Restore test" v={restoreTestText(test)} />
           <Row k="Records" v={summarise(status.counts)} />
           <Row k="Backups on the server" v={`${status.files} files · ${sizeText(status.bytes)}`} />
         </div>

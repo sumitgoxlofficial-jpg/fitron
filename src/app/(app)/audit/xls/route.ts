@@ -1,6 +1,7 @@
 import { getCurrentUser, PLAN_ENDED } from "@/lib/auth/current";
 import { listAudit } from "@/lib/services/accounting";
-import { toXls } from "@/lib/services/reports";
+import { toXlsx } from "@/lib/services/reports";
+import { XLSX_MIME } from "@/lib/xlsx";
 import { todayIso } from "@/lib/services/time";
 import { addDays } from "@/lib/domain/dates";
 import { AUDIT_MODULES, type Severity } from "@/lib/domain/audit";
@@ -21,5 +22,5 @@ export async function GET(req: Request) {
   const sev = ["High", "Medium", "Low"].includes(p.get("sev") ?? "") ? (p.get("sev") as Severity) : undefined;
   const mod = AUDIT_MODULES.includes(p.get("mod") ?? "") ? p.get("mod")! : undefined;
   const { rows } = await listAudit(u, { q: p.get("q") ?? undefined, userId: p.get("user") ?? undefined, module: mod, severity: sev, from, to: range === "custom" ? date("to") : undefined, pageSize: 5000 });
-  return new Response(toXls("Audit log", auditTable(rows)), { headers: { "Content-Type": "application/vnd.ms-excel; charset=utf-8", "Content-Disposition": `attachment; filename="audit-log_${today}.xls"`, "Cache-Control": "private, no-store" } });
+  return new Response(toXlsx("Audit log", auditTable(rows)) as BodyInit, { headers: { "Content-Type": XLSX_MIME, "Content-Disposition": `attachment; filename="audit-log_${today}.xlsx"`, "Cache-Control": "private, no-store" } });
 }

@@ -138,6 +138,10 @@ export const aiInput = z.object({
 });
 export type AiInput = z.infer<typeof aiInput>;
 
+/** Settings › Reminders › Reports by email: one checkbox. */
+export const reportsInput = z.object({ monthlyPl: z.preprocess((v) => v === "on", z.boolean()) });
+export type ReportsInput = z.infer<typeof reportsInput>;
+
 /** Settings › Privacy & DPDP › Grievance Officer. All optional so a gym can save as it goes; Go live checks name and email. */
 export const privacyOfficerInput = z.object({
   officer: z.preprocess(blank, z.string().trim().max(120, { error: "Name: at most 120 characters." }).optional()),
