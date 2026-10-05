@@ -12,6 +12,7 @@ import { ackText, appVersion, deviceLabel, ticketEmail } from "@/lib/domain/supp
 import { hasPrioritySupport } from "@/lib/domain/features";
 import type { TicketInput } from "@/lib/validation/support";
 import { fmtDate, fmtTime } from "@/lib/format";
+import { log } from "@/lib/log";
 
 // Settings › Help & support: tickets are saved first, then emailed to support. A mail failure never loses the ticket.
 
@@ -56,7 +57,7 @@ export async function raiseTicket(u: CurrentUser, v: TicketInput, ctx: { userAge
     const r = await sendEmail({ to: supportTo(), subject: mail.subject, text: mail.text, replyTo: u.email });
     if (r.sent) await db.supportTicket.update({ where: { id: ticket.id }, data: { emailedAt: new Date() } });
   } catch (e) {
-    console.error("support.notify", e);
+    log.error("support.notify_failed", e);
   }
   return ticket;
 }

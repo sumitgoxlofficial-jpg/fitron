@@ -73,6 +73,7 @@ if [ ! -f .env ]; then
   set_env FITRON_UPI_NAME "FITRON"
   set_env FITRON_UPI_ID "$UPI"
   set_env FITRON_ADMIN_EMAILS "$ADMIN"
+  set_env ERROR_ALERT_TO "$ADMIN"
   set_env MAIL_FROM '"FITRON <hello@fitron.in>"'
   set_env ENQUIRY_TO "hello@fitron.in"
   set_env BACKUP_KEEP_DAYS 14

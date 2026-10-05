@@ -10,7 +10,7 @@ const matcher = new RegExp(`^${config.matcher[0]}$`);
 const guarded = (path: string) => matcher.test(path);
 
 describe("proxy matcher", () => {
-  it.each(["/signin", "/login", "/signup", "/trainer", "/contact", "/privacy", "/terms", "/refund", "/verify-email", "/forgot-password", "/auth/google/callback", "/api/health"])(
+  it.each(["/signin", "/login", "/signup", "/trainer", "/contact", "/privacy", "/terms", "/refund", "/verify-email", "/forgot-password", "/auth/google/callback", "/api/health", "/api/client-error"])(
     "leaves %s public",
     (path) => expect(guarded(path)).toBe(false),
   );

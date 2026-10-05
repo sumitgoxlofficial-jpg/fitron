@@ -8,6 +8,7 @@ import { confirmCheckout, confirmDemoPayment, startPayment, submitUtr, type Chec
 import { saveBillingDetails as saveDetails, saveRenewalReminders as saveReminders } from "@/lib/services/subscription";
 import { billingDetailsInput, renewalInput } from "@/lib/validation/settings";
 import { UserError } from "@/lib/services/errors";
+import { log } from "@/lib/log";
 
 type Result<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -16,7 +17,7 @@ async function wrap<T>(fn: () => Promise<T>): Promise<Result<T>> {
     return { ok: true, data: await fn() };
   } catch (e) {
     if (e instanceof UserError) return { ok: false, error: e.message };
-    console.error("Fitron billing failed", e);
+    log.error("fitron_billing.failed", e);
     return { ok: false, error: "Couldn't start the payment. Try again in a minute." };
   }
 }

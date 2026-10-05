@@ -1,6 +1,7 @@
 import { deviceOptions } from "@/lib/domain/adms";
 import { handleCdataPost } from "@/lib/services/biometric";
 import { device, text } from "../device";
+import { log } from "@/lib/log";
 
 export async function GET(req: Request) {
   const { sn, d } = await device(req);
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
   try {
     return text(await handleCdataPost(d, table, body));
   } catch (e) {
-    console.error("Device upload failed", e);
+    log.error("device_upload.failed", e);
     // Not OK: the device keeps the data and sends it again.
     return text("ERROR", 500);
   }

@@ -179,6 +179,8 @@ On the device, open **Menu › Comm. › Cloud Server Setting**. Set the server 
 - **Restore a backup:** `bash deploy/restore.sh deploy/backups/fitron-YYYYMMDD-HHMM.dump`
 - **See what's running:** `cd ~/fitron/deploy && docker compose ps`
 - **See errors:** `cd ~/fitron/deploy && docker compose logs --tail 100 app`
+- **Find one error:** when something goes wrong, the page shows a short **reference** (and every response carries an `X-Request-Id` header). Search the log for it: `docker compose logs app | grep REFERENCE`. Each error is one JSON line with the page, the kind of error and the first lines of where it happened; `grep request.error` lists them all and `grep client.error` lists the ones that happened in a browser.
+- **Get an email when something breaks:** set `ERROR_ALERT_TO` in `deploy/.env` (the installer sets it to your admin email) and set up SMTP as described above. You get at most one email per kind of error per hour, and ten an hour in all. Without SMTP the errors are still in the log. Run `docker compose up -d` after changing `.env`.
 - **Health check** for an uptime monitor such as UptimeRobot (free): `https://your-address/api/health`
 
 ## How much it can handle

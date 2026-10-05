@@ -11,6 +11,7 @@ import { eraseBiometrics } from "./biometric";
 import { fromIso, todayIso, toIso } from "./time";
 import { formatRupees, fmtDate } from "@/lib/format";
 import { DEFAULT_PRIVACY, anonymisedMember, editedSections, filledPersonalFields, retentionCutoff, type NoticeKey, type PrivacySettings } from "@/lib/domain/privacy";
+import { log } from "@/lib/log";
 
 const OPEN_MANDATE = ["Pending", "Active", "Paused"];
 
@@ -176,7 +177,7 @@ export async function eraseMember(u: CurrentUser, memberId: string, reason: stri
     try {
       await deleteObject(key);
     } catch (e) {
-      console.error(`privacy: could not delete ${key}:`, e);
+      log.error("privacy.delete_object_failed", e, { key });
     }
   }
   return out;

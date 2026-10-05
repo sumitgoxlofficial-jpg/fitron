@@ -6,6 +6,7 @@ import { trainerAccess } from "@/lib/domain/trainer";
 import { dueReminders, type Reminder } from "@/lib/domain/trainer-reminders";
 import { UserError } from "./errors";
 import { fromIso, istClock, todayIso, toIso } from "./time";
+import { log } from "@/lib/log";
 
 // Web Push for the AI Trainer: reminders that reach the member's phone when the app is closed.
 // Needs VAPID keys (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY); without them the app keeps its in-page
@@ -58,7 +59,7 @@ async function deliver(p: Row, r: Omit<Reminder, "key"> & { tag: string }): Prom
       return "gone";
     }
     await db.trainerPush.update({ where: { id: p.id }, data: { failures: { increment: 1 } } }).catch(() => {});
-    console.error("[trainer push]", status ?? (e instanceof Error ? e.message : e));
+    log.warn("trainer_push.failed", e, { status });
     return "failed";
   }
 }

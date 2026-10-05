@@ -14,6 +14,7 @@ import { LinkButton, ListHeader, Notice, Pager, TABLE, TD, TH, cx } from "@/comp
 import { fmtClock, fmtShort, fmtTime } from "@/lib/format";
 import { RuleForm, TemplateCard } from "./wa-forms";
 import { refreshAction, retryMessageAction, runAutomationAction, runRuleAction, toggleAutoSendAction } from "./actions";
+import { log } from "@/lib/log";
 
 export const metadata = { title: "WhatsApp · Fitron" };
 
@@ -33,7 +34,7 @@ export default async function WhatsAppPage({ searchParams }: PageProps<"/whatsap
   const monthStart = new Date(`${today.slice(0, 7)}-01T00:00:00+05:30`);
   const scope = { orgId: u.orgId, OR: [{ memberId: null }, { member: { branchId: { in: u.branchIds } } }] };
   // Messages held by quiet hours or a rule's send time go out once the page has rendered.
-  after(() => dispatchScheduled(u.orgId).catch((e) => console.error("WhatsApp dispatch failed", e)));
+  after(() => dispatchScheduled(u.orgId).catch((e) => log.error("whatsapp.dispatch_failed", e)));
   const [settings, templates, month] = await Promise.all([
     getWaSettings(u.orgId),
     listTemplates(u.orgId),

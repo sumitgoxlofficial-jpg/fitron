@@ -2,6 +2,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { UserError } from "@/lib/services/errors";
 import { requestTrainerLink } from "@/lib/services/trainer";
 import { body, json } from "../../_lib/http";
+import { log } from "@/lib/log";
 
 /** Email a one-time sign-in link (creates the account on first use). */
 export async function POST(req: Request) {
@@ -12,7 +13,7 @@ export async function POST(req: Request) {
     return json(await requestTrainerLink(String(email ?? "")));
   } catch (e) {
     if (e instanceof UserError) return json({ error: e.message }, 400);
-    console.error("[trainer link]", e);
+    log.error("trainer_link.failed", e);
     return json({ error: "Couldn't send the link. Try again." }, 500);
   }
 }

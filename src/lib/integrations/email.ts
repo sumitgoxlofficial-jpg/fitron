@@ -1,5 +1,6 @@
 import "server-only";
 import nodemailer from "nodemailer";
+import { log } from "@/lib/log";
 
 // Outgoing email over SMTP (any provider: Amazon SES, Zoho, Brevo, Gmail Workspace…).
 // Without SMTP_HOST, mail is logged instead of sent, like the other integrations' demo mode.
@@ -19,7 +20,7 @@ function smtp() {
 
 export async function sendEmail(mail: { to: string; subject: string; text: string; replyTo?: string }) {
   if (!emailReady()) {
-    console.info(`[email:demo] to=${mail.to} subject=${mail.subject}`);
+    log.info("email.demo", { to: mail.to, subject: mail.subject });
     return { sent: false as const };
   }
   await smtp().sendMail({ from: process.env.MAIL_FROM || "FITRON <hello@fitron.in>", ...mail });
