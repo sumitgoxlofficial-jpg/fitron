@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth/current";
 import { isFitronAdmin } from "@/lib/integrations/upi";
 import { listContent, saveContent } from "@/lib/services/trainer-content";
 import { UserError } from "@/lib/services/errors";
-import { Badge, Button, Input, Notice, PageHeader, TABLE, TD, TH, TR } from "@/components/ui";
+import { Badge, Button, Input, Notice, PageHeader, TABLE, TD, TH, TR, ScrollRegion } from "@/components/ui";
 import { fmtStamp } from "@/lib/format";
 import { AdminTabs } from "../../tabs";
 
@@ -44,14 +44,14 @@ export default async function ContentPage({ searchParams }: PageProps<"/fitron-a
       )}
       {str("saved") && <Notice tone="ok">Saved {str("saved")}.</Notice>}
       <p className="mb-4 text-sm text-muted">Paste a YouTube link (a Short works best: vertical, under a minute) or a direct .mp4. Leave the link empty and save to remove a video.</p>
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Content table">
         <table className={TABLE}>
           <thead>
             <tr>
               <th className={TH}>Exercise</th>
               <th className={TH}>Video link</th>
               <th className={TH}>Note (shown under the video)</th>
-              <th className={TH}></th>
+              <th className={TH}><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -74,7 +74,7 @@ export default async function ContentPage({ searchParams }: PageProps<"/fitron-a
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
     </>
   );
 }

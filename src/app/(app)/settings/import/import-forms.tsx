@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { Badge, Button, Field, Input, Notice, Select } from "@/components/ui";
+import { Badge, Button, Field, Input, Notice, Select, ScrollRegion } from "@/components/ui";
 import { autoMap, IMPORTS, MAX_ROWS, parseCsv, type CheckedRow, type ImportKind } from "@/lib/domain/import";
 import { commitAction, openingAction, previewAction, sourceAction } from "./actions";
 
@@ -128,7 +128,7 @@ export function ImportWizard({ kind }: { kind: ImportKind }) {
             <Badge tone="ok">{valid} ready</Badge> <Badge tone={checked.length - valid ? "alert" : "neutral"}>{checked.length - valid} with problems</Badge>{" "}
             <span className="text-muted">Showing the first 200 rows.</span>
           </p>
-          <div className="overflow-x-auto rounded-xl border border-line">
+          <ScrollRegion label="Import table" className="rounded-xl border border-line">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="text-left text-muted">
                 <tr className="border-b border-line">
@@ -157,7 +157,7 @@ export function ImportWizard({ kind }: { kind: ImportKind }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
         </>
       )}
     </div>

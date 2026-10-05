@@ -48,7 +48,7 @@ import { MemberStatus } from "@/components/status";
 import { Tag } from "@/components/tag";
 import { ConfirmButton } from "@/components/confirm-button";
 import { Dialog, DialogButtons } from "@/components/dialog";
-import { Button, Field, Input, Notice, Select, Textarea, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { Button, Field, Input, Notice, Select, Textarea, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { fmtDate, fmtShort, fmtStamp, fmtTime, formatRupees, initials } from "@/lib/format";
 import { remindDueAction } from "../../reminder-actions";
 import {
@@ -629,7 +629,7 @@ export default async function MemberPage({ params, searchParams }: PageProps<"/m
 function Table({ head, rows, right = [], empty }: { head: string[]; rows: ReactNode[][]; right?: number[]; empty?: string }) {
   if (empty) return <p className="text-muted">{empty}</p>;
   return (
-    <div className="overflow-x-auto">
+    <ScrollRegion label="Membership history">
       <table className={TABLE}>
         <thead>
           <tr>
@@ -652,7 +652,7 @@ function Table({ head, rows, right = [], empty }: { head: string[]; rows: ReactN
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollRegion>
   );
 }
 

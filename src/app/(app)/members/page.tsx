@@ -6,7 +6,7 @@ import { listDeleted, listMembers, memberScope } from "@/lib/services/members";
 import { listPlans } from "@/lib/services/plans";
 import { todayIso } from "@/lib/services/time";
 import { daysBetween } from "@/lib/domain/dates";
-import { LinkButton, Notice, Pager, Select, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { LinkButton, Notice, Pager, Select, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { AutoFilter } from "@/components/auto-filter";
 import { MemberStatus } from "@/components/status";
 import { fmtDate, fmtStamp, formatRupees, initials } from "@/lib/format";
@@ -123,7 +123,7 @@ export default async function MembersPage({ searchParams }: PageProps<"/members"
 
       {rows.length > 0 && (
         <>
-          <div className="hidden overflow-x-auto lg:block">
+          <ScrollRegion label="Members table" className="hidden lg:block">
             <table className={TABLE}>
               <thead>
                 <tr>
@@ -133,7 +133,7 @@ export default async function MembersPage({ searchParams }: PageProps<"/members"
                   <th className={TH}>Expiry</th>
                   <th className={TH}>Status</th>
                   <th className={cx(TH, "text-right")}>Outstanding</th>
-                  <th className={TH} />
+                  <th className={TH}><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -165,7 +165,7 @@ export default async function MembersPage({ searchParams }: PageProps<"/members"
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
           <div className="flex flex-col lg:hidden">
             {rows.map((m) => (
               <Link key={m.id} href={`/members/${m.id}`} className="flex min-h-14 items-center gap-3 border-b border-fg/8 py-3">

@@ -74,7 +74,7 @@ export async function BranchesTab({ u, sp }: { u: CurrentUser; sp: Record<string
         <div className="text-[13px] font-semibold">
           {used} of {included} included branches used{extra > 0 ? ` · ${extra} extra` : ""}
         </div>
-        <div className="my-1.5 h-1.5 overflow-hidden rounded-full bg-fg/10" role="progressbar" aria-valuenow={used} aria-valuemax={included}>
+        <div className="my-1.5 h-1.5 overflow-hidden rounded-full bg-fg/10" role="progressbar" aria-label="Included branches used" aria-valuenow={used} aria-valuemin={0} aria-valuemax={included}>
           <div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, (used / Math.max(1, included)) * 100)}%` }} />
         </div>
         <div className="text-xs text-muted">

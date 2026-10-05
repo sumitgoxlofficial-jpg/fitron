@@ -8,7 +8,7 @@ import { istInstant, todayIso } from "@/lib/services/time";
 import { addDays } from "@/lib/domain/dates";
 import { AUDIT_MODULES, deviceLabel, describeAudit, moduleOf, severityOf, type Severity } from "@/lib/domain/audit";
 import { AutoFilter } from "@/components/auto-filter";
-import { Button, Input, LinkButton, SEARCH, Segmented, Select, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { Button, Input, LinkButton, SEARCH, Segmented, Select, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { PrintButton } from "@/components/print-button";
 import { Tag } from "@/components/tag";
 import { fmtStamp, fmtTime } from "@/lib/format";
@@ -208,7 +208,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
       {rows.length === 0 ? (
         <p className="text-sm text-muted">No entries match these filters.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Audit table">
           <table className={cx(TABLE, "min-w-[860px]")}>
             <thead>
               <tr>
@@ -249,7 +249,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollRegion>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <span className="text-[13px] text-muted">

@@ -21,7 +21,7 @@ import { dashboardData, type Dashboard } from "@/lib/services/dashboard";
 import { getAiSettings } from "@/lib/services/ai-settings";
 import { dailyBrief, type Alert } from "@/lib/services/insights";
 import { PERIODS, isPeriod, monthLabel, type PeriodKey } from "@/lib/domain/periods";
-import { Notice, cx } from "@/components/ui";
+import { Notice, cx, ScrollRegion } from "@/components/ui";
 import { fmtMonthShort, fmtShort, formatRupees, initials } from "@/lib/format";
 import { BranchRow } from "./branch-row";
 import { QuickActions, type QuickKey } from "./quick-actions";
@@ -548,7 +548,7 @@ function BranchComparison({ rows }: { rows: NonNullable<Dashboard["branches"]> }
         <h3 className="m-0 text-lg">Branch comparison</h3>
         <div className="text-xs text-muted">Consolidated view · click a branch to open it</div>
       </div>
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Dashboard table">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
@@ -597,7 +597,7 @@ function BranchComparison({ rows }: { rows: NonNullable<Dashboard["branches"]> }
             </tr>
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
     </section>
   );
 }

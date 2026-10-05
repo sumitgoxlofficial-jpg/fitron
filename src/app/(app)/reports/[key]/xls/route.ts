@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth/current";
+import { getCurrentUser, PLAN_ENDED } from "@/lib/auth/current";
 import { REPORTS, toXls } from "@/lib/services/reports";
 import { monthPeriod } from "@/lib/services/accounting";
 import { todayIso } from "@/lib/services/time";
@@ -8,6 +8,7 @@ const isDate = (s: string | null) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 export async function GET(req: Request, ctx: RouteContext<"/reports/[key]/xls">) {
   const u = await getCurrentUser();
   if (!u) return new Response("Sign in first.", { status: 401 });
+  if (u.planBlocked) return new Response(PLAN_ENDED, { status: 402 });
   const { key } = await ctx.params;
   const def = REPORTS[key];
   if (!def) return new Response("Not found.", { status: 404 });

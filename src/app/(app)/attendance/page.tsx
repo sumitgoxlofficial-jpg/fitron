@@ -10,7 +10,7 @@ import { nowHHMM, nowMs, todayIso } from "@/lib/services/time";
 import { addDays, daysBetween } from "@/lib/domain/dates";
 import { ConfirmButton } from "@/components/confirm-button";
 import { Tag } from "@/components/tag";
-import { ListHeader, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { ListHeader, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { fmtClock, fmtDate, fmtStamp, fmtTime, formatRupees } from "@/lib/format";
 import { CheckInDesk, GuestForm } from "./attendance-forms";
 import { checkOutAction, closeDayAction, removeAction } from "./actions";
@@ -222,13 +222,13 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
             Export CSV
           </a>
         </div>
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Attendance table">
           <table className={TABLE}>
             <thead>
               <tr>
                 {["Member", "Plan / visit", "In", "Out", "Time inside", "Method", "Status", ""].map((h, i) => (
                   <th key={i} className={TH}>
-                    {h}
+                    {h || <span className="sr-only">Actions</span>}
                   </th>
                 ))}
               </tr>
@@ -286,7 +286,7 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollRegion>
         {day.rows.length === 0 && <div className="py-3 text-sm text-muted">No check-ins on this day.</div>}
       </section>
 

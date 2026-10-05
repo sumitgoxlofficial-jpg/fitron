@@ -4,7 +4,7 @@ import { getBillingInvoice } from "@/lib/services/saas";
 import { gstSplit, SAAS_GST_RATE } from "@/lib/domain/saas";
 import { findPlan } from "@/lib/domain/pricing";
 import { fmtDate, fmtStamp, formatInr } from "@/lib/format";
-import { Card, LinkButton, Notice, PageHeader } from "@/components/ui";
+import { Card, LinkButton, Notice, PageHeader, ScrollRegion } from "@/components/ui";
 import { PrintButton } from "./print-button";
 
 export const metadata = { title: "Fitron invoice · Fitron" };
@@ -61,7 +61,7 @@ export default async function FitronInvoicePage({ params }: PageProps<"/settings
             {buyer.email && <p className="text-muted">{buyer.email}</p>}
             {buyer.gstin && <p className="text-muted">GSTIN {buyer.gstin}</p>}
           </div>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Subscription payment details">
             <table className="w-full min-w-[420px]">
               <thead className="text-left text-muted">
                 <tr>
@@ -85,7 +85,7 @@ export default async function FitronInvoicePage({ params }: PageProps<"/settings
                 </tr>
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
           <dl className="ml-auto w-full max-w-xs">
             <Row label="Taxable value" value={sub.base} />
             {g.type === "IGST" ? (

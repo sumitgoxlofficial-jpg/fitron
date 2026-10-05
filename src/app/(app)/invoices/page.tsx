@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { listInvoices } from "@/lib/services/billing";
 import { AutoFilter } from "@/components/auto-filter";
 import { InvoiceStatusBadge } from "@/components/invoice-status";
-import { LinkButton, ListHeader, Pager, SEARCH, Segmented, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { LinkButton, ListHeader, Pager, SEARCH, Segmented, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { fmtDate, formatRupees } from "@/lib/format";
 
 export const metadata = { title: "Invoices · Fitron" };
@@ -61,7 +61,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
         </AutoFilter>
         <Segmented current={f.status} options={FILTERS.map(([k, l]) => ({ key: k, label: l, href: link({ status: k }) }))} />
       </div>
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Invoices table">
         <table className={TABLE}>
           <thead>
             <tr>
@@ -100,7 +100,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/invoice
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {rows.length === 0 && <p className="text-muted">{f.q || f.status ? "No invoices match." : "No invoices yet."}</p>}
       <Pager page={page} pageSize={PAGE} total={rows.length} href={(p) => link({ page: p })} />
     </div>

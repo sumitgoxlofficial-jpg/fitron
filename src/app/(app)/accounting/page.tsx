@@ -11,7 +11,7 @@ import { AutoFilter } from "@/components/auto-filter";
 import { ConfirmButton } from "@/components/confirm-button";
 import { PrintButton } from "@/components/print-button";
 import { Tag } from "@/components/tag";
-import { Input, ListHeader, Notice, Select, TABLE, TD, TH, cx } from "@/components/ui";
+import { Input, ListHeader, Notice, ScrollRegion, Select, TABLE, TD, TH, cx } from "@/components/ui";
 import { fmtDate, formatRupees } from "@/lib/format";
 import { METHODS } from "@/lib/validation/billing";
 import { lock, unlock } from "./actions";
@@ -194,7 +194,7 @@ async function Ledgers({ u, s }: { u: U; s: (k: string) => string | undefined })
   return (
     <>
       {tabs}
-      <div className="overflow-x-auto">
+      <ScrollRegion label={`${kind} ledger`}>
         <table className={TABLE}>
           <thead>
             <tr>
@@ -217,7 +217,7 @@ async function Ledgers({ u, s }: { u: U; s: (k: string) => string | undefined })
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       <div className="text-[13px] text-muted">{t.note}</div>
     </>
   );
@@ -245,7 +245,7 @@ async function CashBook({ u, s }: { u: U; s: (k: string) => string | undefined }
         </span>
       </AutoFilter>
       {l.broughtForward !== null && <p className="text-sm">Brought forward on {fmtDate(period.from)}: {formatRupees(l.broughtForward)}</p>}
-      <div className="overflow-x-auto">
+      <ScrollRegion label={`${method} movements`}>
         <table className={TABLE}>
           <thead>
             <tr>
@@ -269,7 +269,7 @@ async function CashBook({ u, s }: { u: U; s: (k: string) => string | undefined }
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {!l.rows.length && <div className="text-[13px] text-muted">No {method} movements in this period.</div>}
     </>
   );

@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth/current";
+import { getCurrentUser, PLAN_ENDED } from "@/lib/auth/current";
 import { canUsePermission } from "@/lib/domain/features";
 import { listPurchases } from "@/lib/services/purchases";
 import { toIso } from "@/lib/services/time";
@@ -14,6 +14,7 @@ const KIND: Record<string, string> = { STOCK: "Stock", ASSET: "Asset", EXPENSE: 
 export async function GET(req: Request) {
   const u = await getCurrentUser();
   if (!u) return new Response("Sign in first.", { status: 401 });
+  if (u.planBlocked) return new Response(PLAN_ENDED, { status: 402 });
   if (!canUsePermission(u, "purchases.manage")) return new Response("Not allowed.", { status: 403 });
   const month = new URL(req.url).searchParams.get("month") ?? "";
   const rows = (await listPurchases(u, {})).filter((p) => !/^\d{4}-\d{2}$/.test(month) || toIso(p.date).startsWith(month));

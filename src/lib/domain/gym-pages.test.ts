@@ -141,6 +141,15 @@ describe("the home page's links to them", () => {
     expect(home.includes('<a class="btn btn-ghost" href="/gym-accounting">Full details</a>')).toBe(true);
   });
 
+  it("does not say every payment makes a GST invoice: GST can be switched off", () => {
+    const text = decode(home);
+    expect(text).not.toContain("Every payment creates a numbered GST invoice");
+    expect(text).toContain("When GST is switched on, it shows your GSTIN");
+    // The structured data repeats the answer, so a search engine reads the same thing.
+    const faq = graphOf(home).find((g) => g["@type"] === "FAQPage") as unknown as { mainEntity: { acceptedAnswer: { text: string } }[] };
+    expect(faq.mainEntity.some((q) => q.acceptedAnswer.text.includes("When GST is switched on, it shows your GSTIN"))).toBe(true);
+  });
+
   it("describes the Gym Accounting product once, under the address of its own page", () => {
     const g = graphOf(home).filter((x) => x["@type"] === "SoftwareApplication").find((x) => x.name === "FITRON Gym Accounting")!;
     expect(g).toMatchObject({ "@id": "https://fitron.in/gym-accounting#software", url: "https://fitron.in/gym-accounting" });

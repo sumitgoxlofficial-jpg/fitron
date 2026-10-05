@@ -9,7 +9,7 @@ import { PLANS } from "@/lib/domain/pricing";
 import { branchPrice, GRACE_DAYS, gymPlanCards, type PlanStanding, type Standing } from "@/lib/domain/saas";
 import { PlanCards } from "@/components/plan-cards";
 import { FEATURES, planFor, type Feature } from "@/lib/domain/features";
-import { Badge, Button, cx, Empty, Field, Input, LinkButton, Notice, Select, TABLE, TD, TH, TR } from "@/components/ui";
+import { Badge, Button, cx, Empty, Field, Input, LinkButton, Notice, Select, TABLE, TD, TH, TR, ScrollRegion } from "@/components/ui";
 import { SettingsShell } from "@/components/section-tabs";
 import { fmtDate, formatInr } from "@/lib/format";
 import { getSubscriptionSettings, gymWhatsAppNumber } from "@/lib/services/subscription";
@@ -221,7 +221,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
           {history.length === 0 ? (
             <Empty>No payments yet. Your receipts will appear here.</Empty>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollRegion label="Billing table">
               <table className={TABLE}>
                 <thead>
                   <tr>
@@ -231,7 +231,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
                     <th className={TH}>UTR</th>
                     <th className={TH}>Valid till</th>
                     <th className={cx(TH, "text-right")}>Amount</th>
-                    <th className={TH} />
+                    <th className={TH}><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -262,7 +262,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
                   })}
                 </tbody>
               </table>
-            </div>
+            </ScrollRegion>
           )}
         </Sub>
         <Sub title={`Branches · ${openBranches.length - extra} included${extra ? ` + ${extra} extra` : ""}`}>
@@ -293,7 +293,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
             <p className="text-sm">
               You have {freeSlots.length} paid branch slot
               {freeSlots.length === 1 ? "" : "s"} ready.{" "}
-              <Link href="/settings?tab=branches&branch=new" className="text-accent">
+              <Link href="/settings?tab=branches&branch=new" className="text-accent underline underline-offset-2">
                 Add the branch in Settings
               </Link>
               .
@@ -302,7 +302,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
             <p className="text-sm">
               You can add {terms.includedBranches - openBranches.length} more branch
               {terms.includedBranches - openBranches.length === 1 ? "" : "es"} at no cost.{" "}
-              <Link href="/settings?tab=branches&branch=new" className="text-accent">
+              <Link href="/settings?tab=branches&branch=new" className="text-accent underline underline-offset-2">
                 Add it in Settings
               </Link>
               .

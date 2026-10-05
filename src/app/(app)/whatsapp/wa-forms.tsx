@@ -4,7 +4,7 @@ import { useActionState, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { LightningIcon } from "@phosphor-icons/react";
 import { campaignAction, saveRuleAction, saveTemplateAction, sendOneAction } from "./actions";
-import { Button, Field, Input, Notice, Select, Textarea } from "@/components/ui";
+import { Button, Field, Input, Notice, ScrollRegion, Select, Textarea } from "@/components/ui";
 import { WHEN } from "@/lib/domain/wa-rules";
 
 export function TemplateForm({ tkey, body, metaTemplateName, language, autoSend }: { tkey: string; body: string; metaTemplateName: string | null; language: string; autoSend: boolean }) {
@@ -190,7 +190,7 @@ export function TemplateCard({ t, vars, canEdit, cloud, toggle, actions }: { t: 
         </form>
       ) : (
         <>
-          <div className="max-h-[170px] overflow-auto rounded-md bg-bg px-3 py-2.5 text-[13px] whitespace-pre-wrap">{saved}</div>
+          <ScrollRegion both label={`${t.name} message text`} className="max-h-[170px] rounded-md bg-bg px-3 py-2.5 text-[13px] whitespace-pre-wrap">{saved}</ScrollRegion>
           <div className="flex items-start gap-2 text-[13px]">
             <LightningIcon size={16} weight="duotone" className="mt-0.5 flex-none text-accent" />
             <span>

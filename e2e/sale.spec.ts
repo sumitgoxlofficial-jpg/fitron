@@ -1,52 +1,7 @@
-import { expect, signUp, sql, sqlError, test, type Gym, unique } from "./support";
-import type { Page } from "@playwright/test";
+import { addMember, expect, gymWithPlan, sell, sql, sqlError, test, unique } from "./support";
 
 // The thing FITRON is for: a member buys a plan, an invoice is made with the right GST, the money is recorded, and none
 // of it can be lost afterwards. Everything here is done on the screens a front-desk person uses.
-
-async function chargeGst(page: Page, rate = "18") {
-  await page.goto("/settings?tab=billing");
-  await page.getByLabel("Charge GST on invoices").check();
-  await page.getByLabel("GST rate (%)").fill(rate);
-  await page.getByLabel("Tax type").selectOption("CGST+SGST");
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByLabel("Charge GST on invoices")).toBeChecked();
-}
-
-async function createPlan(page: Page, { name, months, price }: { name: string; months: number; price: number }) {
-  await page.goto("/plans/new");
-  await page.getByLabel("Plan name").fill(name);
-  await page.getByLabel("Duration (months)").fill(String(months));
-  await page.getByLabel("Price (₹)", { exact: true }).fill(String(price));
-  await page.getByRole("button", { name: "Create plan" }).click();
-  await expect(page).toHaveURL(/\/plans/);
-}
-
-async function addMember(page: Page, name: string): Promise<string> {
-  await page.goto("/members/new");
-  await page.getByLabel("Full name").fill(name);
-  await page.getByLabel("Mobile number").fill(`9${String(Math.floor(Math.random() * 1e9)).padStart(9, "0")}`);
-  await page.getByLabel("Gender").selectOption({ index: 1 });
-  await page.getByLabel("How did you hear about us?").selectOption({ index: 1 });
-  await page.getByRole("button", { name: "Add member" }).click();
-  await page.waitForURL(/\/members\/(?!new$)[^/?]+$/);
-  return new URL(page.url()).pathname.split("/").pop()!;
-}
-
-async function sell(page: Page, memberId: string, { payNow }: { payNow?: number } = {}): Promise<string> {
-  await page.goto(`/members/${memberId}/sell`);
-  if (payNow !== undefined) await page.getByLabel("Amount received now (₹)").fill(String(payNow));
-  await page.getByRole("button", { name: "Create membership" }).click();
-  await page.waitForURL(/\/invoices\/[^/?]+\?created=1/);
-  return new URL(page.url()).pathname.split("/").pop()!;
-}
-
-async function gymWithPlan(page: Page, plan: { name: string; months: number; price: number }): Promise<Gym> {
-  const gym = await signUp(page, { tag: "sale" });
-  await chargeGst(page);
-  await createPlan(page, plan);
-  return gym;
-}
 
 test("a membership sale: GST worked out, invoice and PDF made, payment recorded, and the record cannot be deleted", async ({ page }) => {
   const plan = { name: `Quarterly ${unique()}`, months: 3, price: 1500 };

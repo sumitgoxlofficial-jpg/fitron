@@ -87,9 +87,9 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
               <AutoFilter className="flex flex-wrap items-center gap-2.5 border-b border-line px-5 py-3 print:hidden">
                 <input type="hidden" name="r" value={key} />
                 <span className="text-[13px] text-muted">From</span>
-                <Input type="date" name="from" defaultValue={period.from} className="w-auto!" />
+                <Input type="date" name="from" aria-label="From date" defaultValue={period.from} className="w-auto!" />
                 <span className="text-[13px] text-muted">to</span>
-                <Input type="date" name="to" defaultValue={period.to} className="w-auto!" />
+                <Input type="date" name="to" aria-label="To date" defaultValue={period.to} className="w-auto!" />
               </AutoFilter>
             )}
             <ReportTable key={`${key}|${period.from}|${period.to}`} columns={report.columns} rows={report.rows} totals={report.totals} />

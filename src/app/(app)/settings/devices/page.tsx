@@ -12,7 +12,7 @@ import { LiveRefresh } from "@/components/live-refresh";
 import { MemberStatus } from "@/components/status";
 import { fromIso, todayIso } from "@/lib/services/time";
 import { AutoFilter } from "@/components/auto-filter";
-import { Button, Field, Input, LinkButton, Notice, Select, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { Button, Field, Input, LinkButton, Notice, Select, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { ConfirmButton } from "@/components/confirm-button";
 import { Tag } from "@/components/tag";
 import { fmtStamp, fmtTime } from "@/lib/format";
@@ -283,7 +283,7 @@ export default async function DevicesPage({ searchParams }: PageProps<"/settings
         {members.length === 0 ? (
           <p className="text-sm text-muted">{q ? "No member matches." : "No members yet. Add members first, then enrol them here."}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Devices table">
             <table className={cx(TABLE, "min-w-[720px]")}>
               <thead>
                 <tr>
@@ -347,7 +347,7 @@ export default async function DevicesPage({ searchParams }: PageProps<"/settings
                 })}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
         )}
       </section>
 

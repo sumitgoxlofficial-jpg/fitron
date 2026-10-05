@@ -4,7 +4,7 @@ import { requirePermission } from "@/lib/auth/current";
 import { listReceivables } from "@/lib/services/billing";
 import { todayIso, toIso } from "@/lib/services/time";
 import { Tag } from "@/components/tag";
-import { ListHeader, Notice, Segmented, Stat, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { ListHeader, Notice, Segmented, Stat, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { fmtDate, formatRupees } from "@/lib/format";
 import { remindAllOverdueAction, remindDueAction } from "../reminder-actions";
 
@@ -53,7 +53,7 @@ export default async function ReceivablesPage({ searchParams }: PageProps<"/rece
           { key: "unpaid", label: "Unpaid", href: "/receivables?f=unpaid" },
         ]}
       />
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Receivables table">
         <table className={TABLE}>
           <thead>
             <tr>
@@ -65,7 +65,7 @@ export default async function ReceivablesPage({ searchParams }: PageProps<"/rece
               <th className={TH}>Due date</th>
               <th className={TH}>Days overdue</th>
               <th className={TH}>Status</th>
-              <th className={TH} />
+              <th className={TH}><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -110,7 +110,7 @@ export default async function ReceivablesPage({ searchParams }: PageProps<"/rece
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {rows.length === 0 && <p className="text-muted">Nothing outstanding in this view.</p>}
     </div>
   );

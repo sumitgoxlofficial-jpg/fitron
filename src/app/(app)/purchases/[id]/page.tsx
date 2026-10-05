@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth/current";
 import { getPurchase } from "@/lib/services/purchases";
 import { XIcon } from "@phosphor-icons/react/dist/ssr";
-import { Badge, LinkButton, ListHeader, TABLE, TD, TH } from "@/components/ui";
+import { Badge, LinkButton, ListHeader, TABLE, TD, TH, ScrollRegion } from "@/components/ui";
 import { ACCOUNTING_TABS, SectionTabs } from "@/components/section-tabs";
 import { fmtDate, fmtStamp, formatInr } from "@/lib/format";
 import { todayIso, toIso } from "@/lib/services/time";
@@ -58,7 +58,7 @@ export default async function PurchasePage({ params }: PageProps<"/purchases/[id
             </LinkButton>
           </div>
           {!active && <p className="text-sm text-alert">Cancelled: {p.cancelReason}</p>}
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Purchase lines">
             <table className={`${TABLE} min-w-[460px]`}>
               <thead>
                 <tr>
@@ -87,7 +87,7 @@ export default async function PurchasePage({ params }: PageProps<"/purchases/[id
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
           <div className="flex max-w-[560px] justify-between text-base font-semibold">
             <span>Bill total</span>
             <span className="tabular-nums">{formatInr(p.total)}</span>

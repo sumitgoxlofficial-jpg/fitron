@@ -8,7 +8,7 @@ import { getWaSettings } from "@/lib/services/whatsapp";
 import { todayIso } from "@/lib/services/time";
 import { daysBetween } from "@/lib/domain/dates";
 import { Tag } from "@/components/tag";
-import { ListHeader, Notice, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { ListHeader, Notice, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { fmtDate, fmtShort, formatRupees } from "@/lib/format";
 import { remindRenewalAction, remindRenewalsAction } from "../reminder-actions";
 
@@ -72,7 +72,7 @@ export default async function RenewalsPage({ searchParams }: PageProps<"/renewal
       <p className="m-0 text-[13px] text-muted">
         Reminder schedule: {schedule}. The same reminder is not sent to a member twice within {wa.dedupDays} days.
       </p>
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Renewals table">
         <table className={TABLE}>
           <thead>
             <tr>
@@ -82,7 +82,7 @@ export default async function RenewalsPage({ searchParams }: PageProps<"/renewal
               <th className={TH}>Status</th>
               <th className={TH}>Last reminder</th>
               <th className={cx(TH, "text-right")}>Renewal amount</th>
-              <th className={TH} />
+              <th className={TH}><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -124,7 +124,7 @@ export default async function RenewalsPage({ searchParams }: PageProps<"/renewal
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {rows.length === 0 && <p className="text-muted">No members in this window.</p>}
     </div>
   );

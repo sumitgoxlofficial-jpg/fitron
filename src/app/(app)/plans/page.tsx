@@ -9,7 +9,7 @@ import { fromIso, todayIso, toIso } from "@/lib/services/time";
 import { offerState } from "@/lib/domain/offers";
 import { ConfirmButton } from "@/components/confirm-button";
 import { Tag } from "@/components/tag";
-import { LinkButton, ListHeader, Notice, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { LinkButton, ListHeader, Notice, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { fmtDate, formatRupees } from "@/lib/format";
 import { changePlanStatus, removePlan, toggleOffer } from "./actions";
 
@@ -55,13 +55,13 @@ export default async function PlansPage({ searchParams }: PageProps<"/plans">) {
       {typeof error === "string" && <Notice tone="alert">{error}</Notice>}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-5">
         {plans.map((p) => (
-          <div key={p.id} className={cx("flex flex-col gap-2.5 rounded-md bg-surface p-[15px]", p.status !== "ACTIVE" && "opacity-60")}>
+          <div key={p.id} className={cx("flex flex-col gap-2.5 rounded-md border bg-surface p-[15px]", p.status === "ACTIVE" ? "border-transparent" : "border-dashed border-line")}>
             <div className="flex items-center justify-between">
-              <div className="text-[10px] tracking-[0.1em] text-accent uppercase">{p.months === 1 ? "1 month" : `${p.months} months`}</div>
+              <div className={cx("text-[10px] tracking-[0.1em] uppercase", p.status === "ACTIVE" ? "text-accent" : "text-muted")}>{p.months === 1 ? "1 month" : `${p.months} months`}</div>
               <Tag label={p.status === "ACTIVE" ? "Active" : "Inactive"} />
             </div>
-            <div className="text-[22px] leading-tight font-semibold">{p.name}</div>
-            <div className="text-[28px] font-semibold">{formatRupees(p.price)}</div>
+            <div className={cx("text-[22px] leading-tight font-semibold", p.status !== "ACTIVE" && "text-muted")}>{p.name}</div>
+            <div className={cx("text-[28px] font-semibold", p.status !== "ACTIVE" && "text-muted")}>{formatRupees(p.price)}</div>
             <div className="text-[13px] text-muted">
               {p.regFee ? `+ ${formatRupees(p.regFee)} registration` : "No registration fee"}
               {tax.enabled && p.gstApplicable ? ` · + GST ${tax.rate}%` : ""} · {formatRupees(Math.round(p.price / p.months))}/month
@@ -111,13 +111,13 @@ export default async function PlansPage({ searchParams }: PageProps<"/plans">) {
           </LinkButton>
         </div>
         {offers.length ? (
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Plans table">
             <table className={TABLE}>
               <thead>
                 <tr>
                   {["Code", "Description", "Discount", "Valid till", "Uses", "Status", ""].map((h, i) => (
                     <th key={i} className={TH}>
-                      {h}
+                      {h || <span className="sr-only">Actions</span>}
                     </th>
                   ))}
                 </tr>
@@ -148,7 +148,7 @@ export default async function PlansPage({ searchParams }: PageProps<"/plans">) {
                 })}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
         ) : null}
         <section className="flex flex-col gap-2">
           <h3 className="m-0 text-[20px]">Offer codes</h3>

@@ -12,6 +12,7 @@ vi.mock("@/lib/auth/current", async (importOriginal) => ({
 }));
 
 import { GET as accountingCsv } from "./accounting/csv/route";
+import { GET as expensesCsv } from "./expenses/csv/route";
 import { GET as purchasesCsv } from "./purchases/csv/route";
 import { GET as reportCsv } from "./reports/[key]/csv/route";
 import { GET as reportXls } from "./reports/[key]/xls/route";
@@ -47,6 +48,13 @@ describe("downloads that belong to a plan feature", () => {
     expect(await call(get as never, url, key)).not.toBe(403);
   });
 
+  // A gym whose plan has ended keeps its data but cannot take it out (the pages send it to /plan-ended; a download has no
+  // page in front of it, so the route answers 402 itself). These four used not to.
+  it.each([...routes, ["Expenses CSV", expensesCsv, "http://x/expenses/csv", undefined] as const])("%s answers 402 to a gym whose plan has ended", async (_n, get, url, key) => {
+    me.user = { ...user("all"), planBlocked: true };
+    expect(await call(get as never, url, key)).toBe(402);
+  });
+
   it("still refuses someone who isn't signed in", async () => {
     expect(await call(reportXls as never, "http://x/reports/assets/xls", "assets")).toBe(401);
   });
@@ -67,6 +75,17 @@ describe("every download route under the app", () => {
   it("checks the plan wherever it checks a permission that belongs to a plan feature", () => {
     const bad = files
       .filter(({ s }) => [...s.matchAll(/u\.can\("([a-z.]+)"\)/g)].some((m) => (PERMISSION_FEATURE as Record<string, unknown>)[m[1]!]) && !/canUsePermission\(|\.has\(/.test(s))
+      .map((x) => x.f.slice(x.f.indexOf("src/")));
+    expect(bad).toEqual([]);
+  });
+
+  // Left open on purpose, so that closing one is a decision and not an oversight: the two pictures a page shows (a person's
+  // photo, the gym's logo), and the gym's own backup file, which a gym whose plan has lapsed can still take away.
+  const OPEN_TO_A_LAPSED_PLAN = ["profile/photo/[id]/route.ts", "settings/logo/route.ts", "settings/backup/[id]/download/route.ts"];
+
+  it("answers 402 to a gym whose plan has ended, wherever it reads the signed-in user (the FITRON team's own screens and the three above aside)", () => {
+    const bad = files
+      .filter(({ f, s }) => /getCurrentUser\(/.test(s) && !/planBlocked/.test(s) && !f.includes("/fitron-admin/") && !OPEN_TO_A_LAPSED_PLAN.some((x) => f.endsWith(x)))
       .map((x) => x.f.slice(x.f.indexOf("src/")));
     expect(bad).toEqual([]);
   });

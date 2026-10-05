@@ -3,7 +3,7 @@ import { ClockCounterClockwiseIcon, DatabaseIcon } from "@phosphor-icons/react/d
 import { requirePermission } from "@/lib/auth/current";
 import { backupStatus, lastAutoFailure, listBackups } from "@/lib/services/backup";
 import { ageText, sizeText, summarise } from "@/lib/domain/backup";
-import { Badge, Button, Card, Empty, Field, Input, LinkButton, Notice, TABLE, TD, TH, TR } from "@/components/ui";
+import { Badge, Button, Card, Empty, Field, Input, LinkButton, Notice, TABLE, TD, TH, TR, ScrollRegion } from "@/components/ui";
 import { Dialog, DialogButtons } from "@/components/dialog";
 import { SettingsShell } from "@/components/section-tabs";
 import { fmtDate, fmtStamp, fmtTime } from "@/lib/format";
@@ -83,7 +83,7 @@ export default async function BackupPage({ searchParams }: PageProps<"/settings/
           {backups.length === 0 ? (
             <Empty>No backups yet. Take one now, then download it and keep a copy off the server.</Empty>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollRegion label="Backup table">
               <table className={TABLE}>
                 <thead>
                   <tr>
@@ -93,7 +93,7 @@ export default async function BackupPage({ searchParams }: PageProps<"/settings/
                     <th className={TH}>Records</th>
                     <th className={TH}>Size</th>
                     <th className={TH}>By</th>
-                    <th className={TH}></th>
+                    <th className={TH}><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -126,7 +126,7 @@ export default async function BackupPage({ searchParams }: PageProps<"/settings/
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollRegion>
           )}
         </Card>
       </div>

@@ -7,7 +7,7 @@ import { getSession, weekSchedule, weekStart, WEEKDAYS } from "@/lib/services/cl
 import { memberScope, summarize } from "@/lib/services/members";
 import { fromIso, nowHHMM, todayIso } from "@/lib/services/time";
 import { Tag } from "@/components/tag";
-import { LinkButton, ListHeader, Notice, TABLE, TD, TH, cx } from "@/components/ui";
+import { LinkButton, ListHeader, Notice, TABLE, TD, TH, cx, ScrollRegion } from "@/components/ui";
 import { fmtClock, fmtDate, initials } from "@/lib/format";
 import { SessionBook } from "./class-forms";
 import { bookingStatusAction, markAllAttendedAction, remindClassAction } from "./actions";
@@ -128,7 +128,7 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
       {str("msg") && <Notice tone="ok">{str("msg")}</Notice>}
 
       {!list ? (
-        <div className="overflow-x-auto pb-1.5">
+        <ScrollRegion label="Weekly timetable" className="pb-1.5">
           <div className="grid min-w-[1080px] grid-cols-7 gap-2.5">
             {WD.map((label, i) => {
               const date = addDays(start, i);
@@ -185,15 +185,15 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
               );
             })}
           </div>
-        </div>
+        </ScrollRegion>
       ) : sessions.length ? (
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Class timetable">
           <table className={TABLE}>
             <thead>
               <tr>
                 {["Day", "Time", "Class", "Trainer", "Room", "Booked", "Fill", ""].map((h, i) => (
                   <th key={i} className={cx(TH, h === "Fill" && "min-w-[140px]")}>
-                    {h}
+                    {h || <span className="sr-only">Actions</span>}
                   </th>
                 ))}
               </tr>
@@ -235,7 +235,7 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollRegion>
       ) : (
         <div className="text-sm text-muted">No classes scheduled yet.</div>
       )}
@@ -302,13 +302,13 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
           <div className="flex flex-col gap-2.5">
             <h3 className="text-[17px]">Roster</h3>
             {panel.roster.length ? (
-              <div className="overflow-x-auto">
+              <ScrollRegion label="Class bookings">
                 <table className={TABLE}>
                   <thead>
                     <tr>
                       {["#", "Member", "Plan", "Status", ""].map((h, i) => (
                         <th key={i} className={TH}>
-                          {h}
+                          {h || <span className="sr-only">Actions</span>}
                         </th>
                       ))}
                     </tr>
@@ -358,7 +358,7 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </ScrollRegion>
             ) : (
               <p className="text-sm text-muted">No bookings yet. Pick a member on the left to book the first place.</p>
             )}

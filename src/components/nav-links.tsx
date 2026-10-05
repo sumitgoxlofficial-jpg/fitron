@@ -70,7 +70,7 @@ export function NavLinks({ groups, onNavigate, drawer }: { groups: NavGroup[]; o
     .flatMap((i) => [i.href, ...(i.also ?? [])].filter((h) => within(path, h)).map((h) => ({ href: i.href, len: h.length })))
     .sort((a, b) => b.len - a.len)[0]?.href;
   return (
-    <nav className="flex flex-col gap-[18px]">
+    <nav aria-label="Console sections" className="flex flex-col gap-[18px]">
       {groups.map((g) => (
         <div key={g.group} className="flex flex-col gap-0.5">
           <p className="px-2 pb-1 text-[10px] tracking-[0.12em] text-faint uppercase">{g.group}</p>

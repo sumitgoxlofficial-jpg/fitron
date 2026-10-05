@@ -4,7 +4,7 @@ import { getInvoice } from "@/lib/services/billing";
 import { getGymProfile } from "@/lib/services/settings";
 import { getTax } from "@/lib/services/tax";
 import { todayIso } from "@/lib/services/time";
-import { Badge, Card, LinkButton, Notice } from "@/components/ui";
+import { Badge, Card, LinkButton, Notice, ScrollRegion } from "@/components/ui";
 import { PrintButton } from "@/components/print-button";
 import { gymLogoUrl } from "@/components/gym-logo";
 import { FilePdfIcon } from "@phosphor-icons/react/dist/ssr";
@@ -99,7 +99,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
           </div>
           <div className="text-right">
             <div className="text-[11px] font-semibold tracking-[0.22em] text-[#605d5d] uppercase">{rate ? "Tax invoice" : "Invoice"}</div>
-            <div className="mt-0.5 text-[26px] font-bold tracking-[0.02em]">{inv.number}</div>
+            <h1 className="m-0 mt-0.5 text-[26px] font-bold tracking-[0.02em]">{inv.number}</h1>
             <div className="mt-2 inline-block rounded px-2.5 py-1 text-[11px] font-bold tracking-[0.14em] text-white" style={{ background: statusBg }}>
               {statusLabel}
             </div>
@@ -158,7 +158,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
             </div>
           </div>
         </div>
-        <div className="overflow-x-auto px-6 pt-7 sm:px-11">
+        <ScrollRegion label="Invoice lines" className="px-6 pt-7 sm:px-11">
           <table className="w-full min-w-[480px] border-collapse text-[13.5px]">
             <thead>
               <tr className="border-b-2 border-[#201e1d]">
@@ -187,7 +187,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollRegion>
         <div className="flex flex-wrap items-start justify-between gap-8 px-6 pt-[22px] sm:px-11">
           <div className="flex max-w-[340px] flex-[1_1_240px] flex-col gap-3.5 text-[13px]">
             <div>
