@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth/current";
+import { getCurrentUser, PLAN_ENDED } from "@/lib/auth/current";
 import { canUsePermission } from "@/lib/domain/features";
 import { LEDGERS, ledgerTable, profitAndLoss, type LedgerKind } from "@/lib/services/accounting";
 import { toIso } from "@/lib/services/time";
@@ -14,6 +14,7 @@ const isDate = (s: string | null): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.t
 export async function GET(req: Request) {
   const u = await getCurrentUser();
   if (!u) return new Response("Sign in first.", { status: 401 });
+  if (u.planBlocked) return new Response(PLAN_ENDED, { status: 402 });
   if (!canUsePermission(u, "accounting.view")) return new Response("Not allowed.", { status: 403 });
   const url = new URL(req.url);
   const kind = url.searchParams.get("kind") ?? "";

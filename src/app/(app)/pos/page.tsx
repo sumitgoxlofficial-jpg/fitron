@@ -9,7 +9,7 @@ import { getTax } from "@/lib/services/tax";
 import { todayIso } from "@/lib/services/time";
 import { Dialog, DialogButtons } from "@/components/dialog";
 import { Tag } from "@/components/tag";
-import { Input, LinkButton, ListHeader, Notice, TABLE, TD, TH, cx } from "@/components/ui";
+import { Input, LinkButton, ListHeader, Notice, TABLE, TD, TH, cx, ScrollRegion } from "@/components/ui";
 import { formatRupees } from "@/lib/format";
 import { Terminal } from "./terminal";
 import { restockAction } from "./actions";
@@ -68,13 +68,13 @@ export default async function PosPage({ searchParams }: PageProps<"/pos">) {
               </LinkButton>
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Pos table">
             <table className={TABLE}>
               <thead>
                 <tr>
                   {["SKU", "Product", "Category", "Price", "Cost", "In stock", "Reorder at", "Sold (30 d)", "Status", ""].map((h, i) => (
                     <th key={i} className={cx(TH, i >= 3 && i <= 7 && R)}>
-                      {h}
+                      {h || <span className="sr-only">Actions</span>}
                     </th>
                   ))}
                 </tr>
@@ -107,7 +107,7 @@ export default async function PosPage({ searchParams }: PageProps<"/pos">) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
           {!products.length && <p className="text-sm text-muted">No products yet.</p>}
         </section>
       )}

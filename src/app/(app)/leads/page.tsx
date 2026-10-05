@@ -10,7 +10,7 @@ import { daysBetween } from "@/lib/domain/dates";
 import { LEAD_STAGES, type LeadStage } from "@/lib/validation/frontdesk";
 import { SOURCES } from "@/lib/validation/member";
 import { AutoFilter } from "@/components/auto-filter";
-import { LinkButton, ListHeader, SEARCH, Segmented, Select, TABLE, TD, TH, cx } from "@/components/ui";
+import { LinkButton, ListHeader, SEARCH, Segmented, Select, TABLE, TD, TH, cx, ScrollRegion } from "@/components/ui";
 import { fmtShort, formatRupees, initials } from "@/lib/format";
 import { LeadActions } from "./lead-actions";
 
@@ -197,7 +197,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/leads">) {
       </div>
 
       {view === "board" ? (
-        <div className="overflow-x-auto rounded-[14px] border border-line bg-surface">
+        <ScrollRegion label="Leads list" className="rounded-[14px] border border-line bg-surface">
           <table className="w-full min-w-[1120px] border-collapse text-sm">
             <thead>
               <tr>
@@ -282,16 +282,16 @@ export default async function LeadsPage({ searchParams }: PageProps<"/leads">) {
               );
             })}
           </table>
-        </div>
+        </ScrollRegion>
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Lead history">
             <table className={TABLE}>
               <thead>
                 <tr>
                   {["Lead", "Source", "Interested in", "Stage", "Next step", "In stage", ""].map((h, k) => (
                     <th key={k} className={TH}>
-                      {h}
+                      {h || <span className="sr-only">Actions</span>}
                     </th>
                   ))}
                 </tr>
@@ -327,7 +327,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/leads">) {
                 })}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
           {rows.length === 0 && <div className="text-sm text-muted">No leads match.</div>}
         </>
       )}

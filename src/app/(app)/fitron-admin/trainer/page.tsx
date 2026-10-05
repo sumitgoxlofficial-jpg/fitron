@@ -5,7 +5,7 @@ import { isFitronAdmin } from "@/lib/integrations/upi";
 import { partnerPayouts, trainerMembers, trainerOverview, trainerPaymentList, type TrainerListFilter } from "@/lib/services/trainer-admin";
 import { todayIso } from "@/lib/services/time";
 import { findPlan } from "@/lib/domain/pricing";
-import { Badge, Card, Empty, Input, LinkButton, PageHeader, Pager, Select, Stat, TABLE, TD, TH, TR, type Tone } from "@/components/ui";
+import { Badge, Card, Empty, Input, LinkButton, PageHeader, Pager, Select, Stat, TABLE, TD, TH, TR, type Tone, ScrollRegion } from "@/components/ui";
 import { fmtMonthShort, fmtShort, fmtStamp, formatRupees } from "@/lib/format";
 import { AdminTabs } from "../tabs";
 
@@ -82,7 +82,7 @@ export default async function TrainerAdminPage({ searchParams }: PageProps<"/fit
           {members.rows.length === 0 ? (
             <Empty>No members match.</Empty>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollRegion label="Members on the AI Trainer">
               <table className={TABLE}>
                 <thead>
                   <tr>
@@ -123,7 +123,7 @@ export default async function TrainerAdminPage({ searchParams }: PageProps<"/fit
                   })}
                 </tbody>
               </table>
-            </div>
+            </ScrollRegion>
           )}
           <Pager page={members.page} pageSize={PAGE} total={members.total} href={(p) => `/fitron-admin/trainer?${qs(p)}`} />
         </Card>
@@ -153,7 +153,7 @@ export default async function TrainerAdminPage({ searchParams }: PageProps<"/fit
           {payments.rows.length === 0 ? (
             <Empty>No payments yet.</Empty>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollRegion label="Trainer payments">
               <table className={TABLE}>
                 <thead>
                   <tr>
@@ -200,7 +200,7 @@ export default async function TrainerAdminPage({ searchParams }: PageProps<"/fit
                   })}
                 </tbody>
               </table>
-            </div>
+            </ScrollRegion>
           )}
           <Pager page={payments.page} pageSize={PAGE} total={payments.total} href={(p) => `/fitron-admin/trainer?${qs(p)}`} />
         </Card>
@@ -218,7 +218,7 @@ export default async function TrainerAdminPage({ searchParams }: PageProps<"/fit
           {payouts.rows.length === 0 ? (
             <Empty>No gym has linked members yet.</Empty>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollRegion label="Trainer plans">
               <table className={TABLE}>
                 <thead>
                   <tr>
@@ -251,7 +251,7 @@ export default async function TrainerAdminPage({ searchParams }: PageProps<"/fit
                   </tr>
                 </tbody>
               </table>
-            </div>
+            </ScrollRegion>
           )}
           <p className="mt-3 text-xs text-muted">Pay each gym its share in the first week of the next month. The gym sees the same figure on its own Gym Partnership page.</p>
         </Card>

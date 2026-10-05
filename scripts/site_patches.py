@@ -45,6 +45,12 @@ TEXT = [
     ("Tally export, month lock, audit log", "Excel and CSV export, month lock, audit log", "Gym Accounting card"),
     ("Does Gym Accounting work with Tally and GST?", "Does Gym Accounting handle GST and my accountant's books?", "FAQ question"),
     ("as a Tally file or Excel for your accountant.", "as Excel or CSV files for your accountant.", "FAQ answer"),
+    # GST can be switched off (Settings > Billing & GST), so the answer must not say every payment makes a GST invoice.
+    (
+        "Yes. Every payment creates a numbered GST invoice with your GSTIN and CGST/SGST split, and at month-end you export",
+        "Yes. Every sale gets a numbered invoice. When GST is switched on, it shows your GSTIN and the CGST and SGST split (or IGST) at the rate you set. At month-end you export",
+        "FAQ answer: GST is optional",
+    ),
     # Only invoices come out as PDF, so the Professional card no longer promises "PDF financial exports": what it adds
     # is Excel and CSV exports of the accounting reports and ledgers (the Accounting section is Professional).
     ("Excel and PDF financial exports", "Excel and CSV accounting exports", "Professional card: exports"),
@@ -103,6 +109,12 @@ TEXT = [
 
 # On a phone the cookie banner and the WhatsApp button float above the open menu and cover its lower links.
 MENU_CSS = "/*fitron:menu-over-banner*/body.menu-open .consent,body.menu-open .wa-float{opacity:0;visibility:hidden;pointer-events:none}"
+
+# While the cookie banner is open, the WhatsApp button (bottom left) sits under it: completely at phone widths, where the
+# banner spans the screen and the button shrinks to its icon, and partly up to about 1100 px, where the banner is centred
+# but wide. The button waits until the visitor has chosen. (:has() needs a current browser; in an older one the rule is
+# ignored and the overlap stays, as before.)
+WA_BANNER_CSS = "/*fitron:wa-under-banner*/@media (max-width:1100px){body:has(.consent.show) .wa-float{opacity:0;visibility:hidden;pointer-events:none}}"
 
 # The design's own phone rule `.hero{grid-template-columns:1fr}` is overridden by two later, unscoped
 # `.hero{grid-template-columns:1.1fr .9fr}` rules, so on phones the hero stayed a two-column grid with an empty
@@ -214,6 +226,9 @@ PREMIUM_LIST = re.compile(r'(<li class="pc-inc">Everything in AI Pro, plus</li>)
 
 
 def apply(page):
+    # The structured data repeats the FAQ answers word for word and is rebuilt at the end from the patched page, so it is
+    # taken out first: a swap below must find the text once, not once in the page and once in the structured data.
+    page = re.sub(r'<script type="application/ld\+json">.*?</script>\n', "", page, flags=re.S)
     for old, new, why in TEXT:
         page = swap(page, old, new, why)
     # Premium lists only what the app really gates by tier. Applying this again gives the same list.
@@ -223,6 +238,7 @@ def apply(page):
     page, n = re.subn(r'(<img data-gallery-img="" src="[^"]+") alt="[^"]*"', lambda m: f'{m.group(1)} alt="{ALT}"', page)
     assert n == 1 and f'alt="{ALT}"' in page, "AI Trainer screenshot not found"
     page = add(page, "</style>", MENU_CSS, "fitron:menu-over-banner", "menu over banner", before=True)
+    page = add(page, "</style>", WA_BANNER_CSS, "fitron:wa-under-banner", "WhatsApp button under the cookie banner", before=True)
     page = add(page, "</style>", HERO_CSS, "fitron:hero-phone", "hero on phones", before=True)
     page = add(page, "</style>", TABS_CSS, "fitron:tabs-phone", "pricing tabs on phones", before=True)
     # Wrap the WhatsApp link in a landmark (once).

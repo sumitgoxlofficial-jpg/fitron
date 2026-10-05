@@ -6,7 +6,7 @@ import { todayIso } from "@/lib/services/time";
 import { monthEnd, monthLabel, monthsBack } from "@/lib/domain/periods";
 import { AutoFilter } from "@/components/auto-filter";
 import { Dialog } from "@/components/dialog";
-import { LinkButton, ListHeader, Select, TABLE, TD, TH, cx } from "@/components/ui";
+import { LinkButton, ListHeader, Select, TABLE, TD, TH, cx, ScrollRegion } from "@/components/ui";
 import { fmtDate, fmtMonthShort, formatRupees } from "@/lib/format";
 import { ExpenseForm, VoidExpense } from "./expense-form";
 
@@ -112,13 +112,13 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/expense
         </section>
       </div>
 
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Expenses table">
         <table className={TABLE}>
           <thead>
             <tr>
               {["Expense", "Date", "Category", "Description", "Vendor", "Method", "Bill no.", "Bill", "Amount", ""].map((h, i) => (
                 <th key={i} className={cx(TH, h === "Amount" && "text-right")}>
-                  {h}
+                  {h || <span className="sr-only">Actions</span>}
                 </th>
               ))}
             </tr>
@@ -157,7 +157,7 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/expense
           </tbody>
         </table>
         {!rows.length && <p className="mt-3 text-sm text-muted">No expenses match these filters.</p>}
-      </div>
+      </ScrollRegion>
 
       {s("do") === "add" && (
         <Dialog kicker="Accounts" title="Add expense" close={here} width={640} form>

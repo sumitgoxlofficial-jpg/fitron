@@ -4,7 +4,7 @@ import { CheckCircleIcon, CurrencyInrIcon, MinusIcon, PencilSimpleIcon, ShieldCh
 import { requireUser, upgradePath } from "@/lib/auth/current";
 import { listRoles, listStaff } from "@/lib/services/staff";
 import { payrollOverview } from "@/lib/services/payroll";
-import { Button, Empty, LinkButton, Notice, Select, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { Button, Empty, LinkButton, Notice, Select, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { Dialog } from "@/components/dialog";
 import { AutoFilter } from "@/components/auto-filter";
 import { Tag } from "@/components/tag";
@@ -67,7 +67,7 @@ export default async function StaffPage({ searchParams }: PageProps<"/staff">) {
       </div>
       {error && <Notice tone="alert">{error}</Notice>}
       {ok && <Notice tone="ok">{ok}</Notice>}
-      <nav className="flex gap-0.5 overflow-x-auto border-b border-line">
+      <nav aria-label="Staff sections" className="flex gap-0.5 overflow-x-auto border-b border-line">
         {tabs.map(([k, label, href]) => (
           <Link key={k} href={href} className={cx("-mb-px flex-none border-b-2 px-3.5 py-2.5 text-[15px] whitespace-nowrap", k === tab ? "border-accent text-fg" : "border-transparent text-muted hover:text-fg")}>
             {label}
@@ -78,11 +78,11 @@ export default async function StaffPage({ searchParams }: PageProps<"/staff">) {
       {tab === "team" && (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-3.5">
           {staff.map((s) => (
-            <div key={s.id} className={cx("flex flex-col gap-3.5 rounded-lg bg-surface p-[18px]", !s.active && "opacity-60")}>
+            <div key={s.id} className={cx("flex flex-col gap-3.5 rounded-lg border bg-surface p-[18px]", s.active ? "border-transparent" : "border-dashed border-line")}>
               <div className="flex items-center gap-3">
                 <span className="grid size-11 flex-none place-items-center rounded-full bg-accent-soft font-semibold text-accent">{initials(s.name)}</span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-base font-semibold">{s.name}</div>
+                  <div className={cx("truncate text-base font-semibold", !s.active && "text-muted")}>{s.name}</div>
                   <div className="text-xs text-muted">{s.lastLoginAt ? `Last active: ${fmtStamp(s.lastLoginAt)}` : "Last active: —"}</div>
                 </div>
                 {s.active ? <span className="rounded-sm border border-accent-500 bg-accent-soft px-2.5 py-[3px] text-[11px] whitespace-nowrap text-accent-strong">{s.role.name}</span> : <Tag label="Deactivated" />}
@@ -168,7 +168,7 @@ export default async function StaffPage({ searchParams }: PageProps<"/staff">) {
           {overview.rows.length === 0 ? (
             <Empty>No staff to pay yet. Add your team from the Team tab.</Empty>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollRegion label="Team members">
               <table className={cx(TABLE, "min-w-[720px]")}>
                 <thead>
                   <tr>
@@ -177,7 +177,7 @@ export default async function StaffPage({ searchParams }: PageProps<"/staff">) {
                     <th className={cx(TH, "text-right")}>Monthly salary</th>
                     <th className={TH}>Status</th>
                     <th className={cx(TH, "text-right")}>Net paid</th>
-                    <th className={TH}></th>
+                    <th className={TH}><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -215,7 +215,7 @@ export default async function StaffPage({ searchParams }: PageProps<"/staff">) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollRegion>
           )}
           {overview.history.length > 0 && (
             <div>
@@ -256,7 +256,7 @@ export default async function StaffPage({ searchParams }: PageProps<"/staff">) {
         <section>
           <h3 className="mb-1.5 text-[22px]">Permissions</h3>
           <p className="mb-3.5 text-[13px] text-muted">What each role can do. Change a person&apos;s role from Change role.</p>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Payroll">
             <table className={cx(TABLE, "min-w-[720px]")}>
               <thead>
                 <tr>
@@ -284,7 +284,7 @@ export default async function StaffPage({ searchParams }: PageProps<"/staff">) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
         </section>
       )}
 

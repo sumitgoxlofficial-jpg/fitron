@@ -4,7 +4,7 @@ import { getWaSettings, listTemplates } from "@/lib/services/whatsapp";
 import { ruleSentence } from "@/lib/services/wa-automation";
 import { db } from "@/lib/db";
 import { fmtClock } from "@/lib/format";
-import { Notice } from "@/components/ui";
+import { Notice, ScrollRegion } from "@/components/ui";
 import { VARS } from "@/lib/domain/whatsapp";
 import { TemplateForm } from "../wa-forms";
 import { WaHeader } from "../wa-header";
@@ -38,7 +38,7 @@ export default async function TemplatesPage() {
               <span className="text-xs text-muted">{t.autoSend ? "Auto-send on" : "Auto-send off"}</span>
             </div>
             <div className="text-lg font-semibold">{t.name}</div>
-            <div className="max-h-[170px] overflow-auto rounded-md bg-bg px-3 py-2.5 text-[13px] whitespace-pre-wrap">{t.body}</div>
+            <ScrollRegion both label={`${t.name} message text`} className="max-h-[170px] rounded-md bg-bg px-3 py-2.5 text-[13px] whitespace-pre-wrap">{t.body}</ScrollRegion>
             <div className="flex items-start gap-2 text-[13px]">
               <LightningIcon size={16} weight="duotone" className="mt-0.5 shrink-0 text-accent" />
               <span>{ruleSentence(t, s, planNames)}</span>

@@ -31,6 +31,14 @@ export const Textarea = ({ className, ...p }: ComponentProps<"textarea">) => (
   <textarea className={cx(inputCls, "min-h-20", className)} {...p} />
 );
 
+/**
+ * A box that scrolls on a small screen (a wide table, a long message). It is named and can take focus, so a person using
+ * the keyboard can reach it and scroll it with the arrow keys; without that they cannot move through what is hidden.
+ */
+export function ScrollRegion({ label, both, className, ...p }: ComponentProps<"div"> & { label: string; both?: boolean }) {
+  return <div role="region" aria-label={label} tabIndex={0} className={cx(both ? "overflow-auto" : "overflow-x-auto", "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent", className)} {...p} />;
+}
+
 export function Field({ label, error, hint, children, className }: { label: ReactNode; error?: string[]; hint?: string; children: ReactNode; className?: string }) {
   return (
     <label className={cx("flex flex-col gap-[5px] text-sm", className)}>
@@ -119,14 +127,18 @@ export function Pager({ page, pageSize, total, href }: { page: number; pageSize:
             Previous
           </Link>
         ) : (
-          <span className={cx(btn, "opacity-45")}>Previous</span>
+          <button type="button" disabled className={cx(btn, "cursor-not-allowed opacity-45")}>
+            Previous
+          </button>
         )}
         {end < total ? (
           <Link href={href(page + 1)} className={cx(btn, "hover:bg-fg/7")}>
             Next
           </Link>
         ) : (
-          <span className={cx(btn, "opacity-45")}>Next</span>
+          <button type="button" disabled className={cx(btn, "cursor-not-allowed opacity-45")}>
+            Next
+          </button>
         )}
       </div>
     </div>

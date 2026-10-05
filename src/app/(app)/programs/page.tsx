@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { listDiets, listWorkouts } from "@/lib/services/programs";
 import { memberScope, summarize } from "@/lib/services/members";
 import { todayIso, toIso } from "@/lib/services/time";
-import { Button, LinkButton, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { Button, LinkButton, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { Tag } from "@/components/tag";
 import { fmtDate } from "@/lib/format";
 import { toggleProgram } from "./actions";
@@ -41,7 +41,7 @@ export default async function ProgramsPage({ searchParams }: PageProps<"/program
           </LinkButton>
         )}
       </div>
-      <nav className="flex flex-wrap gap-1">
+      <nav aria-label="Programs sections" className="flex flex-wrap gap-1">
         {TABS.map(([k, label]) => (
           <Link key={k} href={k === "workouts" ? "/programs" : `/programs?tab=${k}`} aria-current={k === tab ? "page" : undefined} className={cx("border-b-2 px-3 py-2 text-[15px]", k === tab ? "border-accent text-fg" : "border-transparent text-muted hover:text-fg")}>
             {label}
@@ -150,7 +150,7 @@ async function Assignments({ u, workouts, diets }: { u: Awaited<ReturnType<typeo
   const dName = new Map(diets.map((d) => [d.id, d.name]));
   if (active.length === 0) return <p className="text-sm text-muted">No active members{u.can("members.all") ? "" : " assigned to you"}.</p>;
   return (
-    <div className="overflow-x-auto">
+    <ScrollRegion label="Programs table">
       <table className={cx(TABLE, "min-w-[860px]")}>
         <thead>
           <tr>
@@ -179,6 +179,6 @@ async function Assignments({ u, workouts, diets }: { u: Awaited<ReturnType<typeo
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollRegion>
   );
 }

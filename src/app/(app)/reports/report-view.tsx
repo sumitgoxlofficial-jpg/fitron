@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FunnelIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { TABLE, TD, TH, cx } from "@/components/ui";
+import { ScrollRegion, TABLE, TD, TH, cx } from "@/components/ui";
 
 type Cell = string | number | null;
 type Col = { key: string; label: string; money?: boolean };
@@ -16,7 +16,7 @@ export function ReportNav({ groups, current, qs }: { groups: { title: string; it
   const [find, setFind] = useState("");
   const f = find.trim().toLowerCase();
   return (
-    <nav className="sticky top-4 flex max-h-[calc(100vh-110px)] w-[250px] flex-none flex-col gap-3.5 overflow-auto rounded-lg bg-surface p-3.5">
+    <nav aria-label="Reports" className="sticky top-4 flex max-h-[calc(100vh-110px)] w-[250px] flex-none flex-col gap-3.5 overflow-auto rounded-lg bg-surface p-3.5">
       <div className="relative">
         <MagnifyingGlassIcon size={16} weight="duotone" className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
         <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a report" aria-label="Find a report" className="min-h-9 w-full rounded-md border border-line bg-bg py-1.5 pr-2.5 pl-9 text-fg placeholder:text-fg/65 focus:border-accent focus:outline-none" />
@@ -59,7 +59,7 @@ export function ReportTable({ columns, rows, totals }: { columns: Col[]; rows: R
         </div>
         <span className="text-[13px] text-muted">{shown.length} rows · click a column to sort</span>
       </div>
-      <div className="max-h-[640px] max-w-full overflow-auto">
+      <ScrollRegion both label="Report" className="max-h-[640px] max-w-full">
         <table className={cx(TABLE, "m-0")}>
           <thead className="sticky top-0 z-[1] bg-surface">
             <tr>
@@ -99,7 +99,7 @@ export function ReportTable({ columns, rows, totals }: { columns: Col[]; rows: R
           )}
         </table>
         {shown.length === 0 && <p className="px-5 py-4 text-sm text-muted">Nothing to show.</p>}
-      </div>
+      </ScrollRegion>
     </>
   );
 }

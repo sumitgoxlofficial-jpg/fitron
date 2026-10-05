@@ -478,8 +478,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             <form action={savePrivacyNotice} className="flex flex-col gap-[18px]">
               {privacy.notice.map((n) => (
                 <div key={n.key} className="flex flex-col gap-1.5">
-                  <h4 className="m-0 text-base font-semibold">{n.title}</h4>
-                  <Textarea name={`n_${n.key}`} rows={3} maxLength={2000} defaultValue={n.text} />
+                  <h4 id={`notice-${n.key}`} className="m-0 text-base font-semibold">
+                    {n.title}
+                  </h4>
+                  <Textarea name={`n_${n.key}`} aria-labelledby={`notice-${n.key}`} rows={3} maxLength={2000} defaultValue={n.text} />
                 </div>
               ))}
               <div className="flex flex-col gap-1.5">
@@ -500,7 +502,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           </Panel>
           <Panel title="Cookie and storage notice" id="cookie-policy">
             <form action={saveCookieNotice} className="flex flex-col gap-[18px]">
-              <Textarea name="cookieNotice" rows={4} maxLength={1000} defaultValue={privacy.settings.cookieNotice} />
+              <Textarea name="cookieNotice" aria-label="Cookie and storage notice" rows={4} maxLength={1000} defaultValue={privacy.settings.cookieNotice} />
               <div>
                 <Button variant="primary">Save</Button>
               </div>

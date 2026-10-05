@@ -177,6 +177,54 @@ export const setPlan = (email: string, plan: "starter" | "professional" | "enter
   sql(`update "Organization" set plan = $1 where id = (select "orgId" from "User" where email = $2)`, [plan, email]);
 
 // ---------------------------------------------------------------------------------------------------------------------
+// What a front-desk person does, on the screens they use: the building blocks of the tests that need a gym with business in it.
+
+export async function chargeGst(page: Page, rate = "18") {
+  await page.goto("/settings?tab=billing");
+  await page.getByLabel("Charge GST on invoices").check();
+  await page.getByLabel("GST rate (%)").fill(rate);
+  await page.getByLabel("Tax type").selectOption("CGST+SGST");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByLabel("Charge GST on invoices")).toBeChecked();
+}
+
+export async function createPlan(page: Page, { name, months, price }: { name: string; months: number; price: number }) {
+  await page.goto("/plans/new");
+  await page.getByLabel("Plan name").fill(name);
+  await page.getByLabel("Duration (months)").fill(String(months));
+  await page.getByLabel("Price (₹)", { exact: true }).fill(String(price));
+  await page.getByRole("button", { name: "Create plan" }).click();
+  // Not toHaveURL(/\/plans/): that is also true on /plans/new, before the plan is saved.
+  await page.waitForURL((u) => u.pathname === "/plans");
+}
+
+export async function addMember(page: Page, name: string): Promise<string> {
+  await page.goto("/members/new");
+  await page.getByLabel("Full name").fill(name);
+  await page.getByLabel("Mobile number").fill(`9${String(Math.floor(Math.random() * 1e9)).padStart(9, "0")}`);
+  await page.getByLabel("Gender").selectOption({ index: 1 });
+  await page.getByLabel("How did you hear about us?").selectOption({ index: 1 });
+  await page.getByRole("button", { name: "Add member" }).click();
+  await page.waitForURL(/\/members\/(?!new$)[^/?]+$/);
+  return new URL(page.url()).pathname.split("/").pop()!;
+}
+
+export async function sell(page: Page, memberId: string, { payNow }: { payNow?: number } = {}): Promise<string> {
+  await page.goto(`/members/${memberId}/sell`);
+  if (payNow !== undefined) await page.getByLabel("Amount received now (₹)").fill(String(payNow));
+  await page.getByRole("button", { name: "Create membership" }).click();
+  await page.waitForURL(/\/invoices\/[^/?]+\?created=1/);
+  return new URL(page.url()).pathname.split("/").pop()!;
+}
+
+export async function gymWithPlan(page: Page, plan: { name: string; months: number; price: number }, { signupPlan = "professional" } = {}): Promise<Gym> {
+  const gym = await signUp(page, { plan: signupPlan, tag: "sale" });
+  await chargeGst(page);
+  await createPlan(page, plan);
+  return gym;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 type Shared = { gym: Gym; state: Awaited<ReturnType<BrowserContext["storageState"]>> };
 

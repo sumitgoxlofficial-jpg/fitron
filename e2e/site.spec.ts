@@ -1,4 +1,4 @@
-import { expect, test } from "./support";
+import { expect, newContext, test } from "./support";
 
 // What a visitor and a search engine get from the public site. The sitemap is the list of pages: every address in it
 // has to open, say what it is, and point to itself as its one address.
@@ -67,6 +67,21 @@ test.describe("visitors", () => {
     await page.locator('a[href="/login?tab=up&plan=professional"]').first().click();
     await expect(page).toHaveURL(/\/login\?tab=up&plan=professional/);
     await expect(page.getByText("Create your Fitron account")).toBeVisible();
+  });
+
+  test("the WhatsApp button does not sit under the cookie banner: it waits until the visitor has chosen", async ({ browser }) => {
+    for (const width of [390, 768, 1024]) {
+      const ctx = await newContext(browser, { viewport: { width, height: 800 } });
+      await ctx.clearCookies(); // no choice made yet, so the banner opens
+      const page = await ctx.newPage();
+      await page.goto("/");
+      await expect(page.locator(".consent.show"), `banner at ${width}px`).toBeVisible();
+      await expect(page.locator(".wa-float"), `WhatsApp button at ${width}px`).toBeHidden();
+      await page.locator(".consent .btn").first().click();
+      await expect(page.locator(".consent.show")).toHaveCount(0);
+      await expect(page.locator(".wa-float"), `WhatsApp button after the choice at ${width}px`).toBeVisible();
+      await ctx.close();
+    }
   });
 
   test("the contact form needs a message and says so", async ({ page }) => {

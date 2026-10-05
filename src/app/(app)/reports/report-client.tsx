@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FunnelIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { cx } from "@/components/ui";
+import { ScrollRegion, cx } from "@/components/ui";
 import { formatRupees } from "@/lib/format";
 
 type Col = { key: string; label: string; money?: boolean; kind?: "num" | "pct" };
@@ -15,7 +15,7 @@ export function ReportNav({ groups, current, href }: { groups: Group[]; current:
   const [q, setQ] = useState("");
   const ql = q.trim().toLowerCase();
   return (
-    <nav className="sticky top-[84px] flex max-h-[calc(100vh-110px)] w-[250px] flex-none flex-col gap-3.5 overflow-auto rounded-lg bg-surface p-3.5 max-lg:hidden print:hidden">
+    <nav aria-label="Reports" className="sticky top-[84px] flex max-h-[calc(100vh-110px)] w-[250px] flex-none flex-col gap-3.5 overflow-auto rounded-lg bg-surface p-3.5 max-lg:hidden print:hidden">
       <div className="relative">
         <MagnifyingGlassIcon size={16} weight="duotone" className="absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a report" aria-label="Find a report" className="min-h-9 w-full rounded-md border border-line bg-surface py-1.5 pr-2.5 pl-9 text-fg placeholder:text-fg/65 focus:border-accent focus:outline-none" />
@@ -66,7 +66,7 @@ export function ReportTable({ columns, rows, totals }: { columns: Col[]; rows: R
           {shown.length} rows · click a column to sort
         </span>
       </div>
-      <div id="report-print" className="max-h-[640px] max-w-full overflow-auto print:max-h-none">
+      <ScrollRegion both label="Report" id="report-print" className="max-h-[640px] max-w-full print:max-h-none">
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0 z-[1] bg-surface">
             <tr>
@@ -109,7 +109,7 @@ export function ReportTable({ columns, rows, totals }: { columns: Col[]; rows: R
           )}
         </table>
         {!shown.length && <p className="px-5 py-6 text-sm text-muted">Nothing to show.</p>}
-      </div>
+      </ScrollRegion>
     </>
   );
 }

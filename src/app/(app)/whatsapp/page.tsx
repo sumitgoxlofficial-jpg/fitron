@@ -10,7 +10,7 @@ import { isScheduled } from "@/lib/domain/wa-rules";
 import { todayIso } from "@/lib/services/time";
 import { Tag } from "@/components/tag";
 import { Dialog } from "@/components/dialog";
-import { LinkButton, ListHeader, Notice, Pager, TABLE, TD, TH, cx } from "@/components/ui";
+import { LinkButton, ListHeader, Notice, Pager, TABLE, TD, TH, cx, ScrollRegion } from "@/components/ui";
 import { fmtClock, fmtShort, fmtTime } from "@/lib/format";
 import { RuleForm, TemplateCard } from "./wa-forms";
 import { refreshAction, retryMessageAction, runAutomationAction, runRuleAction, toggleAutoSendAction } from "./actions";
@@ -83,7 +83,7 @@ export default async function WhatsAppPage({ searchParams }: PageProps<"/whatsap
           </div>
         ))}
       </div>
-      <nav className="flex flex-wrap gap-1">
+      <nav aria-label="WhatsApp sections" className="flex flex-wrap gap-1">
         {[
           ["templates", "Templates & automation", "/whatsapp"],
           ["log", "Message log", "/whatsapp?tab=log"],
@@ -262,13 +262,13 @@ async function Log({ u, s, templates }: { u: U; s: (k: string) => string | undef
           </Link>
         ))}
       </div>
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Whatsapp table">
         <table className={TABLE}>
           <thead>
             <tr>
               {["Sent", "Member", "To", "Message", "Status", ""].map((h, i) => (
                 <th key={i} className={TH}>
-                  {h}
+                  {h || <span className="sr-only">Actions</span>}
                 </th>
               ))}
             </tr>
@@ -306,7 +306,7 @@ async function Log({ u, s, templates }: { u: U; s: (k: string) => string | undef
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {!list.rows.length && <div className="text-sm text-muted">No messages yet. Reminders, receipts and renewal messages appear here as they go out.</div>}
       <Pager page={list.page} pageSize={list.pageSize} total={list.total} href={(p) => href(f, p)} />
     </>

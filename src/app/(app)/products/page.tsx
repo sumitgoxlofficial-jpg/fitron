@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requirePermission } from "@/lib/auth/current";
 import { isLow, listProducts } from "@/lib/services/pos";
-import { Badge, Button, Empty, Input, LinkButton, PageHeader } from "@/components/ui";
+import { Badge, Button, Empty, Input, LinkButton, PageHeader, ScrollRegion } from "@/components/ui";
 import { formatInr } from "@/lib/format";
 
 export const metadata = { title: "Products & stock · Fitron" };
@@ -33,7 +33,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
       {products.length === 0 ? (
         <Empty>No products yet.</Empty>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+        <ScrollRegion label="Products table" className="rounded-xl border border-line bg-surface">
           <table className="w-full min-w-[640px] text-sm">
             <thead className="text-left text-muted">
               <tr className="border-b border-line">
@@ -72,7 +72,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollRegion>
       )}
     </>
   );

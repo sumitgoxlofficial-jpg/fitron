@@ -5,7 +5,7 @@ import { ACCOUNTING_TABS, SectionTabs } from "@/components/section-tabs";
 import { listAssets } from "@/lib/services/assets";
 import { monthLabel } from "@/lib/domain/periods";
 import { Tag } from "@/components/tag";
-import { LinkButton, ListHeader, TABLE, TD, TH, cx } from "@/components/ui";
+import { LinkButton, ListHeader, TABLE, TD, TH, cx, ScrollRegion } from "@/components/ui";
 import { fmtDate, formatRupees } from "@/lib/format";
 import { todayIso } from "@/lib/services/time";
 import { ASSET_STATUS } from "./tone";
@@ -71,13 +71,13 @@ export default async function AssetsPage({ searchParams }: PageProps<"/assets">)
         ))}
       </div>
 
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Assets table">
         <table className={TABLE}>
           <thead>
             <tr>
               {["Asset", "Category", "Purchased", "Cost", "Depreciation", "This FY", "Accumulated", "Book value", "Status", ""].map((h, i) => (
                 <th key={i} className={cx(TH, [3, 5, 6, 7].includes(i) && "text-right")}>
-                  {h}
+                  {h || <span className="sr-only">Actions</span>}
                 </th>
               ))}
             </tr>
@@ -116,7 +116,7 @@ export default async function AssetsPage({ searchParams }: PageProps<"/assets">)
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {!rows.length && <div className="text-sm text-muted">No assets with this status.</div>}
     </div>
   );

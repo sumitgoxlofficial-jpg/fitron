@@ -3,7 +3,7 @@ import { requireFeature, requirePermission } from "@/lib/auth/current";
 import { ensureTrainerCode, partnership } from "@/lib/services/trainer-gym";
 import { todayIso } from "@/lib/services/time";
 import { findPlan, PARTNER_SHARE, rupeesLabel } from "@/lib/domain/pricing";
-import { Badge, Card, Empty, ListHeader, Notice, Stat, TABLE, TD, TH, TR, type Tone } from "@/components/ui";
+import { Badge, Card, Empty, ListHeader, Notice, Stat, TABLE, TD, TH, TR, type Tone, ScrollRegion } from "@/components/ui";
 import { fmtMonthShort, fmtShort, fmtStamp, formatRupees } from "@/lib/format";
 import { appUrl } from "@/lib/services/accounts";
 
@@ -58,7 +58,7 @@ export default async function PartnershipPage({ searchParams }: PageProps<"/part
         {data.paid.length === 0 ? (
           <Empty>No AI Trainer payments from your members were confirmed this month.</Empty>
         ) : (
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Referred members">
             <table className={TABLE}>
               <thead>
                 <tr>
@@ -86,7 +86,7 @@ export default async function PartnershipPage({ searchParams }: PageProps<"/part
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
         )}
         <p className="mt-3 text-xs text-muted">FITRON pays the month&apos;s share to the gym&apos;s bank account in the first week of the next month. Payments confirmed after a member leaves your gym are not counted.</p>
       </Card>
@@ -95,7 +95,7 @@ export default async function PartnershipPage({ searchParams }: PageProps<"/part
         {data.rows.length === 0 ? (
           <Empty>No member has linked yet. Share the code above, or put it on a poster at the front desk.</Empty>
         ) : (
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Payouts">
             <table className={TABLE}>
               <thead>
                 <tr>
@@ -140,7 +140,7 @@ export default async function PartnershipPage({ searchParams }: PageProps<"/part
                 })}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
         )}
         <p className="mt-3 text-xs text-muted">A member is matched to their gym record by the email they signed in with, or the phone they gave the app. Unmatched members are counted for your share all the same.</p>
       </Card>

@@ -7,7 +7,7 @@ import { todayIso, toIso } from "@/lib/services/time";
 import { monthLabel, monthsBack } from "@/lib/domain/periods";
 import { AutoFilter } from "@/components/auto-filter";
 import { Tag } from "@/components/tag";
-import { LinkButton, ListHeader, Select, TABLE, TD, TH, cx } from "@/components/ui";
+import { LinkButton, ListHeader, Select, TABLE, TD, TH, cx, ScrollRegion } from "@/components/ui";
 import { fmtDate, formatInr, formatRupees } from "@/lib/format";
 
 export const metadata = { title: "Purchases · Fitron" };
@@ -100,13 +100,13 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
         ))}
       </div>
 
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Purchases table">
         <table className={TABLE}>
           <thead>
             <tr>
               {["Date", "Vendor", "Items", "Type", "Total", "Paid", "Balance", "Status", ""].map((h, i) => (
                 <th key={i} className={cx(TH, i >= 4 && i <= 6 && "text-right")}>
-                  {h}
+                  {h || <span className="sr-only">Actions</span>}
                 </th>
               ))}
             </tr>
@@ -154,7 +154,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/purcha
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {!rows.length && <div className="text-sm text-muted">No purchases match. Record supplier bills here; stock lines go straight into POS inventory and asset lines into the fixed-asset register.</div>}
     </div>
   );

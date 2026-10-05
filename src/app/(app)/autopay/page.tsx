@@ -10,7 +10,7 @@ import { razorpayReady } from "@/lib/integrations/razorpay";
 import { addDays } from "@/lib/domain/dates";
 import { invoiceTotals } from "@/lib/domain/billing";
 import { Dialog } from "@/components/dialog";
-import { LinkButton, ListHeader, Notice, TABLE, TD, TH, cx } from "@/components/ui";
+import { LinkButton, ListHeader, Notice, TABLE, TD, TH, cx, ScrollRegion } from "@/components/ui";
 import { fmtDate, fmtStamp, fmtTime, formatRupees, initials } from "@/lib/format";
 import { MandateForm } from "./autopay-forms";
 import { retryAction, rowAction, runDueAction, syncAction } from "./actions";
@@ -192,13 +192,13 @@ export default async function AutopayPage({ searchParams }: PageProps<"/autopay"
         ))}
       </div>
 
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Autopay table">
         <table className={TABLE}>
           <thead>
             <tr>
               {["Member", "Mandate", "Plan · cycle", "Amount", "Next debit", "Debits", "Last result", "Status", ""].map((h, i) => (
                 <th key={i} className={cx(TH, h === "Amount" && "text-right")}>
-                  {h}
+                  {h || <span className="sr-only">Actions</span>}
                 </th>
               ))}
             </tr>
@@ -274,7 +274,7 @@ export default async function AutopayPage({ searchParams }: PageProps<"/autopay"
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {!rows.length && <div className="text-sm text-muted">No mandates match this filter.</div>}
 
       {newOpen && tax && (

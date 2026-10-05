@@ -6,7 +6,7 @@ import { listPayments } from "@/lib/services/billing";
 import { fromIso, todayIso } from "@/lib/services/time";
 import { AutoFilter } from "@/components/auto-filter";
 import { Tag } from "@/components/tag";
-import { LinkButton, ListHeader, Pager, SEARCH, Select, Stat, TABLE, TD, TH, TR, cx } from "@/components/ui";
+import { LinkButton, ListHeader, Pager, SEARCH, Select, Stat, TABLE, TD, TH, TR, cx, ScrollRegion } from "@/components/ui";
 import { fmtDate, formatRupees } from "@/lib/format";
 import { METHODS } from "@/lib/validation/billing";
 import { ReversePayment } from "../invoices/[id]/invoice-forms";
@@ -67,7 +67,7 @@ export default async function PaymentsPage({ searchParams }: PageProps<"/payment
           ))}
         </Select>
       </AutoFilter>
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Payments table">
         <table className={TABLE}>
           <thead>
             <tr>
@@ -80,7 +80,7 @@ export default async function PaymentsPage({ searchParams }: PageProps<"/payment
               <th className={TH}>Received by</th>
               <th className={TH}>Status</th>
               <th className={cx(TH, "text-right")}>Amount</th>
-              <th className={TH} />
+              <th className={TH}><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -106,7 +106,7 @@ export default async function PaymentsPage({ searchParams }: PageProps<"/payment
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {rows.length === 0 && <p className="text-muted">{f.q || f.method ? "No payments match." : "No payments yet."}</p>}
       <Pager page={page} pageSize={PAGE} total={rows.length} href={link} />
     </div>

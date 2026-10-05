@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth/current";
+import { getCurrentUser, PLAN_ENDED } from "@/lib/auth/current";
 import { listExpenses } from "@/lib/services/expenses";
 import { monthEnd } from "@/lib/domain/periods";
 import { toIso } from "@/lib/services/time";
@@ -12,6 +12,7 @@ const cell = (v: unknown) => {
 export async function GET(req: Request) {
   const u = await getCurrentUser();
   if (!u) return new Response("Sign in first.", { status: 401 });
+  if (u.planBlocked) return new Response(PLAN_ENDED, { status: 402 });
   if (!u.can("expenses.manage")) return new Response("Not allowed.", { status: 403 });
   const url = new URL(req.url);
   const month = url.searchParams.get("month") ?? "";
