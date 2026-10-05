@@ -50,7 +50,7 @@ It tests the production build, so run `npm run build` again after changing the a
 
 To run Fitron for real on a free Oracle Cloud server (app, database, HTTPS, daily jobs and nightly backups in one command), follow [deploy/README.md](deploy/README.md).
 
-To keep the database (and, if you want, member files) in Supabase instead of on that server, see step 11 of the same guide.
+To keep the database (and, if you want, member files) in Supabase instead of on that server, see step 11 of the same guide. To host on Vercel, with Supabase and GitHub-run timed jobs, see [deploy/VERCEL.md](deploy/VERCEL.md).
 
 To get the site found by Google and Bing, see [deploy/SEO.md](deploy/SEO.md): what is built in, and the steps only the owner can take.
 
