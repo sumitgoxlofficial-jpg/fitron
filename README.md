@@ -67,6 +67,7 @@ This creates the gym, its first branch, the default roles and the Super Admin ac
 ## What works so far
 
 - Sign-in with Argon2id passwords, server-side sessions, 30-minute idle sign-out, login rate limit.
+- First-run setup for gyms that sign up on fitron.in (`/onboarding`, `src/app/onboarding`): after the two sign-up steps the owner answers up to eight short steps before the console opens: Billing & GST (and where invoice numbers start), Branch, Plans, Team, WhatsApp reminders, Opening balances and how to start (empty or import). Steps about something the gym's plan doesn't open are left out. Nothing is applied until Finish setup, which uses the same audited functions as Settings and is safe to repeat; "I'll finish this later" skips it and the dashboard keeps a reminder. Gyms created with `npm run setup` or by hand have no setup to do (`src/lib/services/onboarding.ts`).
 - Two-step sign-in for staff (My profile › Two-step sign-in): a code from an authenticator app after the password or Google, with ten one-use recovery codes. A Super Admin can turn it off for someone who lost their phone (Staff). The secrets are encrypted with `BIOMETRIC_KEY`.
 - Roles and permissions (Super Admin, Admin, Accountant, Receptionist, Trainer), enforced on every page and action. Trainers see only their assigned members.
 - Branch switcher; every query is limited to the branches a user may see.

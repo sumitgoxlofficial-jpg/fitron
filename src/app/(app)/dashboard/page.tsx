@@ -1,6 +1,8 @@
 import { getGymProfile } from "@/lib/services/settings";
+import { getOnboarding } from "@/lib/services/onboarding";
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { canOpen } from "@/lib/nav";
 import { FEATURES, planFor, type Feature } from "@/lib/domain/features";
 import type { ReactNode } from "react";
@@ -52,6 +54,9 @@ type Kpi = { label: string; value: string; sub: string; href?: string; tone?: "a
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   const u = await requireUser();
+  // A gym that signed up on fitron.in answers the setup questions before the console (src/app/onboarding); "I'll finish this later" skips them.
+  const setup = u.can("settings.manage") ? await getOnboarding(u.orgId) : null;
+  if (setup?.status === "PENDING") redirect("/onboarding");
   const sp = await searchParams;
   const s = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
   const role = u.role;
@@ -85,6 +90,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   return (
     <div className="flex flex-col gap-7">
+      {sp.welcome && <Notice tone="ok">Your gym is set up. Add your first member to get going.</Notice>}
+      {setup?.status === "SKIPPED" && (
+        <Notice tone="accent">
+          Your gym setup isn&apos;t finished: membership plans, invoice numbering and reminders are still to do.{" "}
+          <Link href="/onboarding" className="font-semibold underline">
+            Finish setup
+          </Link>
+        </Notice>
+      )}
       {sp.denied && <Notice tone="alert">Your role doesn&apos;t have access to that page.</Notice>}
       {sp.cleared && <Notice tone="ok">Demo data cleared. Fitron is live for {gymName}.</Notice>}
       {sp.ai === "off" && <Notice>Fitron AI is switched off. A Super Admin can turn it on in Settings › Integrations &amp; AI.</Notice>}

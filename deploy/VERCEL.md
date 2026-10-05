@@ -62,6 +62,8 @@ That creates the tables the first time and applies new ones later. If it can't a
 
 Then open `https://fitron.in/login?tab=up` and create the first account: the first account becomes Super Admin. Sign up with the email you put in `FITRON_ADMIN_EMAILS` if you want to confirm payments from `/fitron-admin`.
 
+After the two sign-up steps the new gym lands on a short setup (billing and GST, branch, plans, team, WhatsApp reminders, opening balances, how to start). It can be skipped with "I'll finish this later" and finished from the dashboard reminder. The team members it asks for need a first password, which is used once to create their account and is never kept in the saved answers.
+
 ## If something goes wrong
 
 The error screen shows a **Reference**. In Vercel open the project's **Logs** and search for it. The line says what happened:
