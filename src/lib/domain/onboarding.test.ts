@@ -159,4 +159,9 @@ describe("the review", () => {
     expect(all.Team).toBe("Asha Rao (Trainer)");
     expect(all["Opening balances"]).toBe("Cash ₹1,000 · Bank ₹2,50,000");
   });
+  it("shows paise only when there are some", () => {
+    const f = form({ opening: { cash: "₹12,500", bank: "2,40,000.5" } });
+    const all = Object.fromEntries(reviewRows(f, stepsFor(has("professional"))).map((r) => [r.k, r.v]));
+    expect(all["Opening balances"]).toBe("Cash ₹12,500 · Bank ₹2,40,000.50");
+  });
 });

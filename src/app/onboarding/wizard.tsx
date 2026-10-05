@@ -131,12 +131,12 @@ export function Wizard({ steps, initialForm, initialIndex }: { steps: StepKey[];
               <>
                 <span className={cx("grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold", done || here ? "bg-accent text-accent-ink" : "bg-fg/12 text-muted")}>{done ? <CheckIcon size={14} weight="bold" /> : idx + 1}</span>
                 <span className="flex flex-col text-left">
-                  <span className={cx("text-[15px]", here ? "font-semibold" : "font-normal")}>{STEP_INFO[k].label}</span>
+                  <span className={cx("text-[15px]", here ? "font-semibold" : done ? "font-normal" : "font-normal text-fg/80")}>{STEP_INFO[k].label}</span>
                   <span className="text-xs text-muted">{STEP_INFO[k].desc}</span>
                 </span>
               </>
             );
-            const cls = cx("flex items-center gap-3 rounded-md px-3 py-2.5", here && "bg-accent-soft", !done && !here && "opacity-55");
+            const cls = cx("flex items-center gap-3 rounded-md px-3 py-2.5", here && "bg-accent-soft");
             return (
               <li key={k} aria-current={here ? "step" : undefined}>
                 {done ? (

@@ -95,22 +95,22 @@ test.describe("first-run setup", () => {
     await signUp(page, { tag: "wrong", setup: "stay" });
     await page.getByLabel("My gym is GST registered and charges GST").check();
     await next(page);
-    await expect(page.getByRole("alert")).toContainText("GSTIN should be 15 characters");
+    await expect(page.locator("main").getByRole("alert")).toContainText("GSTIN should be 15 characters");
     await heading(page, "Billing & GST");
 
     await page.getByLabel("GSTIN").fill("not-a-gstin");
     await next(page);
-    await expect(page.getByRole("alert")).toContainText("GSTIN should be 15 characters");
+    await expect(page.locator("main").getByRole("alert")).toContainText("GSTIN should be 15 characters");
 
     // Turning GST off needs no GSTIN, and the message goes away with the change.
     await page.getByLabel("My gym is GST registered and charges GST").uncheck();
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
     await next(page);
     await heading(page, "Your branch");
 
     await page.getByLabel("Opening hours").fill("");
     await next(page);
-    await expect(page.getByRole("alert")).toContainText("Enter opening hours.");
+    await expect(page.locator("main").getByRole("alert")).toContainText("Enter opening hours.");
     await heading(page, "Your branch");
   });
 

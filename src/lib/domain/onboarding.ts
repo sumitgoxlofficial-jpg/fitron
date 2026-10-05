@@ -161,7 +161,11 @@ export function firstInvalid(steps: StepKey[], f: OnboardingForm): { step: StepK
   return null;
 }
 
-export const rupeesLabel = (s: string) => `₹${Number(money(s) || 0).toLocaleString("en-IN")}`;
+/** An amount as the owner typed it, in lakhs style, with paise only when there are some: ₹1,500 and ₹25,000.50. */
+export const rupeesLabel = (s: string) => {
+  const n = Number(money(s) || 0);
+  return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
+};
 
 const REMINDER_LABELS: [keyof Reminders, string][] = [
   ["welcome", "welcome message"],
