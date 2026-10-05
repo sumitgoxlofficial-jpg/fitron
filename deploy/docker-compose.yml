@@ -25,12 +25,15 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://fitron:${POSTGRES_PASSWORD}@db:5432/fitron
+      # The Postgres in this file, unless EXTERNAL_DATABASE_URL is set in deploy/.env (a hosted database such as Supabase: README step 11).
+      DATABASE_URL: ${EXTERNAL_DATABASE_URL:-postgresql://fitron:${POSTGRES_PASSWORD}@db:5432/fitron}
       STORAGE_DIR: /data/storage
       # Links in emails (verify, reset password) point here.
       APP_URL: https://${DOMAIN}
     volumes:
       - storage:/data/storage
+      # The hosted database's certificate authority, if it has its own (Supabase does): README step 11.
+      - ./certs:/certs:ro
     depends_on:
       db:
         condition: service_healthy
@@ -65,10 +68,14 @@ services:
       CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in deploy/.env}
       PGPASSWORD: ${POSTGRES_PASSWORD}
       KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      # Which database to back up, and whether member files live in a bucket instead of on this server's disk.
+      EXTERNAL_DATABASE_URL: ${EXTERNAL_DATABASE_URL:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
     volumes:
       - ./scheduler.sh:/scheduler.sh:ro
       - ./backups:/backups
       - storage:/data/storage:ro
+      - ./certs:/certs:ro
     depends_on:
       - app
 

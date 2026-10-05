@@ -12,6 +12,26 @@ touch "$state"
 last() { grep "^$1=" "$state" | cut -d= -f2; }
 mark() { grep -v "^$1=" "$state" > "$state.tmp"; echo "$1=$2" >> "$state.tmp"; mv "$state.tmp" "$state"; }
 
+# The backup must be of the database the app really uses: the Postgres container, or EXTERNAL_DATABASE_URL when a hosted
+# one is set. From a hosted database only the public schema is taken (Fitron's tables): the rest is the host's own. Grants
+# are left out of the dump and restore.sh restores without owners, so a dump goes back into any Postgres.
+dump_db() {
+  if [ -n "${EXTERNAL_DATABASE_URL:-}" ]; then
+    pg_dump "$EXTERNAL_DATABASE_URL" -n public --no-owner --no-acl -Fc -f "$1"
+  else
+    pg_dump -h db -U fitron -d fitron -Fc -f "$1"
+  fi
+}
+# Member files kept in a bucket (S3_ENDPOINT set) are not on this server's disk, so there is nothing here to copy. Say so
+# in the log instead of writing an empty archive that looks like a backup.
+dump_files() {
+  if [ -n "${S3_ENDPOINT:-}" ]; then
+    echo "$(date -u) member files are in the storage bucket, not on this server: they are not part of this backup"
+    return 0
+  fi
+  tar -czf "$1" -C /data storage
+}
+
 while true; do
   day=$(date -u +%F)
   hm=$(date -u +%H%M)
@@ -51,7 +71,7 @@ while true; do
   fi
   if [ "$hm" -ge 2030 ] && [ "$(last backup)" != "$day" ]; then
     f="/backups/fitron-$(date -u +%Y%m%d-%H%M)"
-    if pg_dump -h db -U fitron -d fitron -Fc -f "$f.dump" && tar -czf "$f-files.tar.gz" -C /data storage; then
+    if dump_db "$f.dump" && dump_files "$f-files.tar.gz"; then
       mark backup "$day"; echo "$(date -u) backup written: $f"
       find /backups -name 'fitron-*' -mtime +"$KEEP_DAYS" -delete
     else

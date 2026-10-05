@@ -80,7 +80,7 @@ if [ ! -f .env ]; then
   chmod 600 .env
   echo "Saved settings to deploy/.env (passwords and keys were generated for you)."
 fi
-mkdir -p backups
+mkdir -p backups certs
 
 say "Building and starting Fitron (the first build takes a few minutes)…"
 $DOCKER compose up -d --build
