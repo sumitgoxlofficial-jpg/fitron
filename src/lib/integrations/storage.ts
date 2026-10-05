@@ -57,8 +57,11 @@ async function s3(c: S3Config, method: "PUT" | "GET" | "DELETE", key: string, bo
   return res;
 }
 
+// The folder is only known at run time (STORAGE_DIR) and is only used on a server with a disk. The ignore comments tell the
+// bundler so: without them it warns, and treats every file in the project as one this code might read, so on Vercel each
+// function would carry the whole project.
 const diskPath = (key: string) => {
-  const root = path.resolve(env("STORAGE_DIR") || "storage");
+  const root = path.resolve(/*turbopackIgnore: true*/ env("STORAGE_DIR") || "storage");
   const p = path.resolve(root, key);
   if (!p.startsWith(root + path.sep)) throw new Error("Bad storage key");
   return p;
@@ -75,7 +78,7 @@ export async function putObject(key: string, body: Uint8Array, contentType: stri
 export async function getObject(key: string): Promise<Uint8Array> {
   const c = s3Config();
   if (c) return new Uint8Array(await (await s3(c, "GET", key)).arrayBuffer());
-  return readFile(diskPath(key));
+  return readFile(/*turbopackIgnore: true*/ diskPath(key));
 }
 
 export async function deleteObject(key: string) {
