@@ -154,7 +154,8 @@ function describe(what: PaymentFor, cycle: Cycle) {
 /**
  * Starts a payment to FITRON for the gym's plan (a period of it, or a change to another plan), or
  * an extra branch (a new slot, or another period for an existing branch). Paid by UPI QR + UTR
- * when FITRON_UPI_ID is set, else Razorpay when Fitron's keys are set, else simulated.
+ * when FITRON_UPI_ID is set, else Razorpay when Fitron's keys are set, else simulated (development
+ * only: a production server refuses).
  */
 export async function startPayment(u: CurrentUser, what: PaymentFor, cycle: Cycle): Promise<Checkout> {
   const plan = await gymPlan(u.orgId);
@@ -178,6 +179,8 @@ export async function startPayment(u: CurrentUser, what: PaymentFor, cycle: Cycl
   }
   const upi = fitronUpi();
   const keyId = upi ? null : fitronKeyId();
+  // Demo payments move no money and are marked paid by the gym itself, so a live server never starts one.
+  if (!upi && !keyId && process.env.NODE_ENV === "production") throw new UserError("Payments to FITRON aren't switched on yet. Write to hello@fitron.in and we will set up your plan.");
   const sub = await db.branchSubscription.create({
     data: {
       orgId: u.orgId,
@@ -279,8 +282,9 @@ async function complete(where: { id: string } | { razorpayOrderId: string }, pay
   });
 }
 
-/** Demo mode only (Fitron's Razorpay keys not set): the payment is simulated. */
+/** Demo mode only (neither FITRON_UPI_ID nor Fitron's Razorpay keys set): the payment is simulated. Never on a live server. */
 export async function confirmDemoPayment(u: CurrentUser, id: string) {
+  if (process.env.NODE_ENV === "production") throw new UserError("Payments to FITRON are confirmed by the FITRON team. Write to hello@fitron.in.");
   const sub = await db.branchSubscription.findFirst({ where: { id, orgId: u.orgId } });
   if (!sub || sub.mode !== "DEMO") throw new UserError("Payment not found.");
   return complete({ id }, null);
@@ -321,7 +325,11 @@ export async function reviewPayment(reviewer: { email: string }, id: string, dec
     return done;
   }
   if (!reason.trim()) throw new UserError("Say why, so the gym knows what to fix.");
-  await db.branchSubscription.update({ where: { id }, data: { status: "REJECTED", reviewedBy: reviewer.email, reviewedAt: new Date(), rejectReason: reason.trim() } });
+  // The audit row has no gym user as actor (the reviewer belongs to the FITRON team); who decided, and why, are in `after`.
+  await db.$transaction(async (tx) => {
+    const after = await tx.branchSubscription.update({ where: { id }, data: { status: "REJECTED", reviewedBy: reviewer.email, reviewedAt: new Date(), rejectReason: reason.trim() } });
+    await audit(tx, { orgId: sub.orgId, userId: null, action: "billing.utr-rejected", entity: "BranchSubscription", entityId: id, before: sub, after });
+  });
   await tellGym(sub.orgId, `We couldn't match your UPI payment of ${amount} (UTR ${sub.utr}): ${reason.trim()}. Check the UTR in your UPI app and pay again, or reply to this email.`, "We couldn't confirm your FITRON payment");
   return null;
 }
