@@ -79,6 +79,8 @@ export async function createGymAccount(d: GymSignup, emailVerified = false) {
       const legal = { tos: "v1", privacy: "v1", dpa: "v1", marketing: false, at: new Date().toISOString(), by: d.email };
       await tx.setting.create({ data: { orgId: org.id, key: "gym", value: gym } });
       await tx.setting.create({ data: { orgId: org.id, key: "legal", value: legal } });
+      // The first-run setup (src/app/onboarding) is waiting for the owner; gyms set up by hand have no such setting.
+      await tx.setting.create({ data: { orgId: org.id, key: "onboarding", value: { status: "PENDING" } } });
       const owner = await tx.user.create({
         data: {
           orgId: org.id,

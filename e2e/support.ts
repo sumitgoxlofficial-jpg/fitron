@@ -131,8 +131,12 @@ export function totp(secret: string, atMs = Date.now()): string {
 
 export type Gym = { name: string; ownerName: string; email: string; password: string };
 
-/** Creates a gym the way a visitor does, on the Create account tab, and leaves `page` on its dashboard. */
-export async function signUp(page: Page, { plan = "professional", tag = "gym" }: { plan?: string; tag?: string } = {}): Promise<Gym> {
+/**
+ * Creates a gym the way a visitor does, on the Create account tab, and leaves `page` on its dashboard. A new gym lands on the
+ * setup wizard first (src/app/onboarding): by default the helper skips it ("I'll finish this later"); `setup: "stay"` leaves the
+ * page there, for tests about the wizard.
+ */
+export async function signUp(page: Page, { plan = "professional", tag = "gym", setup = "skip" }: { plan?: string; tag?: string; setup?: "skip" | "stay" } = {}): Promise<Gym> {
   const id = unique();
   const gym: Gym = { name: `E2E ${tag} ${id}`, ownerName: `Owner ${id}`, email: `e2e-${id}@example.com`, password: PASSWORD };
   await page.goto(`/login?tab=up&plan=${plan}&cycle=MONTHLY`);
@@ -153,6 +157,9 @@ export async function signUp(page: Page, { plan = "professional", tag = "gym" }:
   // has seen it has this flag (src/components/product-tour.tsx); set it before the dashboard loads.
   await page.addInitScript((key) => localStorage.setItem(key, "1"), `fitron-tour-done-${gym.email}`);
   await page.getByRole("button", { name: "Create account and open Fitron" }).click();
+  await page.waitForURL(/\/onboarding/);
+  if (setup === "stay") return gym;
+  await page.getByRole("button", { name: "I'll finish this later" }).click();
   await page.waitForURL(/\/dashboard/);
   return gym;
 }
