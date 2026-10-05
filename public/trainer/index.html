@@ -378,6 +378,7 @@
           <div style="flex:1;min-width:0;line-height:1.25"><div class="disp" style="font-weight:800;font-size:17px">{{ coachName }}</div><div class="mut" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ coachStatus }}</div></div>
           <div style="display:flex;gap:8px;flex:none"><button class="btn btn-ghost" aria-label="Chat history" title="Chat history" style="min-height:40px;padding:8px 12px;font-size:13px" onClick="{{ toggleHist }}"><i class="ph-duotone ph-clock-counter-clockwise" style="font-size:17px"></i></button><button class="btn btn-ghost" aria-label="New chat" title="New chat" style="min-height:40px;padding:8px 12px;font-size:13px" onClick="{{ newChat }}"><i class="ph-duotone ph-note-pencil" style="font-size:17px"></i></button></div>
         </div></header>
+        <sc-if value="{{ coachNoteOn }}" hint-placeholder-val="{{ false }}"><div role="status" style="flex:none;border-bottom:1px solid var(--line-2);background:var(--bg-soft)"><div class="mut" style="width:100%;max-width:760px;margin:0 auto;box-sizing:border-box;padding:9px 18px;display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:1.45"><i class="ph-duotone ph-info goldc" style="font-size:16px;margin-top:1px;flex:none"></i><span>{{ coachNoteText }}</span></div></div></sc-if>
         <div class="scr" style="flex:1;overflow-y:auto"><div style="width:100%;max-width:760px;margin:0 auto;box-sizing:border-box;min-height:100%;padding:24px 18px;display:flex;flex-direction:column;gap:18px">
           <sc-if value="{{ chatEmpty }}" hint-placeholder-val="{{ true }}">
           <div style="margin:auto 0;display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 0">
@@ -1916,6 +1917,8 @@ class Component extends DCLogic {
     }
     // the coach's daily allowance, from the plan
     if (st.coachUse) v.coachStatus = 'Online · knows your plan, profile & progress · ' + Math.max(0, st.coachUse.limit - st.coachUse.used) + ' of ' + st.coachUse.limit + ' messages left today';
+    // the last reply came from the built-in answers (the coach is not connected, over its limit, or too slow): say so, not "Online"
+    if (st.coachNote) v.coachStatus = 'Built-in replies';
   }
   _noop() { const v = {}; v.planEmpty = !(v.planToday || []).length; v.mealsEmpty = !(v.meals || []).length; return v; }
   _rv() {
@@ -2427,7 +2430,7 @@ class Component extends DCLogic {
       water, waterLabel: water.toFixed(1), waterOffset, waterCirc: C,
       addWater250: () => this.addWater(0.25), addWater500: () => this.addWater(0.5), resetWater: this.resetWater,
       messages, typing: st.typing, chatInput: st.chatInput, setInput: this.setInput, send: this.send, onKey: this.onKey, suggestions,
-      coachName: 'AI Coach', coachDot: 'on', chatEmpty: messages.length === 0, chatHasMsgs: messages.length > 0, onAttach: this.onAttach, hasAttach: !!st.attach, attachUrl: st.attach ? st.attach.url : '', attachName: st.attach ? st.attach.name : '', attachIsImg: !!(st.attach && st.attach.kind === 'image'), attachIsVid: !!(st.attach && st.attach.kind === 'video'), attachErr: st.attachErr || '', clearAttach: () => this.setState({ attach: null, attachErr: '' }), newChat: () => this.setState({ messages: [], chatInput: '', typing: false, chatId: null, attach: null, histOpen: false }),
+      coachName: 'AI Coach', coachDot: st.coachNote ? '' : 'on', coachNoteOn: !!st.coachNote, coachNoteText: st.coachNote || '', chatEmpty: messages.length === 0, chatHasMsgs: messages.length > 0, onAttach: this.onAttach, hasAttach: !!st.attach, attachUrl: st.attach ? st.attach.url : '', attachName: st.attach ? st.attach.name : '', attachIsImg: !!(st.attach && st.attach.kind === 'image'), attachIsVid: !!(st.attach && st.attach.kind === 'video'), attachErr: st.attachErr || '', clearAttach: () => this.setState({ attach: null, attachErr: '' }), newChat: () => this.setState({ messages: [], chatInput: '', typing: false, chatId: null, attach: null, histOpen: false }),
       histOpen: !!st.histOpen, toggleHist: () => this.setState(x => ({ histOpen: !x.histOpen })), closeHist: () => this.setState({ histOpen: false }), histEmpty: !this._chats().length,
       histList: this._chats().map(c => { const d = new Date(c.at), today = new Date().toDateString() === d.toDateString();
         return { title: c.title, when: (today ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString([], { day: 'numeric', month: 'short' })) + ' · ' + c.messages.length + ' messages', open: this.openChat(c.id), del: this.deleteChat(c.id),
