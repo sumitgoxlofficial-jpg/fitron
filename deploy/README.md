@@ -181,6 +181,75 @@ What is paid how: a monthly plan, a partner plan (monthly) and an extra branch (
 
 Not automatic: paying partner gyms their 70% share. The monthly amount owed is on `/fitron-admin/trainer` (70% of what members pay before GST: the GST inside the listed price is not shared); paying it out is manual unless you ask Razorpay to turn on Route.
 
+## 11. Use Supabase for the database (and, if you want, member files)
+
+Optional. By default the database is a Postgres container on this server, backed up every night into `deploy/backups`. [Supabase](https://supabase.com) can host it instead, so there is no database to look after here. Fitron uses Supabase only as a Postgres database and a file bucket. It does not use Supabase's own sign-in or its web API, and it needs none of the project's `SUPABASE_*` keys (project URL, publishable key, secret key): do not put them in `deploy/.env`.
+
+**Before you start**
+
+- **Pick Mumbai (`ap-south-1`) when you create the project.** A project's region can't be changed afterwards, and every page makes several round trips to the database: a far region (Seoul, Singapore, the US) makes every page slower for your gyms.
+- **Turn the Data API off** (in the project's API settings). Fitron connects to the database directly and never uses Supabase's automatic web API. Leaving it on puts every table behind a public address. As a second lock, Fitron switches row-level security on for all of its tables, with no policies, so the public roles `anon` and `authenticated` can read or change nothing even if the API is switched on later.
+- Supabase's own daily backups are on its paid plans, and on every plan they do **not** include files in Storage. Fitron's own nightly backup keeps running either way (database only): see "Backups" below.
+
+**Connect the database**
+
+1. In the Supabase project click **Connect** and choose **Session pooler** (port 5432). Not "Direct connection" (it needs IPv6, which many servers lack) and not "Transaction pooler" (made for short-lived serverless functions; it doesn't support prepared statements, and Fitron is one long-running server, so it gains nothing). Use a database password of only letters and numbers; if it has other characters they must be written as `%40` for `@`, `%23` for `#` and so on.
+2. Supabase's connections use its own certificate authority, so a plain `sslmode=require` fails. In the project's database settings (SSL configuration) download the certificate and put it on the server as `deploy/certs/supabase-ca.crt` (`mkdir -p deploy/certs` if the folder is not there).
+3. Add one line to `deploy/.env`. Keep the single quotes: without them a `$` or `#` in the line is changed by Docker.
+
+   ```
+   EXTERNAL_DATABASE_URL='postgres://postgres.YOURREF:YOURPASSWORD@YOUR-POOLER-HOST:5432/postgres?sslmode=verify-full&sslrootcert=/certs/supabase-ca.crt'
+   ```
+
+   Copy the host and the `postgres.YOURREF` user from the Session pooler string Supabase shows.
+4. **A new server with no gyms yet:** run the installer (step 7) and answer `n` when it offers to create your gym, or that first gym would go into the bundled database. Then add the line from step 3 to `deploy/.env` and run `bash deploy/update.sh`: the tables are created on start. Create your gym with the same command the installer would have run, from the `deploy` folder:
+
+   ```bash
+   docker compose exec -T app npm run -s setup -- --gym "Gym name" --branch Main --name "Your name" --email you@example.com --phone 9XXXXXXXXX --password 'at least 10 characters'
+   ```
+
+   **A server that already has real data:** move it first, in this order, or the app will start on an empty database.
+
+   ```bash
+   bash deploy/update.sh                      # 1. bring the bundled database up to date first
+   cd deploy
+   docker compose exec -T db pg_dump -U fitron -d fitron -Fc --no-acl > backups/move-to-supabase.dump
+   nano .env                                  # 2. add the EXTERNAL_DATABASE_URL line from step 3
+   bash restore.sh backups/move-to-supabase.dump   # 3. type RESTORE; it fills Supabase and starts Fitron
+   ```
+
+   The bundled Postgres container stays in place, idle. To go back, delete the `EXTERNAL_DATABASE_URL` line and run `bash deploy/update.sh`; the app returns to the bundled database, which holds your data only up to the day you moved.
+5. Check: `docker compose logs app` shows no database errors, you can sign in, and **Settings › Backup** works. In Supabase, the **Table Editor** shows Fitron's tables (each marked "RLS enabled") and **Advisors** shows no security warnings.
+
+**Member files in Supabase Storage (optional)**
+
+1. **Storage › New bucket**, for example `fitron-files`. Keep it **private**: Fitron serves files itself, after checking who is asking.
+2. **Storage › S3 Configuration**: note the region, then **New access key**.
+3. In `deploy/.env` set, between single quotes:
+
+   ```
+   S3_ENDPOINT='https://YOURREF.storage.supabase.co/storage/v1/s3'
+   S3_REGION='ap-south-1'
+   S3_BUCKET='fitron-files'
+   S3_ACCESS_KEY_ID='…'
+   S3_SECRET_ACCESS_KEY='…'
+   ```
+
+   `S3_REGION` must be the project's own region: the default `auto` does not work with Supabase. These access keys can read and write every bucket and bypass all access rules, so they belong only in this file.
+4. Run `bash deploy/update.sh`.
+
+Files already on this server's disk are **not** copied by switching: from then on Fitron looks in the bucket, so documents and logos uploaded earlier would not be found. Switch before real documents exist, or copy them into the bucket first, using the same names as the paths under the storage folder.
+
+**Backups**
+
+- The nightly backup dumps the database Fitron really uses, which with Supabase is the Supabase one, into `deploy/backups` as before. Keep copying those files off the server.
+- With a bucket in use, the nightly backup says so in its log (`docker compose logs scheduler`) and does **not** include the files, and Supabase's own backups don't either. Until you have your own copy of the bucket (for example a scheduled `rclone sync` of it to another provider), a lost bucket is lost documents.
+- To restore a dump, `bash deploy/restore.sh deploy/backups/fitron-….dump` works the same way: it puts the dump into whichever database `deploy/.env` points at.
+
+**Good to know**
+
+- Fitron's start-up step that applies database changes encrypts its connection to Supabase but does not check the certificate. The app itself and the backups do check it.
+
 ## Door devices (ZKTeco / eSSL)
 
 On the device, open **Menu › Comm. › Cloud Server Setting**. Set the server address to your web address and the port to **80**, then restart the device. Add its serial number in Fitron under **Settings › Door devices**.
