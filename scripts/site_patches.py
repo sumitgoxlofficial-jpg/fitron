@@ -100,6 +100,41 @@ TEXT = [
         "FAQ: GST link",
     ),
     ('<a href="#faq">More on gym accounting.</a>', '<a href="/gym-accounting">More on gym accounting.</a>', "FAQ: branches link"),
+    # Billing, as the product now works (Razorpay Subscriptions): plans renew automatically by UPI AutoPay, card or
+    # net-banking mandate and can be cancelled any time, and the listed prices include GST (the customer pays exactly the
+    # listed price). The design said nothing auto-debits and that prices are exclusive of GST. The Terms and Refund pages
+    # (src/app/(site)/terms, refund) say the same.
+    ("<li>Pay by UPI, cancel anytime</li>", "<li>Pay by UPI or card, cancel anytime</li>", "hero point: payment"),
+    (
+        "Prices in rupees, exclusive of GST. Pay by UPI.</p>",
+        "Prices in rupees, inclusive of GST. Pay by UPI or card; plans renew automatically and you can cancel any time.</p>",
+        "pricing intro: GST and renewal",
+    ),
+    (
+        "All add-ons are exclusive of GST and subject to scope and availability.",
+        "All add-ons are inclusive of GST and subject to scope and availability.",
+        "add-ons: GST",
+    ),
+    (
+        "in Indian rupees, exclusive of applicable GST unless stated otherwise.",
+        "in Indian rupees, inclusive of 18% GST unless stated otherwise.",
+        "pricing disclaimer: GST",
+    ),
+    (
+        "open Gym Accounting today and pay by UPI when the trial ends.",
+        "open Gym Accounting today and pay online when the trial ends (UPI AutoPay, card or net banking).",
+        "FAQ: available now, how to pay",
+    ),
+    (
+        "when the trial ends your data stays as it was and you pay by UPI to continue.",
+        "when the trial ends your data stays as it was and you pay online to continue (UPI AutoPay, card or net banking).",
+        "FAQ: free trial, how to pay",
+    ),
+    (
+        "There is nothing to cancel: neither product auto-debits. Simply don't renew. In the AI trainer you can also switch off the plan from Settings → Subscription, and keep access until the paid period ends.",
+        "Plans renew automatically through Razorpay (UPI AutoPay, card or net-banking mandate) for the period you chose, monthly or yearly. You can cancel any time from Settings › Plan &amp; billing in Gym Accounting, or Settings › Subscription in the AI Trainer. The plan stays active until the end of the period you have already paid for.",
+        "FAQ: cancelling",
+    ),
     (
         "never shown to the gym. <a href=\"/privacy\">Read the policies.</a>",
         "never shown to the gym. The AI replies are written by an AI provider that may process them outside India: the privacy policy says what is sent. <a href=\"/privacy\">Read the policies.</a>",
@@ -205,7 +240,7 @@ def structured_data(page):
             "publisher": org,
             "offers": [
                 {"@type": "Offer", "name": n, "price": p, "priceCurrency": "INR",
-                 "priceSpecification": {"@type": "UnitPriceSpecification", "price": p, "priceCurrency": "INR", "billingDuration": 1, "unitCode": "MON", "valueAddedTaxIncluded": False}}
+                 "priceSpecification": {"@type": "UnitPriceSpecification", "price": p, "priceCurrency": "INR", "billingDuration": 1, "unitCode": "MON", "valueAddedTaxIncluded": True}}
                 for n, p in offers
             ],
         })

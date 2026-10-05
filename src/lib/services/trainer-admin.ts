@@ -2,12 +2,11 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { findPlan, PARTNER_SHARE } from "@/lib/domain/pricing";
-import { addDays } from "@/lib/domain/dates";
-import { trainerAccess, trainerPeriod } from "@/lib/domain/trainer";
-import type { Cycle } from "@/lib/domain/pricing";
+import { partnerBasis, trainerAccess } from "@/lib/domain/trainer";
 import { sendEmail } from "@/lib/integrations/email";
 import { UserError } from "./errors";
 import { trainerPaymentRef } from "./trainer";
+import { activateTrainerPaymentIn } from "./trainer-billing";
 import { fromIso, toIso, todayIso } from "./time";
 import { log } from "@/lib/log";
 
@@ -65,25 +64,7 @@ export async function reviewTrainerPayment(reviewer: { email: string }, id: stri
     }).catch((e) => log.error("trainer_admin.payment_email_failed", e));
     return null;
   }
-  const today = todayIso();
-  const done = await db.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT id FROM "TrainerPayment" WHERE id = ${id} FOR UPDATE`;
-    const fresh = await tx.trainerPayment.findUniqueOrThrow({ where: { id }, include: { member: true } });
-    if (fresh.status === "PAID") return fresh;
-    const m = fresh.member;
-    const trialLast = m.trialEndsAt ? addDays(todayIso(m.trialEndsAt), -1) : null;
-    const period = trainerPeriod(fresh.cycle as Cycle, today, m.paidUntil ? toIso(m.paidUntil) : null, trialLast);
-    // A move to AI Pro waits until the AI Premium time already paid for runs out (currentTrainer then
-    // switches it); a move up to AI Premium starts at once.
-    const paidPremiumLeft = m.plan === "ai-premium" && !!m.paidUntil && toIso(m.paidUntil) >= today;
-    const plan = fresh.plan === "ai-pro" && paidPremiumLeft ? m.plan : fresh.plan;
-    await tx.trainerMember.update({ where: { id: m.id }, data: { plan, cycle: fresh.cycle, paidUntil: fromIso(period.end), planCancelled: false } });
-    return tx.trainerPayment.update({
-      where: { id },
-      data: { status: "PAID", paidAt: new Date(), periodStart: fromIso(period.start), periodEnd: fromIso(period.end), reviewedBy: reviewer.email, reviewedAt: new Date(), rejectReason: null },
-      include: { member: true },
-    });
-  });
+  const done = await db.$transaction((tx) => activateTrainerPaymentIn(tx, id, reviewer.email));
   await sendEmail({
     to: p.member.email,
     subject: "Your FITRON plan is active",
@@ -232,18 +213,18 @@ export async function trainerPaymentList(f: { status?: string; page?: number; pa
   };
 }
 
-/** What FITRON owes each gym for a month under the Gym Partnership: PARTNER_SHARE of its linked members' confirmed payments. */
+/** What FITRON owes each gym for a month under the Gym Partnership: PARTNER_SHARE of the listed price of its linked members' confirmed payments (`base` here is that price, see partnerBasis). */
 export async function partnerPayouts(month: string) {
   const { start, end } = monthRange(month);
   const [gyms, paid] = await Promise.all([
     db.organization.findMany({ where: { trainerMembers: { some: live } }, select: { id: true, name: true, trainerCode: true, _count: { select: { trainerMembers: { where: live } } } }, orderBy: { name: "asc" } }),
-    db.trainerPayment.findMany({ where: { status: "PAID", paidAt: { gte: start, lt: end }, member: { orgId: { not: null } } }, select: { base: true, total: true, member: { select: { orgId: true } } } }),
+    db.trainerPayment.findMany({ where: { status: "PAID", paidAt: { gte: start, lt: end }, member: { orgId: { not: null } } }, select: { base: true, total: true, gstIncluded: true, member: { select: { orgId: true } } } }),
   ]);
   const sums = new Map<string, { count: number; base: number; total: number }>();
   for (const p of paid) {
     const s = sums.get(p.member.orgId!) ?? { count: 0, base: 0, total: 0 };
     s.count++;
-    s.base += p.base;
+    s.base += partnerBasis(p);
     s.total += p.total;
     sums.set(p.member.orgId!, s);
   }

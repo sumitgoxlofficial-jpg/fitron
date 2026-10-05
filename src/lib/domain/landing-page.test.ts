@@ -25,6 +25,12 @@ describe("what the home page promises matches the product", () => {
     expect(text.includes("Excel or CSV files for your accountant"), "Excel or CSV files for your accountant").toBe(true);
   });
 
+  it("says plans renew automatically and that prices include GST", () => {
+    for (const re of [/auto-?debit/i, /exclusive of (applicable )?GST/i, /simply don't renew/i, /nothing to cancel/i]) expect(re.test(text), `text must not match ${re}`).toBe(false);
+    for (const s of ["plans renew automatically and you can cancel any time", "Plans renew automatically through Razorpay", "inclusive of GST", "inclusive of 18% GST"]) expect(text.includes(s), s).toBe(true);
+    expect(html.includes('"valueAddedTaxIncluded": false')).toBe(false);
+  });
+
   it("counts the gym modules the way the sidebar does", () => {
     const sections = NAV.flatMap((g) => g.items).length;
     expect((new RegExp(`\\b${sections} Gym modules`)).test(text), "text should match " + String(new RegExp(`\\b${sections} Gym modules`))).toBe(true);
@@ -147,11 +153,11 @@ describe("home page structured data", () => {
     expect(ofType("FAQPage")).toHaveLength(1);
   });
 
-  it("lists every plan at its real monthly price in rupees before GST", () => {
+  it("lists every plan at its real monthly price in rupees, GST included", () => {
     const offers = ofType("SoftwareApplication").flatMap((a) => a.offers ?? []);
     const plans = PLANS.filter((p) => p.product !== "PARTNER");
     expect(offers.map((o) => o.name)).toEqual(plans.map((p) => p.name));
-    for (const p of plans) expect(offers.find((o) => o.name === p.name), p.name).toMatchObject({ price: p.price.MONTHLY / 100, priceCurrency: "INR" });
+    for (const p of plans) expect(offers.find((o) => o.name === p.name), p.name).toMatchObject({ price: p.price.MONTHLY / 100, priceCurrency: "INR", priceSpecification: { valueAddedTaxIncluded: true } });
   });
 
   it("repeats exactly the questions and answers a visitor can read in the FAQ", () => {

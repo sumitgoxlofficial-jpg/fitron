@@ -103,9 +103,12 @@ describe.skipIf(!hasDb)("AI Trainer (database)", () => {
     const m = await findOrCreateTrainer(email(), "EMAIL", "Ravi");
     await startTrainerTrial(m.id, "ai-pro");
     const pay = await startTrainerPayment(m.id, { plan: "ai-premium", cycle: "YEARLY", kind: "purchase" });
-    expect(pay).toMatchObject({ mode: "DEMO", base: 499900, gst: 89982, total: 589882 });
+    // The listed ₹4,999 is what is paid; the GST is inside it.
+    expect(pay).toMatchObject({ mode: "DEMO", base: 423_644, gst: 76_256, total: 4_99_900 });
+    if (pay.mode !== "DEMO") throw new Error("expected a demo payment");
     expect(pay.link).toMatch(/^upi:\/\/pay\?/);
-    expect(pay.link).toContain("am=5898.82");
+    expect(pay.link).toContain("am=4999.00");
+    expect((await db.trainerPayment.findUniqueOrThrow({ where: { id: pay.id } })).gstIncluded).toBe(true);
     await expect(startTrainerPayment(m.id, { plan: "elite", cycle: "MONTHLY", kind: "purchase" })).rejects.toThrow(/Pick AI Pro/);
 
     await expect(submitTrainerUtr(m.id, pay.id, "12345")).rejects.toThrow(/12-digit UTR/);
@@ -116,7 +119,7 @@ describe.skipIf(!hasDb)("AI Trainer (database)", () => {
     await expect(submitTrainerUtr(m.id, again.id, u)).rejects.toThrow(/already entered/);
 
     const list = await trainerPaymentsToCheck();
-    expect(list.waiting.find((r) => r.id === pay.id)).toMatchObject({ member: "Ravi", what: "AI Premium, yearly", total: 589882, utr: u, mode: "DEMO" });
+    expect(list.waiting.find((r) => r.id === pay.id)).toMatchObject({ member: "Ravi", what: "AI Premium, yearly", total: 4_99_900, utr: u, mode: "DEMO" });
 
     const admin = { email: "team@fitron.in" };
     await expect(reviewTrainerPayment(admin, pay.id, "REJECT", " ")).rejects.toThrow(/Say why/);

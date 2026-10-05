@@ -20,15 +20,15 @@ describe("every policy", () => {
     expect(p["form-action"]).toEqual(["'self'", "https://accounts.google.com"]);
   });
 
-  it.each(["app", "site", "trainer"] as const)("%s: lets scripts come from nowhere but ourselves, apart from Razorpay in the console", (t) => {
+  it.each(["app", "site", "trainer"] as const)("%s: lets scripts come from nowhere but ourselves, apart from Razorpay where plans are paid for", (t) => {
     const hosts = policy(t)["script-src"]!.filter((s) => /^https?:|\*/.test(s));
-    expect(hosts).toEqual(t === "app" ? ["https://checkout.razorpay.com"] : []);
+    expect(hosts).toEqual(t === "site" ? [] : ["https://checkout.razorpay.com"]);
   });
 
   it.each(["app", "site", "trainer"] as const)("%s: only the allowed hosts can be connected to or framed, and never a bare wildcard", (t) => {
     const p = policy(t);
     for (const d of ["script-src", "connect-src", "frame-src", "style-src", "font-src"]) expect(p[d], d).not.toContain("*");
-    expect(p["connect-src"]!.filter((s) => s.startsWith("http"))).toEqual(t === "app" ? ["https://*.razorpay.com"] : []);
+    expect(p["connect-src"]!.filter((s) => s.startsWith("http"))).toEqual(t === "site" ? [] : ["https://*.razorpay.com"]);
   });
 
   it("is a single line a header can carry", () => {
@@ -65,13 +65,14 @@ describe("the console's policy", () => {
 describe("the website's and the trainer's policies", () => {
   it("allow inline scripts, since their pages are static files, but eval only in the trainer, which compiles its components in the browser", () => {
     expect(policy("site")["script-src"]).toEqual(["'self'", "'unsafe-inline'"]);
-    expect(policy("trainer")["script-src"]).toEqual(["'self'", "'unsafe-inline'", "'unsafe-eval'"]);
+    expect(policy("trainer")["script-src"]).toEqual(["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://checkout.razorpay.com"]);
   });
 
   it("let only the trainer use Google Fonts and show YouTube videos", () => {
     expect(policy("trainer")["style-src"]).toContain("https://fonts.googleapis.com");
     expect(policy("trainer")["font-src"]).toContain("https://fonts.gstatic.com");
-    expect(policy("trainer")["frame-src"]).toEqual(["'self'", "https://www.youtube-nocookie.com", "https://www.youtube.com"]);
+    // Razorpay's checkout frame is the one other thing it may show, for paying for a plan.
+    expect(policy("trainer")["frame-src"]).toEqual(["'self'", "https://www.youtube-nocookie.com", "https://www.youtube.com", "https://*.razorpay.com"]);
     expect(policy("site")["style-src"]).not.toContain("https://fonts.googleapis.com");
     expect(policy("site")["frame-src"]).toEqual(["'none'"]);
   });

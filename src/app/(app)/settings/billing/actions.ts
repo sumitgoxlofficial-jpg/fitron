@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import * as z from "zod";
 import "@/lib/zod-config";
 import { requirePermission } from "@/lib/auth/current";
-import { confirmCheckout, confirmDemoPayment, startPayment, submitUtr, type Checkout } from "@/lib/services/saas";
+import { cancelAutoRenewal, confirmCheckout, confirmDemoPayment, confirmSubscription, startPayment, submitUtr, type Checkout } from "@/lib/services/saas";
 import { saveBillingDetails as saveDetails, saveRenewalReminders as saveReminders } from "@/lib/services/subscription";
 import { billingDetailsInput, renewalInput } from "@/lib/validation/settings";
 import { UserError } from "@/lib/services/errors";
@@ -23,11 +23,16 @@ async function wrap<T>(fn: () => Promise<T>): Promise<Result<T>> {
   }
 }
 
-const For = z.discriminatedUnion("kind", [z.object({ kind: z.literal("PLAN"), plan: z.string().min(1) }), z.object({ kind: z.literal("BRANCH"), branchId: z.string().nullable() })]);
+const For = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("PLAN"), plan: z.string().min(1) }),
+  z.object({ kind: z.literal("BRANCH"), branchId: z.string().nullable() }),
+  z.object({ kind: z.literal("SERVICE"), service: z.string().min(1), amount: z.number().int().positive().optional() }),
+]);
 
+/** `cycle` is MONTHLY or YEARLY for a plan or branch, and ONCE for a one-time add-on. */
 export async function startPaymentAction(what: unknown, cycle: string): Promise<Result<Checkout>> {
   const u = await requirePermission("settings.manage", { allowBlocked: true });
-  const c = z.enum(["MONTHLY", "YEARLY"]).safeParse(cycle);
+  const c = z.enum(["MONTHLY", "YEARLY", "ONCE"]).safeParse(cycle);
   if (!c.success) return { ok: false, error: "Pick monthly or yearly." };
   const w = For.safeParse(what);
   if (!w.success) return { ok: false, error: "Pick what to pay for." };
@@ -51,6 +56,21 @@ export async function confirmDemoAction(id: string): Promise<Result> {
 export async function confirmCheckoutAction(a: { orderId: string; paymentId: string; signature: string }): Promise<Result> {
   const u = await requirePermission("settings.manage", { allowBlocked: true });
   const r = await wrap(() => confirmCheckout(u, a));
+  revalidatePath("/", "layout");
+  return r.ok ? { ok: true, data: null } : r;
+}
+
+export async function confirmSubscriptionAction(a: { paymentId: string; subscriptionId: string; signature: string }): Promise<Result<{ status: "PAID" | "PROCESSING" }>> {
+  const u = await requirePermission("settings.manage", { allowBlocked: true });
+  const r = await wrap(() => confirmSubscription(u, a));
+  revalidatePath("/", "layout");
+  return r;
+}
+
+/** Stop a plan or extra branch renewing by itself. It stays valid to the end of the period already paid. */
+export async function cancelAutoRenewalAction(id: string): Promise<Result> {
+  const u = await requirePermission("settings.manage", { allowBlocked: true });
+  const r = await wrap(() => cancelAutoRenewal(u, id));
   revalidatePath("/", "layout");
   return r.ok ? { ok: true, data: null } : r;
 }

@@ -112,8 +112,20 @@
       <sc-if value="{{ payOpen }}" hint-placeholder-val="{{ false }}">
       <div style="position:absolute;inset:0;z-index:70;background:rgba(5,5,6,.82);display:flex;align-items:center;justify-content:center;padding:14px" onClick="{{ closePay }}">
         <div style="width:min(420px,100%);max-height:100%;overflow-y:auto;background:#0b0b0e;border:1px solid rgba(212,175,55,.22);border-radius:22px;padding:18px 20px 22px;color:#f5f5f2;box-shadow:0 24px 60px rgba(0,0,0,.6)" onClick="{{ stop }}">
-          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#c9b98f;font-weight:700">UPI payment · FITRON</span><i class="ph-duotone ph-x" style="font-size:18px;cursor:pointer;color:#8a8a90" onClick="{{ closePay }}"></i></div>
-          <h2 class="disp" style="font-weight:800;font-size:24px;line-height:1.15;color:#f5f5f2;margin:10px 0 0">Complete Your UPI Payment</h2>
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#c9b98f;font-weight:700">{{ payKicker }}</span><i class="ph-duotone ph-x" style="font-size:18px;cursor:pointer;color:#8a8a90" onClick="{{ closePay }}"></i></div>
+          <h2 class="disp" style="font-weight:800;font-size:24px;line-height:1.15;color:#f5f5f2;margin:10px 0 0">{{ payHeading }}</h2>
+          <sc-if value="{{ payShowGate }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:14px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(212,175,55,.16);display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <div style="font-size:11px;letter-spacing:1px;color:#8a8a90;font-weight:600">{{ payPlanCaps }} PLAN</div>
+                <div class="disp" style="font-weight:800;font-size:25px;color:#f5f5f2;margin-top:3px">{{ payAmount }} <span style="font-size:13px;color:#8a8a90;font-family:var(--ui);font-weight:500">{{ payPer }}</span></div>
+              </div>
+              <img src="assets/brand/fitron-mark-new.png" alt="FITRON" style="width:46px;height:46px;border-radius:50%;object-fit:cover;border:1px solid rgba(212,175,55,.4)">
+            </div>
+            <p style="font-size:13px;line-height:1.55;margin:14px 0 0;color:#8a8a90">{{ payGateNote }}</p>
+            <sc-if value="{{ payGateHasErr }}" hint-placeholder-val="{{ false }}"><p role="alert" style="color:#e0a5a5;font-size:12px;margin:8px 0 0">{{ payGateErr }}</p></sc-if>
+            <button style="margin-top:14px;width:100%;padding:15px;border-radius:15px;border:none;background:linear-gradient(135deg,#f5d576,#c9a227);color:#1a1206;font-weight:800;font-size:15px;cursor:pointer;opacity:{{ payGateOpacity }}" onClick="{{ payGateGo }}"><i class="ph-duotone ph-lock-simple"></i>&nbsp;{{ payGateBtn }}</button>
+          </sc-if>
           <sc-if value="{{ payShowQr }}" hint-placeholder-val="{{ true }}">
             <div style="margin-top:14px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(212,175,55,.16);display:flex;align-items:center;justify-content:space-between">
               <div>
@@ -164,7 +176,7 @@
             <button style="margin-top:12px;width:100%;padding:15px;border-radius:15px;border:none;background:linear-gradient(135deg,#f5d576,#c9a227);color:#1a1206;font-weight:800;font-size:15px;cursor:pointer" onClick="{{ submitUtr }}"><i class="ph-duotone ph-seal-check"></i>&nbsp;Submit for verification</button>
             <button style="margin-top:10px;width:100%;padding:13px;border-radius:15px;background:transparent;border:1px solid rgba(212,175,55,.35);color:#e8c766;font-family:var(--ui);font-weight:700;font-size:14px;cursor:pointer" onClick="{{ payBackToQr }}">← Back to the QR code</button>
           </sc-if>
-          <p style="font-size:11px;text-align:center;margin:12px 0 0;color:#6b6b72">You pay FITRON's UPI directly. Fitron never sees your card or bank details.</p>
+          <p style="font-size:11px;text-align:center;margin:12px 0 0;color:#6b6b72">{{ payFootNote }}</p>
         </div>
       </div>
       </sc-if>
@@ -430,11 +442,11 @@
         <sc-if value="{{ subIsPlans }}" hint-placeholder-val="{{ true }}">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;align-items:start;margin-top:20px">
           <div class="card"><div style="display:flex;gap:8px;margin-bottom:8px"><button style="{{ proStyle }}" onClick="{{ setPro }}">AI Pro</button><button style="{{ premStyle }}" onClick="{{ setPremium }}">AI Premium</button></div><div style="display:flex;gap:8px;margin-bottom:8px"><button style="{{ monthStyle }}" onClick="{{ setMonthly }}">Monthly</button><button style="{{ yearStyle }}" onClick="{{ setYearly }}">Yearly</button></div>
-            <sc-if value="{{ billYearly }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:baseline;gap:8px"><span class="mut" style="font-size:16px;text-decoration:line-through">{{ yearStrike }}</span><span class="disp goldc" style="font-size:42px;font-weight:800">{{ yearPrice }}</span><span class="mut">/ year</span></div><span class="chip" style="margin-top:6px"><i class="ph-duotone ph-seal-percent"></i>≈ {{ yearPerMonth }} / month · Save {{ yearSave }}</span><div class="mut" style="font-size:11px;margin-top:6px;width:100%">Plus 18% GST · {{ yearTotal }} in all</div></sc-if>
-            <sc-if value="{{ billMonthly }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:baseline;gap:8px"><span class="disp goldc" style="font-size:42px;font-weight:800">{{ monthPrice }}</span><span class="mut">/ month</span></div><span class="chip-plain" style="margin-top:6px">Billed monthly · cancel anytime</span><div class="mut" style="font-size:11px;margin-top:6px;width:100%">Plus 18% GST · {{ monthTotal }} in all</div></sc-if>
+            <sc-if value="{{ billYearly }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:baseline;gap:8px"><span class="mut" style="font-size:16px;text-decoration:line-through">{{ yearStrike }}</span><span class="disp goldc" style="font-size:42px;font-weight:800">{{ yearPrice }}</span><span class="mut">/ year</span></div><span class="chip" style="margin-top:6px"><i class="ph-duotone ph-seal-percent"></i>≈ {{ yearPerMonth }} / month · Save {{ yearSave }}</span><div class="mut" style="font-size:11px;margin-top:6px;width:100%">GST included</div></sc-if>
+            <sc-if value="{{ billMonthly }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:baseline;gap:8px"><span class="disp goldc" style="font-size:42px;font-weight:800">{{ monthPrice }}</span><span class="mut">/ month</span></div><span class="chip-plain" style="margin-top:6px">Billed monthly · cancel anytime</span><div class="mut" style="font-size:11px;margin-top:6px;width:100%">GST included</div></sc-if>
             <button class="btn btn-gold btn-block" style="margin-top:14px" onClick="{{ completePurchase }}"><i class="ph-duotone ph-lock-simple-open"></i>&nbsp;Pay &amp; unlock my plan</button>
             <button class="btn btn-ghost btn-block" style="margin-top:8px" onClick="{{ startTrial }}"><i class="ph-duotone ph-gift"></i>&nbsp;{{ trialCta }}</button>
-            <div style="margin-top:12px"><div class="mut" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Pay with</div><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip-plain">UPI</span><span class="chip-plain">Google Pay</span><span class="chip-plain">PhonePe</span><span class="chip-plain">Paytm</span></div><p class="mut" style="font-size:11px;margin:10px 0 0">Scan FITRON's UPI QR with any UPI app. Nothing auto-debits.</p></div>
+            <div style="margin-top:12px"><div class="mut" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Pay with</div><div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip-plain">UPI</span><span class="chip-plain">Google Pay</span><span class="chip-plain">PhonePe</span><span class="chip-plain">Paytm</span></div><p class="mut" style="font-size:11px;margin:10px 0 0">Pay securely online. GST included.</p></div>
           </div>
           <div><h4 class="disp" style="font-size:18px;margin-bottom:12px">Everything included</h4><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;font-size:14px"><span><i class="ph-duotone ph-check goldc"></i> Personalized workouts</span><span><i class="ph-duotone ph-check goldc"></i> Daily planner</span><span><i class="ph-duotone ph-check goldc"></i> Food planning</span><span><i class="ph-duotone ph-check goldc"></i> Habit tracking</span><span><i class="ph-duotone ph-check goldc"></i> 24/7 AI Coach</span><span><i class="ph-duotone ph-check goldc"></i> Progress tracking</span><span><i class="ph-duotone ph-check goldc"></i> Reminders</span><span><i class="ph-duotone ph-check goldc"></i> Weekly review</span><span><i class="ph-duotone ph-check goldc"></i> {{ coachLimitText }}</span></div>
           </div>
@@ -446,9 +458,9 @@
           <div class="card"><span class="kick">Your account</span>
             <div class="row"><span class="mut">Current plan</span><span class="disp" style="font-weight:700">{{ planName }} · {{ planPrice }}</span></div>
             <div class="row"><span class="mut">Renews</span><span>{{ renewDate }}</span></div>
-            <div class="row" style="border-bottom:none"><span class="mut">Renewal</span><span>{{ renewalText }}</span></div>
+            <div class="row" style="border-bottom:none;gap:14px"><span class="mut">Renewal</span><span style="text-align:right">{{ renewalText }}</span></div>
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn btn-ghost" onClick="{{ openRenew }}"><i class="ph-duotone ph-arrows-clockwise"></i>&nbsp;Renew yearly</button><button class="btn btn-ghost" onClick="{{ openExtraMonth }}"><i class="ph-duotone ph-calendar-plus"></i>&nbsp;Add a month</button></div>
-            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-ghost" onClick="{{ openUpgrade }}"><i class="ph-duotone ph-arrows-out"></i>&nbsp;Switch plan</button><button class="btn btn-ghost" onClick="{{ cancelSub }}"><i class="ph-duotone ph-x-circle"></i>&nbsp;Stop renewal</button></div>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-ghost" onClick="{{ openUpgrade }}"><i class="ph-duotone ph-arrows-out"></i>&nbsp;Switch plan</button><button class="btn btn-ghost" onClick="{{ stopBtnGo }}"><i class="ph-duotone ph-{{ stopBtnIcon }}"></i>&nbsp;{{ stopBtnLabel }}</button></div>
           </div>
           <div class="card" style="border-color:{{ trialBorder }}">
             <span class="kick">Free trial</span>
@@ -1279,7 +1291,7 @@ class Component extends DCLogic {
     this.openPay(kind);
   }
   completePurchase = () => this.payGate('purchase');
-  openUpgrade = () => this.setState({ screen: 'subscription', subMode: 'plans', moreOpen: false, planMsg: 'Pick AI Pro or AI Premium, monthly or yearly, then pay with UPI.' });
+  openUpgrade = () => this.setState({ screen: 'subscription', subMode: 'plans', moreOpen: false, planMsg: 'Pick AI Pro or AI Premium, monthly or yearly, then pay.' });
   openRenew = () => this.payGate('renew');
   openExtraMonth = () => this.payGate('month');
   setSubMode = (m) => this.setState({ subMode: m, planMsg: '' });
@@ -1287,7 +1299,7 @@ class Component extends DCLogic {
     const r = await this._api('renewal', 'POST', { cancelled: true });
     if (!r.ok) return this.setState({ planMsg: r.error });
     const until = r.data.member.paidUntil;
-    this.setState({ me: r.data.member, planCancelled: true, planMsg: 'Noted — this plan will not be renewed. ' + (until ? 'It stays usable until ' + this._fmtDate(until) + '.' : 'Nothing is ever debited automatically.') });
+    this.setState({ me: r.data.member, planCancelled: true, planMsg: 'Noted — your plan will not renew.' + (until ? ' It stays usable until ' + this._fmtDate(until) + '.' : '') });
   };
   startTrial = async () => {
     const r = await this._api('trial', 'POST', { plan: this.state.tier });
@@ -1349,7 +1361,7 @@ class Component extends DCLogic {
     const tl = m.access === 'TRIAL' ? days(m.trialEndsAt) : null;
     if (tl !== null && tl <= 3) out.push({ id: 'trial-' + m.trialEndsAt, icon: 'clock', text: tl <= 0 ? 'Your free trial ends today. Choose a plan to keep your coach.' : 'Your free trial ends in ' + tl + ' day' + (tl === 1 ? '' : 's') + '. Choose a plan to keep your coach.', time: 'Trial' });
     const pl = m.access === 'ACTIVE' && !m.planCancelled ? days(m.paidUntil) : null;
-    if (pl !== null && pl <= 7) out.push({ id: 'renew-' + m.paidUntil, icon: 'calendar-check', text: 'Your plan ends ' + (pl <= 0 ? 'today' : 'in ' + pl + ' day' + (pl === 1 ? '' : 's')) + '. Pay before then to stay on — nothing is debited automatically.', time: 'Renewal' });
+    if (pl !== null && pl <= 7) out.push({ id: 'renew-' + m.paidUntil, icon: 'calendar-check', text: m.autoRenew ? 'Your plan renews automatically' + (m.nextChargeAt ? ' on ' + this._fmtDate(m.nextChargeAt) : '') + '.' : 'Your plan ends ' + (pl <= 0 ? 'today' : 'in ' + pl + ' day' + (pl === 1 ? '' : 's')) + '. Pay again before then to keep going.', time: 'Renewal' });
     if (m.access === 'LOCKED' && m.onboarded) out.push({ id: 'locked', icon: 'lock-key', text: 'Your plan has ended. Pick a plan to open your workouts, meals and coach again.', time: 'Plan' });
     if (P.streak >= 3) out.push({ id: 'streak-' + P.streak, icon: 'flame', text: P.streak + '-day habit streak. Tick today\'s habits to keep it going.', time: 'Today' });
     if (W.planned) out.push({ id: 'week-' + W.workouts, icon: 'barbell', text: W.workouts >= W.planned ? 'Every planned session done this week — ' + W.workouts + ' of ' + W.planned + '.' : W.workouts + ' of ' + W.planned + ' planned workouts done this week.' + (t && t.workoutDone ? '' : " Today's session is still open."), time: 'This week' });
@@ -1382,7 +1394,8 @@ class Component extends DCLogic {
     this.setState(st => ({ me: m, trialEnds: m.trialEndsAt || '', planCancelled: !!m.planCancelled,
       activePlan: active ? (m.cycle === 'YEARLY' ? 'yearly' : 'monthly') : null,
       planLocked: m.access === 'LOCKED' && m.onboarded,
-      tier: active || m.access === 'TRIAL' ? m.plan : (st.tier || m.plan),
+      // after the trial: the plan taken on the account, until the member picks another one themselves
+      tier: active || m.access === 'TRIAL' ? m.plan : (this._tierPicked ? st.tier : m.plan),
       consent: { ...(st.consent || {}), at: m.consentedAt ? this._fmtDate(m.consentedAt) : (st.consent || {}).at } }));
   }
   // what the app keeps on the member's account (saved a moment after each change)
@@ -1467,7 +1480,7 @@ class Component extends DCLogic {
   };
   setInput = (e) => this.setState({ chatInput: e.target.value });
   setBilling = (b) => this.setState({ billing: b });
-  setTier = (t) => { try { localStorage.setItem('fitron.tier', t); } catch (e) {} this.setState({ tier: t }); };
+  setTier = (t) => { this._tierPicked = true; try { localStorage.setItem('fitron.tier', t); } catch (e) {} this.setState({ tier: t }); };
   setRole = (r) => this.setState({ loginRole: r });
   sendLink = async () => {
     const email = (this.state.loginMail || '').trim();
@@ -1527,9 +1540,11 @@ class Component extends DCLogic {
   _b64ToBytes(b64) { const s = (b64 + '='.repeat((4 - b64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'); const raw = atob(s); const out = new Uint8Array(raw.length); for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i); return out; }
   dismissNotif = () => this.setState({ notifPerm: 'dismissed' });
   switchMonthly = async () => {
+    // a plan that renews itself is billed by Razorpay at its own cycle; changing it means stopping it and picking a plan again
+    if (this.state.me && this.state.me.autoRenew) return this.setState({ planMsg: 'Your plan renews automatically' + (this.state.me.nextChargeAt ? ' on ' + this._fmtDate(this.state.me.nextChargeAt) : '') + ' at its current price. To change it, stop the renewal under Manage subscription, then pick a plan again.' });
     const r = await this._api('state', 'PUT', { cycle: 'MONTHLY' });
     if (!r.ok) return this.setState({ planMsg: r.error });
-    this.setState({ billing: 'monthly', planMsg: 'Your next payment will be Monthly — ' + this._price(this._tierNow(), 'MONTHLY').base + '/month plus GST. Nothing is debited automatically.' });
+    this.setState({ billing: 'monthly', planMsg: 'Your next payment will be Monthly — ' + this._price(this._tierNow(), 'MONTHLY').total + '/month, GST included. Pay again before your plan ends to keep going.' });
   };
   // UPI payment — real money goes straight to the gym's UPI ID; the app only builds
   // the QR / deep link and records the member's UTR for the admin to verify.
@@ -1537,12 +1552,12 @@ class Component extends DCLogic {
   payeeName() { return (this.state.payInfo && this.state.payInfo.payee) || 'FITRON'; }
   _tierNow() { const m = this.state.me; return m && (m.access === 'ACTIVE' || m.access === 'TRIAL') ? m.plan : this.state.tier; }
   _tierName(t) { return t === 'ai-premium' ? 'AI Premium' : 'AI Pro'; }
-  // FITRON's price list (src/lib/domain/pricing.ts), rupees before GST; 18% GST on top
+  // FITRON's price list (src/lib/domain/pricing.ts): the listed price in rupees, GST already included in it.
+  // Once a payment is started the amount shown is the server's own `total` (paise), see payCfg.
+  _inr(x) { return '₹' + x.toLocaleString('en-IN', { minimumFractionDigits: Number.isInteger(x) ? 0 : 2, maximumFractionDigits: 2 }); }
   _price(tier, cycle) {
-    const base = { 'ai-pro': { MONTHLY: 299, YEARLY: 1999 }, 'ai-premium': { MONTHLY: 499, YEARLY: 4999 } }[tier === 'ai-premium' ? 'ai-premium' : 'ai-pro'][cycle];
-    const total = Math.round(base * 118) / 100;
-    const inr = (x) => '₹' + x.toLocaleString('en-IN', { minimumFractionDigits: Number.isInteger(x) ? 0 : 2, maximumFractionDigits: 2 });
-    return { base: inr(base), total: inr(total), am: total.toFixed(2), n: base };
+    const n = { 'ai-pro': { MONTHLY: 299, YEARLY: 1999 }, 'ai-premium': { MONTHLY: 499, YEARLY: 4999 } }[tier === 'ai-premium' ? 'ai-premium' : 'ai-pro'][cycle];
+    return { total: this._inr(n), am: n.toFixed(2), n };
   }
   _payPlan(kind) {
     const k = kind || this.state.payModal;
@@ -1556,7 +1571,8 @@ class Component extends DCLogic {
     const pi = !kind && this.state.payInfo;
     const { tier, cycle } = pi ? { tier: pi.plan, cycle: pi.cycle } : this._payPlan(k);
     const pr = this._price(tier, cycle), name = this._tierName(tier);
-    const c = { plan: name + ' · ' + (cycle === 'YEARLY' ? 'Yearly' : 'Monthly'), amount: pr.total, am: pr.am, sub: (cycle === 'YEARLY' ? 'one year' : 'one month') + ' · incl. 18% GST', per: (cycle === 'YEARLY' ? '/ year' : '/ month') + ' · incl. GST' };
+    const paise = pi && Number.isFinite(pi.total) ? pi.total : null;
+    const c = { plan: name + ' · ' + (cycle === 'YEARLY' ? 'Yearly' : 'Monthly'), amount: paise === null ? pr.total : this._inr(paise / 100), am: paise === null ? pr.am : (paise / 100).toFixed(2), sub: (cycle === 'YEARLY' ? 'one year' : 'one month') + ' · incl. 18% GST', per: (cycle === 'YEARLY' ? '/ year' : '/ month') + ' · incl. GST' };
     if (k === 'month') return { ...c, title: 'Add another month' };
     if (k === 'renew') return { ...c, title: 'Renew Yearly plan' };
     if (k === 'purchase') return { ...c, title: 'Unlock your plan' };
@@ -1574,15 +1590,100 @@ class Component extends DCLogic {
     if (!this.state.payInfo) { if (tries < 40) this._qrt = setTimeout(() => this.drawQR(tries + 1), 120); return; }
     new window.QRious({ element: canvas, value: this.upiUri(), size: 480, background: '#ffffff', foreground: '#0a0a0c', level: 'M' });
   }
+  // The server decides how this payment is made: a Razorpay subscription (Checkout opens, mode SUBSCRIPTION)
+  // or FITRON's UPI QR + UTR (mode UPI / DEMO). Until it answers the sheet shows a neutral 'wait' step.
   openPay = async (kind) => {
     this.stopPayTimer();
     const { tier, cycle } = this._payPlan(kind);
-    this.setState({ payModal: kind, payInfo: null, payStep: 'pay', payUtr: '', payUtrErr: '', qrRevealed: false, payTimeLeft: 600 });
+    const tok = this._payTok = (this._payTok || 0) + 1;
+    this._rzBusy = false;
+    this.setState({ payModal: kind, payInfo: null, payStep: 'wait', payBusy: '', payErr: '', payUtr: '', payUtrErr: '', qrRevealed: false, payTimeLeft: 600 });
     const r = await this._api('pay', 'POST', { plan: tier, cycle, kind: kind === 'yearly' ? 'upgrade' : kind });
-    if (!r.ok) { this.setState({ payModal: null, planMsg: r.error }); return; }
-    this.setState({ payInfo: r.data }, () => this.drawQR(0));
+    if (!r.ok) { if (tok === this._payTok) this.setState({ payModal: null, planMsg: r.error }); return; }
+    if (tok !== this._payTok || !this.state.payModal) return; // closed (or restarted) while the server was answering
+    if (r.data.mode === 'SUBSCRIPTION') { this.setState({ payInfo: r.data, payStep: 'checkout' }, () => this.openCheckout()); return; }
+    this.setState({ payInfo: r.data, payStep: 'pay' }, () => this.drawQR(0));
   };
-  closePay = () => { clearTimeout(this._qrt); this.stopPayTimer(); this.setState({ payModal: null, qrRevealed: false }); };
+  closePay = () => { clearTimeout(this._qrt); this.stopPayTimer(); this._rzBusy = false; this.setState({ payModal: null, qrRevealed: false, payBusy: '', payErr: '' }); };
+  // ---------- Razorpay Checkout (plans that renew themselves) ----------
+  _loadRazorpay() {
+    if (window.Razorpay) return Promise.resolve();
+    if (!this._rzLoad) {
+      this._rzLoad = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        const t = setTimeout(() => { s.remove(); reject(new Error('Checkout took too long to load')); }, 20000);
+        s.src = 'https://checkout.razorpay.com/v1/checkout.js'; s.async = true;
+        s.onload = () => { clearTimeout(t); window.Razorpay ? resolve() : reject(new Error('Checkout did not start')); };
+        s.onerror = () => { clearTimeout(t); s.remove(); reject(new Error('Checkout did not load')); };
+        document.head.appendChild(s);
+      }).catch((e) => { this._rzLoad = null; throw e; });
+    }
+    return this._rzLoad;
+  }
+  openCheckout = async () => {
+    const info = this.state.payInfo;
+    if (!info || info.mode !== 'SUBSCRIPTION' || this._rzBusy) return;
+    this._rzBusy = true; this._rzDone = false;
+    this.setState({ payBusy: 'opening', payErr: '' });
+    try { await this._loadRazorpay(); } catch (e) {
+      this._rzBusy = false;
+      this.setState({ payBusy: '', payErr: "We couldn't open the secure payment window. Check your internet connection and try again." });
+      return;
+    }
+    if (!this.state.payModal || this.state.payInfo !== info) { this._rzBusy = false; return; } // closed while it loaded
+    try {
+      const rz = new window.Razorpay({
+        key: info.keyId, subscription_id: info.subscriptionId, name: info.name, description: info.description, prefill: info.prefill,
+        theme: { color: '#c9a227' },
+        handler: (resp) => { this._rzDone = true; this._confirmCheckout(info, resp); },
+        modal: { ondismiss: () => { if (this._rzDone) return; this._rzBusy = false; this.setState({ payBusy: '' }); } },
+      });
+      rz.on('payment.failed', (e) => this.setState({ payErr: (e && e.error && e.error.description) || 'The payment did not go through. Try again.' }));
+      rz.open();
+      this.setState({ payBusy: '' });
+    } catch (e) {
+      this._rzBusy = false;
+      this.setState({ payBusy: '', payErr: "We couldn't open the secure payment window. Try again." });
+    }
+  };
+  // Checkout finished: FITRON checks Razorpay's signature and switches the plan on (PAID), or says Razorpay hasn't captured it yet (PROCESSING).
+  _confirmCheckout = async (info, resp) => {
+    this.setState({ payBusy: 'confirming', payErr: '' });
+    const r = await this._api('pay/' + info.id + '/confirm', 'POST', {
+      razorpay_payment_id: resp && resp.razorpay_payment_id, razorpay_subscription_id: resp && resp.razorpay_subscription_id, razorpay_signature: resp && resp.razorpay_signature });
+    this._rzBusy = false;
+    if (!r.ok) {
+      // the money may already have left the account, so say so and look again shortly
+      this.setState({ payModal: null, payInfo: null, payBusy: '', payErr: '', planMsg: r.status === 0 ? "Your payment was made, but we couldn't reach FITRON to confirm it. Check your internet connection; your plan turns on once Razorpay confirms it." : r.error });
+      this._refreshSoon();
+      return;
+    }
+    const m = r.data.member;
+    if (m) this._applyMember(m);
+    if (r.data.status === 'PAID') {
+      this.setState({ payModal: null, payInfo: null, payBusy: '', payErr: '', subMode: 'manage', planMsg: this._paidMsg(m) });
+    } else {
+      this.setState({ payModal: null, payInfo: null, payBusy: '', payErr: '', planMsg: this._processingMsg });
+      this._refreshSoon();
+    }
+  };
+  _processingMsg = 'Payment received. Razorpay is confirming it; your plan turns on in a few minutes.';
+  _paidMsg(m) {
+    m = m || {};
+    return 'Payment received — your plan is active' + (m.paidUntil ? ' until ' + this._fmtDate(m.paidUntil) : '') + '.' + (m.autoRenew ? ' It renews automatically' + (m.nextChargeAt ? ' on ' + this._fmtDate(m.nextChargeAt) : '') + '.' : '');
+  }
+  // Re-reads the member from the server and applies it like every other path does (_applyMember), leaving the
+  // screen and the message alone. Used while Razorpay is still confirming a payment.
+  async _refreshMember() {
+    const r = await this._api('me');
+    if (!r.ok || !r.data.member) return null;
+    const m = r.data.member;
+    this._applyMember(m);
+    this.setState({ prog: r.data.progress, review: r.data.review, coachUse: r.data.coach, notifs: this._notices(r.data) });
+    if (m.access === 'ACTIVE' && this.state.planMsg === this._processingMsg) this.setState({ subMode: 'manage', planMsg: this._paidMsg(m) });
+    return m;
+  }
+  _refreshSoon() { [5000, 15000].forEach((ms) => setTimeout(() => { if (this.state.me) this._refreshMember(); }, ms)); }
   stopPayTimer = () => { clearInterval(this._payt); this._payt = null; };
   // Tap-to-reveal: the QR stays blurred behind a lock until tapped; revealing starts a
   // 10-minute countdown, and at 0:00 the QR locks again so a stale code is never scanned.
@@ -1835,9 +1936,9 @@ class Component extends DCLogic {
     this._backendVals(v);
     v.planEmpty = !(v.planToday || []).length; v.mealsEmpty = !(v.meals || []).length; return v; }
   _planName() { const m = this.state.me; if (!m) return '—'; const n = this._tierName(m.plan); return m.access === 'ACTIVE' ? n + ' · ' + (m.cycle === 'YEARLY' ? 'Yearly' : 'Monthly') : m.access === 'TRIAL' ? n + ' · Free trial' : 'No plan yet'; }
-  _planPrice() { const m = this.state.me; if (!m || m.access === 'LOCKED') return 'Pick a plan'; if (m.access === 'TRIAL') return '₹0 until ' + this._fmtDate(m.trialEndsAt); const pr = this._price(m.plan, m.cycle); return pr.base + (m.cycle === 'YEARLY' ? '/yr' : '/mo') + ' + GST'; }
+  _planPrice() { const m = this.state.me; if (!m || m.access === 'LOCKED') return 'Pick a plan'; if (m.access === 'TRIAL') return '₹0 until ' + this._fmtDate(m.trialEndsAt); const pr = this._price(m.plan, m.cycle); return pr.total + (m.cycle === 'YEARLY' ? '/yr' : '/mo') + ', GST included'; }
   _planLine() { const n = this._planName(), p = this._planPrice(); return n + ' · ' + p; }
-  _renewDate() { const m = this.state.me; if (!m) return '—'; if (m.access === 'ACTIVE' && m.paidUntil) return (m.planCancelled ? 'Ends ' : '') + this._fmtDate(m.paidUntil); if (m.access === 'TRIAL') return 'Trial ends ' + this._fmtDate(m.trialEndsAt); return 'Not active'; }
+  _renewDate() { const m = this.state.me; if (!m) return '—'; if (m.access === 'ACTIVE' && m.autoRenew && m.nextChargeAt) return this._fmtDate(m.nextChargeAt); if (m.access === 'ACTIVE' && m.paidUntil) return (m.planCancelled ? 'Ends ' : '') + this._fmtDate(m.paidUntil); if (m.access === 'TRIAL') return 'Trial ends ' + this._fmtDate(m.trialEndsAt); return 'Not active'; }
   // the bodyweight line on Progress, drawn from the same points the card lists
   _drawBw() {
     const cv = typeof document !== 'undefined' && document.getElementById('fitron-bw'); if (!cv) return;
@@ -1858,11 +1959,13 @@ class Component extends DCLogic {
     const limit = st.tier === 'ai-premium' ? 100 : 25;
     const trialUsed = !!(m && m.trialUsed);
     Object.assign(v, {
-      renewalText: !m || m.access === 'LOCKED' ? '—' : m.planCancelled ? 'Stopped — will not renew' : m.access === 'TRIAL' ? 'Pay any time; nothing auto-debits' : 'Pay again before it ends; nothing auto-debits',
+      renewalText: !m || m.access === 'LOCKED' ? '—' : m.planCancelled ? 'Stopped — will not renew' : m.autoRenew ? 'Renews automatically' + (m.nextChargeAt ? ' on ' + this._fmtDate(m.nextChargeAt) : '') : m.access === 'TRIAL' ? 'Pick a plan any time to keep going' : 'Pay again before it ends to keep going',
+      // a stopped renewal can't be switched back on: the member picks a plan again instead
+      stopBtnLabel: m && m.planCancelled ? 'Pick a plan to renew again' : 'Stop renewal', stopBtnIcon: m && m.planCancelled ? 'arrows-clockwise' : 'x-circle', stopBtnGo: m && m.planCancelled ? this.openUpgrade : this.cancelSub,
       signupTitle: st.signinMode ? 'Sign in to Fitron' : 'Create your account', authNote: st.authNote || '', authHasNote: !!st.authNote,
       devLink: st.devLink || '', devLinkOn: !!st.devLink, doLogout: this.logout, requestData: this.requestData, deleteAccount: this.deleteAccount,
       proStyle: seg(st.tier !== 'ai-premium'), premStyle: seg(st.tier === 'ai-premium'), setPro: () => this.setTier('ai-pro'), setPremium: () => this.setTier('ai-premium'),
-      yearStrike: rs(strike), yearPrice: y.base, yearSave: save, yearPerMonth: perMonth, nowYearSave: nowSave, yearTotal: y.total, monthPrice: mo.base, monthTotal: mo.total,
+      yearStrike: rs(strike), yearPrice: y.total, yearSave: save, yearPerMonth: perMonth, nowYearSave: nowSave, monthPrice: mo.total,
       coachLimitText: 'AI Coach · ' + limit + ' messages a day',
       trialCta: trialUsed ? 'Free trial already used' : 'Try free for 7 days — no payment',
       startTrial: trialUsed ? (() => this.setState({ planMsg: 'Your free trial has already been used. Pick a plan to keep going.' })) : this.startTrial,
@@ -2370,7 +2473,14 @@ class Component extends DCLogic {
       payTitle: this.payCfg().title, payAmount: this.payCfg().amount, paySub: this.payCfg().sub,
       payPlanCaps: this.payCfg().plan.toUpperCase(), payPer: this.payCfg().per, payPlanName: this.payCfg().plan,
       payBtnLabel: 'Pay ' + this.payCfg().amount + ' with UPI',
-      payShowQr: st.payStep !== 'utr', payShowUtr: st.payStep === 'utr',
+      payShowQr: st.payStep === 'pay', payShowUtr: st.payStep === 'utr', payShowGate: st.payStep === 'wait' || st.payStep === 'checkout',
+      payKicker: st.payStep === 'pay' || st.payStep === 'utr' ? 'UPI payment · FITRON' : 'Secure payment · FITRON',
+      payHeading: st.payStep === 'pay' || st.payStep === 'utr' ? 'Complete Your UPI Payment' : 'Complete Your Payment',
+      payFootNote: st.payStep === 'pay' || st.payStep === 'utr' ? "You pay FITRON's UPI directly. Fitron never sees your card or bank details." : 'Payments are processed securely' + (st.payStep === 'checkout' ? ' by Razorpay' : '') + '. Fitron never sees your card or bank details.',
+      payGateNote: st.payStep === 'checkout' ? 'Renews automatically each ' + ((st.payInfo && st.payInfo.cycle) === 'YEARLY' ? 'year' : 'month') + ' until you stop it under Manage subscription. GST included.' : 'Pay securely online. GST included.',
+      payGateBtn: st.payStep !== 'checkout' ? 'Getting your payment ready…' : st.payBusy === 'confirming' ? 'Confirming your payment…' : st.payBusy === 'opening' ? 'Opening secure payment…' : 'Pay & subscribe',
+      payGateOpacity: st.payStep === 'checkout' && !st.payBusy ? 1 : .6, payGateGo: () => this.openCheckout(),
+      payGateErr: st.payErr || '', payGateHasErr: !!st.payErr,
       revealQr: this.revealQr, payQrRevealed: !!st.qrRevealed, payQrHidden: !st.qrRevealed,
       payQrBlur: st.qrRevealed ? 'none' : 'blur(9px)',
       payTimerText: 'Expires in ' + Math.floor((st.payTimeLeft || 0) / 60) + ':' + String((st.payTimeLeft || 0) % 60).padStart(2, '0'),

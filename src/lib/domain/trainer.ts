@@ -2,7 +2,7 @@
 // member's daily log. Pure functions, so they can be tested without a database.
 import { addDays, daysBetween, membershipEndDate, type IsoDate } from "./dates";
 import { findPlan, TRIAL_DAYS, type Cycle } from "./pricing";
-import { SAAS_GST_RATE } from "./saas";
+import { gstInside } from "./saas";
 
 export const TRAINER_PLANS = ["ai-pro", "ai-premium"] as const;
 export type TrainerPlan = (typeof TRAINER_PLANS)[number];
@@ -20,14 +20,19 @@ export const COACH_DAILY_LIMIT: Record<TrainerPlan, number> = { "ai-pro": 25, "a
 
 export const TRAINER_TRIAL_DAYS = TRIAL_DAYS;
 
-/** Price of one period, plus 18% GST, in paise. */
+/** Price of one period in paise: the listed price, which has the 18% GST inside it. */
 export function trainerPrice(plan: TrainerPlan, cycle: Cycle) {
   const p = findPlan(plan);
   if (!p || p.product !== "AI_TRAINER") throw new Error(`Not an AI Trainer plan: ${plan}`);
-  const base = p.price[cycle];
-  const gst = Math.round((base * SAAS_GST_RATE) / 100);
-  return { base, gst, total: base + gst };
+  return gstInside(p.price[cycle]);
 }
+
+/**
+ * What a gym's Gym Partnership share is worked out from: the listed price the member paid. Payments made with the
+ * GST inside the listed price (`gstIncluded`) keep it in `total`; older ones added GST on top, so it is their `base`.
+ * Either way a Rs 299 AI Pro month earns the partner 70% of Rs 299.
+ */
+export const partnerBasis = (p: { base: number; total: number; gstIncluded: boolean }) => (p.gstIncluded ? p.total : p.base);
 
 export type Access = { status: "ACTIVE"; until: IsoDate } | { status: "TRIAL"; endsAt: Date } | { status: "LOCKED"; trialUsed: boolean };
 

@@ -45,7 +45,7 @@ const gstExample = gstPreview({ enabled: true, rate: 18, type: "CGST+SGST" }, ""
 const priceAnswer =
   `Gym Accounting is ${rupeesLabel(starter.price.MONTHLY)} a month for Starter (up to ${starter.memberLimit} active members), ` +
   `${rupeesLabel(professional.price.MONTHLY)} for Professional (up to ${professional.memberLimit}) and ${rupeesLabel(enterprise.price.MONTHLY)} for Enterprise ` +
-  `(unlimited members and multiple branches). Prices are before GST and yearly plans are billed upfront. Every plan starts with a ${trial}.`;
+  `(unlimited members and multiple branches). Prices include GST and yearly plans are billed upfront. Every plan starts with a ${trial}.`;
 
 const opens = (f: Feature) => planFor(f).name;
 

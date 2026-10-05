@@ -5,10 +5,14 @@ import type { Prisma, TrainerMember } from "@/generated/prisma/client";
 import { addDays } from "@/lib/domain/dates";
 import { COACH_DAILY_LIMIT, isCycle, isTrainerPaymentKind, isTrainerPlan, plannedSessions, progress, reviewInsight, trainerAccess, trainerPrice, TRAINER_TRIAL_DAYS, validEmail, type DayLog, type SetLog, type TrainerPlan } from "@/lib/domain/trainer";
 import type { Cycle } from "@/lib/domain/pricing";
+import { razorpayPlan } from "@/lib/domain/razorpay-plans";
 import { emailReady, sendEmail } from "@/lib/integrations/email";
+import { fitronKeyId } from "@/lib/integrations/razorpay";
 import { cleanUtr, fitronAdmins, fitronUpi, upiLink } from "@/lib/integrations/upi";
 import { appUrl } from "./accounts";
 import { isUniqueViolation, UserError } from "./errors";
+import { createSubscription, renewingSubscriptions, stopSubscription } from "./subscriptions";
+import { trainerRenewal } from "./trainer-billing";
 import { gymView } from "./trainer-gym";
 import { sha256 } from "./trainer-session";
 import { fromIso, toIso, todayIso } from "./time";
@@ -184,7 +188,7 @@ export async function loadTrainer(memberId: string, today = todayIso()) {
   const review = await saveReview(memberId, prog.week, profile);
   const todayLog = logs.find((d) => d.date === today) ?? null;
   return {
-    member: memberView(m, today),
+    member: await memberWithRenewal(m, today),
     profile,
     today: todayLog,
     chats: chats.map((c) => ({ id: c.clientId, title: c.title, at: c.updatedAt.getTime(), messages: c.messages })),
@@ -194,6 +198,11 @@ export async function loadTrainer(memberId: string, today = todayIso()) {
     coach: await coachUsage(m, today),
     gym: await gymView(m),
   };
+}
+
+/** The member as the app shows them, plus whether the plan renews itself (`autoRenew`) and when it is next charged. */
+export async function memberWithRenewal(m: TrainerMember, today = todayIso()) {
+  return { ...memberView(m, today), ...(await trainerRenewal(m.id)) };
 }
 
 export function memberView(m: TrainerMember, today = todayIso()) {
@@ -270,7 +279,23 @@ export async function startTrainerTrial(memberId: string, plan?: string) {
   return db.trainerMember.findUniqueOrThrow({ where: { id: memberId } });
 }
 
+/**
+ * Stop (or resume) renewal. For a plan that renews itself through Razorpay, stopping really stops the charges, and a
+ * stopped subscription can't be revived: to carry on the member pays for a plan again. For a plan paid by UPI it
+ * only records the member's choice, as nothing is charged on its own.
+ */
 export async function setTrainerRenewal(memberId: string, cancelled: boolean) {
+  if (cancelled) {
+    for (const sub of await renewingSubscriptions({ memberId, kind: "TRAINER" })) {
+      if (!(await stopSubscription(sub.id))) throw new UserError("We couldn't reach Razorpay to stop the renewal just now. Nothing was changed; try again in a minute.");
+    }
+  } else {
+    const live = await renewingSubscriptions({ memberId, kind: "TRAINER" });
+    // A renewal that was stopped (or is being stopped: Razorpay hasn't confirmed yet) can't be switched back on.
+    if (live.some((s) => s.cancelledAt) || (!live.length && (await db.razorpaySubscription.count({ where: { memberId, kind: "TRAINER", cancelledAt: { not: null } } })))) {
+      throw new UserError("You stopped the automatic renewal, and it can't be switched back on. Pick your plan again to start renewing.");
+    }
+  }
   return db.trainerMember.update({ where: { id: memberId }, data: { planCancelled: cancelled } });
 }
 
@@ -281,8 +306,9 @@ function paymentView(p: { id: string; plan: string; cycle: string; kind: string;
 }
 
 /**
- * Starts a UPI payment to FITRON for a plan period. Returns the UPI link the app turns into a QR.
- * Without FITRON_UPI_ID the payment is marked DEMO (development only); production refuses.
+ * Starts a payment to FITRON for a plan period. With Fitron's Razorpay keys set, the plan is a subscription that renews
+ * itself and Checkout opens for it; otherwise it returns the UPI link the app turns into a QR. The listed price has the
+ * GST inside it. Without either the payment is marked DEMO (development only); production refuses.
  */
 export async function startTrainerPayment(memberId: string, a: { plan: string; cycle: string; kind: string }) {
   if (!isTrainerPlan(a.plan)) throw new UserError("Pick AI Pro or AI Premium.");
@@ -290,15 +316,25 @@ export async function startTrainerPayment(memberId: string, a: { plan: string; c
   if (!isTrainerPaymentKind(a.kind)) throw new UserError("Couldn't tell what this payment is for. Close this and start again.");
   const cycle: Cycle = a.cycle;
   const kind = a.kind;
-  const upi = fitronUpi();
-  if (!upi && process.env.NODE_ENV === "production") throw new UserError("UPI payments aren't switched on yet. Start the free trial for now, or write to hello@fitron.in.");
   const price = trainerPrice(a.plan, cycle);
-  const p = await db.trainerPayment.create({ data: { memberId, plan: a.plan, cycle, kind, ...price, mode: upi ? "UPI" : "DEMO" } });
-  const ref = trainerPaymentRef(p.id);
   const name = a.plan === "ai-premium" ? "AI Premium" : "AI Pro";
+  const period = cycle === "YEARLY" ? "1 year" : "1 month";
+  const keyId = fitronKeyId();
+  if (keyId && razorpayPlan(a.plan, cycle)) {
+    const m = await db.trainerMember.findUniqueOrThrow({ where: { id: memberId } });
+    // Already renewing this plan and cycle: a second subscription would charge twice.
+    if ((await renewingSubscriptions({ memberId, kind: "TRAINER" })).some((s) => s.plan === a.plan && s.cycle === cycle)) throw new UserError(`Your ${name} plan already renews automatically. To change it, pick another plan, or stop the renewal in Settings › Subscription first.`);
+    const rz = await createSubscription({ kind: "TRAINER", plan: a.plan, cycle, expectedTotal: price.total, memberId });
+    const p = await db.trainerPayment.create({ data: { memberId, plan: a.plan, cycle, kind, ...price, gstIncluded: true, mode: "SUBSCRIPTION", razorpaySubscriptionId: rz.id } });
+    return { id: p.id, ref: trainerPaymentRef(p.id), plan: a.plan, cycle, kind, ...price, mode: "SUBSCRIPTION" as const, keyId, subscriptionId: rz.id, name: "FITRON", description: `${name}, ${period} (GST included)`, prefill: { name: m.name, email: m.email } };
+  }
+  const upi = fitronUpi();
+  if (!upi && process.env.NODE_ENV === "production") throw new UserError("Payments aren't switched on yet. Start the free trial for now, or write to hello@fitron.in.");
+  const p = await db.trainerPayment.create({ data: { memberId, plan: a.plan, cycle, kind, ...price, gstIncluded: true, mode: upi ? "UPI" : "DEMO" } });
+  const ref = trainerPaymentRef(p.id);
   const payee = upi ?? { id: "fitron.demo@upi", name: "FITRON (demo)" };
-  const link = upiLink({ id: payee.id, name: payee.name, amount: price.total, note: `${ref} ${name} ${cycle === "YEARLY" ? "1 year" : "1 month"}`.slice(0, 50) });
-  return { id: p.id, ref, plan: a.plan, cycle, kind, ...price, mode: p.mode, upiId: payee.id, payee: payee.name, link };
+  const link = upiLink({ id: payee.id, name: payee.name, amount: price.total, note: `${ref} ${name} ${period}`.slice(0, 50) });
+  return { id: p.id, ref, plan: a.plan, cycle, kind, ...price, mode: p.mode as "UPI" | "DEMO", upiId: payee.id, payee: payee.name, link };
 }
 
 /** The member paid and typed the UTR. The FITRON team is emailed to check it. */
@@ -393,6 +429,9 @@ export async function exportTrainer(memberId: string) {
  */
 export async function deleteTrainerAccount(memberId: string) {
   const { email } = await db.trainerMember.findUniqueOrThrow({ where: { id: memberId }, select: { email: true } });
+  // A deleted account must not keep being charged. Erasure still goes ahead if Razorpay can't be reached (the failure is
+  // logged, and a charge that arrives later is refused by stopSubscription's retry in the charge handler).
+  for (const sub of await renewingSubscriptions({ memberId, kind: "TRAINER" })) await stopSubscription(sub.id);
   await db.$transaction([
     db.trainerSession.deleteMany({ where: { memberId } }),
     db.trainerPush.deleteMany({ where: { memberId } }),

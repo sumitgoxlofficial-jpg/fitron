@@ -7,7 +7,7 @@ export default function RefundPage() {
   return (
     <LegalPage
       title="Refund Policy"
-      updated="1 October 2026"
+      updated="5 October 2026"
       intro={<p>Every FITRON plan starts with a 7-day free trial, so you can try everything before you pay. This policy covers payments made to FITRON for AI Trainer, Gym Accounting and partner plans.</p>}
     >
       <section>
@@ -16,7 +16,7 @@ export default function RefundPage() {
       </section>
       <section>
         <h2 id="cancel">Cancelling</h2>
-        <p>Nothing auto-debits, so there is nothing to cancel: simply don&apos;t renew. Your plan stays active until the end of the period you paid for.</p>
+        <p>Plans renew automatically until you cancel. You can cancel at any time from Settings › Plan &amp; billing (Gym Accounting) or Settings › Subscription (AI Trainer). Your plan stays active until the end of the period you paid for, and is not renewed after that.</p>
       </section>
       <section>
         <h2 id="when">When we refund</h2>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isCycle, isTrainerPaymentKind, isTrainerPlan, plannedSessions, progress, reviewInsight, streak, trainerAccess, trainerPeriod, trainerPrice, weekNumbers, weekStart, type DayLog, strength } from "./trainer";
+import { PARTNER_SHARE } from "./pricing";
+import { isCycle, isTrainerPaymentKind, isTrainerPlan, partnerBasis, plannedSessions, progress, reviewInsight, streak, trainerAccess, trainerPeriod, trainerPrice, weekNumbers, weekStart, type DayLog, strength } from "./trainer";
 
 const day = (date: string, x: Partial<DayLog> = {}): DayLog => ({ date, water: 0, habits: {}, workoutDone: false, focus: null, weightKg: null, ...x });
 
@@ -21,11 +22,20 @@ describe("what the app may send", () => {
 });
 
 describe("AI Trainer prices", () => {
-  it("uses FITRON's price list plus 18% GST", () => {
-    expect(trainerPrice("ai-pro", "MONTHLY")).toEqual({ base: 29_900, gst: 5_382, total: 35_282 });
-    expect(trainerPrice("ai-pro", "YEARLY").base).toBe(1_99_900);
-    expect(trainerPrice("ai-premium", "MONTHLY").base).toBe(49_900);
-    expect(trainerPrice("ai-premium", "YEARLY")).toEqual({ base: 4_99_900, gst: 89_982, total: 5_89_882 });
+  it("uses FITRON's price list, which has the 18% GST inside it", () => {
+    expect(trainerPrice("ai-pro", "MONTHLY")).toEqual({ base: 25_339, gst: 4_561, total: 29_900 });
+    expect(trainerPrice("ai-pro", "YEARLY").total).toBe(1_99_900);
+    expect(trainerPrice("ai-premium", "MONTHLY").total).toBe(49_900);
+    expect(trainerPrice("ai-premium", "YEARLY")).toEqual({ base: 4_23_644, gst: 76_256, total: 4_99_900 });
+  });
+
+  it("works a gym's partner share out from the listed price, however the GST was handled", () => {
+    // Paid with the GST inside the listed price: the listed price is `total`.
+    expect(partnerBasis({ ...trainerPrice("ai-pro", "MONTHLY"), gstIncluded: true })).toBe(29_900);
+    // Older payments added GST on top of the listed price, which is their `base`.
+    expect(partnerBasis({ base: 29_900, total: 35_282, gstIncluded: false })).toBe(29_900);
+    // So the published "₹299 a month earns the gym ₹209.30" holds for both.
+    expect(Math.round(partnerBasis({ ...trainerPrice("ai-pro", "MONTHLY"), gstIncluded: true }) * PARTNER_SHARE)).toBe(20_930);
   });
 });
 

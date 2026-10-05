@@ -30,7 +30,7 @@ describe.skipIf(!hasDb)("Fitron branch plan (database)", () => {
     expect(await db.branch.count({ where: { orgId: gym.org.id } })).toBe(3);
 
     const c = await startBranchPayment(owner, "YEARLY", null);
-    expect(c).toMatchObject({ mode: "DEMO", total: 5_88_820 });
+    expect(c).toMatchObject({ mode: "DEMO", total: 4_99_000 });
     const paid = await confirmDemoPayment(owner, c.id);
     expect(paid?.invoiceNo).toMatch(/^FIT\/\d{4}-\d{2}\/\d{5}$/);
     expect(paid?.periodStart?.toISOString().slice(0, 10)).toBe(today);
@@ -72,15 +72,15 @@ describe.skipIf(!hasDb)("Fitron branch plan (database)", () => {
     await expect(startBranchPayment(owner, "MONTHLY", gym.a.id)).rejects.toThrow(/included/);
   });
 
-  it("with Fitron's Razorpay keys: creates an order, checks Checkout's signature, and applies the webhook once", async () => {
+  it("with Fitron's Razorpay keys, a payment with no Razorpay plan (yearly branch) is one order: checks Checkout's signature, and applies the webhook once", async () => {
     const oid = `order_${randomUUID().slice(0, 12)}`;
     const pid = `pay_${randomUUID().slice(0, 12)}`;
     vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
     vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", "secret");
     vi.stubEnv("FITRON_UPI_ID", "");
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: oid, amount: 58_882, status: "created" }), { status: 200 })));
-    const c = await startBranchPayment(owner, "MONTHLY", fourth);
-    expect(c).toMatchObject({ mode: "LIVE", orderId: oid, keyId: "rzp_test_x", total: 58_882 });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: oid, amount: 4_99_000, status: "created" }), { status: 200 })));
+    const c = await startBranchPayment(owner, "YEARLY", fourth);
+    expect(c).toMatchObject({ mode: "LIVE", orderId: oid, keyId: "rzp_test_x", total: 4_99_000 });
     await expect(confirmCheckout(owner, { orderId: oid, paymentId: pid, signature: "forged" })).rejects.toThrow(/couldn't confirm/);
     const sig = createHmac("sha256", "secret").update(`${oid}|${pid}`).digest("hex");
     const other = await makeGym();

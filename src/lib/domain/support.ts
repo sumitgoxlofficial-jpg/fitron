@@ -17,7 +17,7 @@ export const FAQ: { q: string; a: string }[] = [
   { q: "Can I edit last month's figures?", a: "Only if the month is not locked. Locked months need a Super Admin to unlock them in Accounting › Month-end closing." },
   {
     q: "How do I add another branch?",
-    a: `Settings › Branches › Add branch. Multi-branch plans include ${INCLUDED_BRANCHES} branches; each extra branch is ${rupeesLabel(BRANCH_PRICE.MONTHLY)}/month or ${rupeesLabel(BRANCH_PRICE.YEARLY)}/year + GST, paid from Settings › Plan & billing.`,
+    a: `Settings › Branches › Add branch. Multi-branch plans include ${INCLUDED_BRANCHES} branches; each extra branch is ${rupeesLabel(BRANCH_PRICE.MONTHLY)}/month or ${rupeesLabel(BRANCH_PRICE.YEARLY)}/year including GST, paid from Settings › Plan & billing.`,
   },
   { q: "Is my data backed up?", a: "Yes. Download a full backup any time from Settings › Backup, and restore it from the same page." },
 ];

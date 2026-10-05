@@ -17,8 +17,9 @@ export type PlanCard = {
 };
 
 /** The landing page's Gym Accounting pricing cards, with a Monthly/Yearly switch and Pay. */
-export function PlanCards({ plans, current, labels }: { plans: PlanCard[]; current?: string; labels: { current: string; other: string } }) {
-  const [cycle, setCycle] = useState<"MONTHLY" | "YEARLY">("YEARLY");
+/** `autoRenew`: a plan paid for here renews by itself (Razorpay), and the footnote says so. `startCycle`: the billing cycle the gym chose at sign-up. */
+export function PlanCards({ plans, current, labels, autoRenew = false, startCycle = "YEARLY" }: { plans: PlanCard[]; current?: string; labels: { current: string; other: string }; autoRenew?: boolean; startCycle?: "MONTHLY" | "YEARLY" }) {
+  const [cycle, setCycle] = useState<"MONTHLY" | "YEARLY">(startCycle);
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -51,7 +52,7 @@ export function PlanCards({ plans, current, labels }: { plans: PlanCard[]; curre
                   <span className="text-sm text-muted">/ {cycle === "YEARLY" ? "year" : "month"}</span>
                 </div>
                 <div className="mt-1.5 text-[13px] text-muted">
-                  {cycle === "YEARLY" ? `≈ ${rupeesLabel(month)} / month · 2 months free` : "Billed monthly"} · + 18% GST
+                  {cycle === "YEARLY" ? `≈ ${rupeesLabel(month)} / month · 2 months free` : "Billed monthly"} · GST included
                 </div>
               </div>
               <PayButton
@@ -76,7 +77,7 @@ export function PlanCards({ plans, current, labels }: { plans: PlanCard[]; curre
           );
         })}
       </div>
-      <p className="text-xs text-muted">Prices in rupees, plus 18% GST. Yearly plans are billed upfront. *WhatsApp messaging is subject to usage limits and messaging charges.</p>
+      <p className="text-xs text-muted">Prices in rupees, GST included. Yearly plans are billed upfront.{autoRenew ? " Plans renew automatically until you stop them." : ""} *WhatsApp messaging is subject to usage limits and messaging charges.</p>
     </div>
   );
 }

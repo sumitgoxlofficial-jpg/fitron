@@ -74,7 +74,7 @@ export function TrialForm({ plan: initialPlan, cycle: initialCycle }: { plan: st
         {pending ? "Sending…" : p.trialDays ? `Start my ${p.trialDays}-day free trial` : "Request partnership"}
       </Button>
       <p className="text-xs text-muted">
-        By continuing you agree to our <a href="/terms" className="underline">Terms</a> and <a href="/privacy" className="underline">Privacy Policy</a>. Prices exclude 18% GST.
+        By continuing you agree to our <a href="/terms" className="underline">Terms</a> and <a href="/privacy" className="underline">Privacy Policy</a>. Prices include 18% GST.
       </p>
     </form>
   );

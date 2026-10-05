@@ -81,7 +81,7 @@ export async function BranchesTab({ u, sp }: { u: CurrentUser; sp: Record<string
           {!terms.extraBranches
             ? `The ${u.plan.name} plan is for one branch. Move to Enterprise in Settings › Subscription to add more.`
             : open >= included
-              ? `Your next branch costs ${formatRupees(m.base)}/month or ${formatRupees(y.base)}/year + 18% GST.`
+              ? `Your next branch costs ${formatRupees(m.total)}/month or ${formatRupees(y.total)}/year, GST included.`
               : `${included - open} more branch${included - open === 1 ? "" : "es"} included in your plan at no extra cost.`}
         </div>
       </div>

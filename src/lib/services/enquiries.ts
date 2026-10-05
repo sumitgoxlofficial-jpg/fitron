@@ -27,7 +27,7 @@ export async function createTrialRequest(d: z.infer<typeof trialRequestSchema>) 
   await notify(
     `${plan.product === "PARTNER" ? "Partner request" : "Free trial"}: ${PRODUCT_LABEL[plan.product]} ${plan.name}, ${d.business ?? d.name}`,
     [
-      `Plan: ${PRODUCT_LABEL[plan.product]} ${plan.name}, ${d.cycle === "YEARLY" ? "yearly" : "monthly"} (${rupeesLabel(plan.price[d.cycle])} + GST)`,
+      `Plan: ${PRODUCT_LABEL[plan.product]} ${plan.name}, ${d.cycle === "YEARLY" ? "yearly" : "monthly"} (${rupeesLabel(plan.price[d.cycle])}, GST included)`,
       `Name: ${d.name}`,
       `Email: ${d.email}`,
       d.phone && `Phone: ${d.phone}`,

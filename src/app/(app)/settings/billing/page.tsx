@@ -2,10 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { requirePermission } from "@/lib/auth/current";
 import { db } from "@/lib/db";
-import { activeMemberCount, billingHistory, branchStandings, gymPlan, paymentRef } from "@/lib/services/saas";
+import { activeMemberCount, autoRenewals, billingHistory, branchStandings, gymPlan, paymentRef } from "@/lib/services/saas";
 import { fitronKeyId } from "@/lib/integrations/razorpay";
 import { fitronUpi, isFitronAdmin } from "@/lib/integrations/upi";
-import { PLANS } from "@/lib/domain/pricing";
+import { PLANS, rupeesLabel } from "@/lib/domain/pricing";
+import { SERVICES, findService } from "@/lib/domain/services";
 import { branchPrice, GRACE_DAYS, gymPlanCards, type PlanStanding, type Standing } from "@/lib/domain/saas";
 import { PlanCards } from "@/components/plan-cards";
 import { FEATURES, planFor, type Feature } from "@/lib/domain/features";
@@ -15,6 +16,7 @@ import { fmtDate, formatInr } from "@/lib/format";
 import { getSubscriptionSettings, gymWhatsAppNumber } from "@/lib/services/subscription";
 import { REMIND_DAYS } from "@/lib/domain/saas";
 import { PayButton } from "./pay-button";
+import { ServicePay, StopRenewal } from "./billing-extras";
 import { saveBillingDetails, saveRenewalReminders } from "./actions";
 
 export const metadata = { title: "Plan & billing · Fitron" };
@@ -73,10 +75,12 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
   const u = await requirePermission("settings.manage");
   const sp = await searchParams;
   const upgrade = typeof sp.upgrade === "string" && sp.upgrade in FEATURES ? (sp.upgrade as Feature) : null;
-  const [{ branches, freeSlots, terms }, history, plan, members, sub, gymNumber] = await Promise.all([branchStandings(u.orgId), billingHistory(u), gymPlan(u.orgId), activeMemberCount(db, u.orgId), getSubscriptionSettings(u.orgId), gymWhatsAppNumber(u.orgId)]);
+  const [{ branches, freeSlots, terms }, history, plan, members, sub, gymNumber, renewals] = await Promise.all([branchStandings(u.orgId), billingHistory(u), gymPlan(u.orgId), activeMemberCount(db, u.orgId), getSubscriptionSettings(u.orgId), gymWhatsAppNumber(u.orgId), autoRenewals(u.orgId)]);
   const paidTotal = history.filter((h) => h.status === "PAID").reduce((a, h) => a + h.total, 0);
-  const upi = fitronUpi();
-  const demo = !upi && !fitronKeyId();
+  // Fitron's Razorpay keys win over the UPI QR: plans renew themselves and the QR is not shown (see startPayment).
+  const razorpay = fitronKeyId() !== null;
+  const upi = razorpay ? null : fitronUpi();
+  const demo = !upi && !razorpay;
   const admin = isFitronAdmin(u.email);
   const toCheck = admin
     ? await db.branchSubscription.count({
@@ -102,6 +106,11 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
             </Notice>
           )}
           {demo && <Notice>Demo mode: FITRON&apos;s UPI ID isn&apos;t set on this server, so payments are simulated and no money is charged.</Notice>}
+          {razorpay && (
+            <Notice tone="neutral">
+              You pay online with Razorpay (UPI AutoPay, card or net banking). A plan renews by itself each month or year until you stop it under Automatic renewals; GST is included in every price.
+            </Notice>
+          )}
           {upi && (
             <Notice tone="neutral">
               You pay by UPI to {upi.name} ({upi.id}) and enter the UTR. We check it and email you, usually within a working day; your gym keeps working meanwhile.
@@ -153,6 +162,8 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
               <PlanCards
                 plans={gymPlanCards()}
                 current={plan.key}
+                autoRenew={razorpay}
+                startCycle={plan.cycle}
                 labels={{
                   current: renewing ? "Renew" : "Pay",
                   other: "Switch",
@@ -162,6 +173,64 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
             </div>
           )}
         </section>
+        {(razorpay || renewals.length > 0) && (
+          <Sub title="Automatic renewals" sub="Plans and branches that Razorpay charges again by itself. Stopping one keeps it active to the end of the period you already paid for.">
+            {renewals.length === 0 ? (
+              <Empty>Nothing renews automatically yet. Pay for a plan above and it renews by itself until you stop it here.</Empty>
+            ) : (
+              <ul className="divide-y divide-line text-sm">
+                {renewals.map((r) => (
+                  <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div>
+                      <div className="font-medium">
+                        {r.what} · {r.cycle === "YEARLY" ? "yearly" : "monthly"}
+                      </div>
+                      <div className={r.stopPending ? "text-alert" : "text-muted"}>
+                        {r.stopPending ? "We couldn't confirm with Razorpay that this renewal has stopped, so it may still be charged. Try stopping it again." : r.status === "pending" ? "The last renewal charge failed; Razorpay is trying again." : r.nextChargeAt ? `Next charge ${fmtDate(r.nextChargeAt)}` : "Next charge date shows after the first payment is confirmed."}
+                      </div>
+                    </div>
+                    <StopRenewal id={r.id} what={r.what} retry={r.stopPending} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Sub>
+        )}
+        {!terms.custom && (
+          <Sub title="Gym Partnership plans" sub="Promote the AI Trainer to your members and earn 70% of their subscriptions. Software and Enterprise partners also get the matching Gym Accounting plan.">
+            <ul className="divide-y divide-line text-sm">
+              {PLANS.filter((p) => p.product === "PARTNER").map((p) => (
+                <li key={p.key} className="flex flex-col gap-2 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="font-medium">{p.name}</span>
+                      <span className="text-muted"> · {rupeesLabel(p.price.MONTHLY)} / month or {rupeesLabel(p.price.YEARLY)} / year, GST included</span>
+                    </div>
+                    {plan.key === p.key && <Badge tone="ok">Your plan</Badge>}
+                  </div>
+                  <p className="text-muted">{p.tagline}</p>
+                  <PayButton what={{ kind: "PLAN", plan: p.key }} label={plan.key === p.key ? "Renew" : "Choose"} prices={{ MONTHLY: p.price.MONTHLY, YEARLY: p.price.YEARLY }} success={`Paid. You're on ${p.name}.`} />
+                </li>
+              ))}
+            </ul>
+          </Sub>
+        )}
+        <Sub title="Add-ons" sub="Setup, branding and extras, paid once, GST included. After you pay, the FITRON team contacts you to agree the scope and start. Custom work is quoted first: pay the amount we agreed.">
+          <ul className="divide-y divide-line text-sm">
+            {SERVICES.map((svc) => (
+              <li key={svc.key} className="flex flex-col gap-2 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium">{svc.name}</span>
+                  <span className="text-muted">
+                    {svc.quoted ? "from " : ""}
+                    {rupeesLabel(svc.price)}
+                  </span>
+                </div>
+                <ServicePay service={svc.key} name={svc.name} price={svc.price} quoted={svc.quoted} />
+              </li>
+            ))}
+          </ul>
+        </Sub>
         <Sub title="Renewal reminders" sub="FITRON reminds you before your plan or trial ends so the account never locks by surprise.">
           <form action={saveRenewalReminders} className="flex flex-col gap-4">
             <Field label="Remind me" className="max-w-[260px]">
@@ -236,19 +305,24 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
                 </thead>
                 <tbody>
                   {history.map((h) => {
-                    const what = h.kind === "PLAN" ? `${PLANS.find((p) => p.key === h.plan)?.name ?? h.plan} plan · ${h.cycle === "YEARLY" ? "Yearly" : "Monthly"}` : `Extra branch · ${h.branchId ? (branches.find((b) => b.id === h.branchId)?.name ?? "") : "not used yet"}`;
+                    const what =
+                      h.kind === "PLAN"
+                        ? `${PLANS.find((p) => p.key === h.plan)?.name ?? h.plan} plan · ${h.cycle === "YEARLY" ? "Yearly" : "Monthly"}`
+                        : h.kind === "SERVICE"
+                          ? `Add-on · ${findService(h.plan)?.name ?? h.plan}`
+                          : `Extra branch · ${h.branchId ? (branches.find((b) => b.id === h.branchId)?.name ?? "") : "not used yet"}`;
                     return (
                       <tr key={h.id} className={TR}>
                         <td className={cx(TD, "whitespace-nowrap")}>{h.invoiceNo ?? paymentRef(h.id)}</td>
                         <td className={cx(TD, "whitespace-nowrap")}>{fmtDate(h.paidAt ?? h.submittedAt ?? h.createdAt)}</td>
                         <td className={TD}>
                           {what}
-                          {h.mode === "DEMO" ? " · demo" : ""}
+                          {h.mode === "DEMO" ? " · demo" : h.mode === "SUBSCRIPTION" ? " · renews automatically" : ""}
                           {STATUS[h.status] && <div className={h.status === "REJECTED" ? "text-alert" : "text-muted"}>{STATUS[h.status]}</div>}
                           {h.rejectReason && <div className="text-alert">{h.rejectReason}</div>}
                         </td>
-                        <td className={cx(TD, "tabular-nums")}>{h.utr ?? (h.mode === "LIVE" && h.razorpayPaymentId ? `Razorpay ${h.razorpayPaymentId}` : "—")}</td>
-                        <td className={cx(TD, "whitespace-nowrap")}>{h.status === "PAID" ? fmtDate(h.periodEnd) : "—"}</td>
+                        <td className={cx(TD, "tabular-nums")}>{h.utr ?? (h.razorpayPaymentId ? `Razorpay ${h.razorpayPaymentId}` : "—")}</td>
+                        <td className={cx(TD, "whitespace-nowrap")}>{h.status === "PAID" && h.periodEnd ? fmtDate(h.periodEnd) : "—"}</td>
                         <td className={cx(TD, "text-right font-semibold tabular-nums")}>{formatInr(h.total)}</td>
                         <td className={cx(TD, "text-right")}>
                           {h.status === "PAID" && (
@@ -287,7 +361,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
         <Sub title="Add another branch" id="add-branch">
           {!terms.extraBranches ? (
             <p className="text-sm">
-              {plan.name} is for one branch. Enterprise includes 3 branches, and more cost {formatInr(m.base)} a month each.
+              {plan.name} is for one branch. Enterprise includes 3 branches, and more cost {formatInr(m.total)} a month each, GST included.
             </p>
           ) : freeSlots.length > 0 ? (
             <p className="text-sm">
@@ -310,14 +384,17 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
           ) : (
             <div className="flex flex-col gap-3 text-sm">
               <p>
-                Each extra branch is {formatInr(m.base)} a month or {formatInr(y.base)} a year, plus GST. Yearly is {formatInr(y.total)} with GST (saves {formatInr(m.total * 12 - y.total)} on monthly).
+                Each extra branch is {formatInr(m.total)} a month or {formatInr(y.total)} a year, GST included. Yearly saves {formatInr(m.total * 12 - y.total)} on monthly.{razorpay ? " Monthly renews automatically; yearly is one payment you renew yourself." : ""}
               </p>
               <PayButton what={{ kind: "BRANCH", branchId: null }} label="Pay for a branch" prices={prices(branchPrice)} success="Paid. Now add the new branch in Settings › Branches." />
             </div>
           )}
         </Sub>
         <Sub title="How renewals work">
-          <p className="text-sm text-muted">You get a reminder before your trial or a paid period ends. After a paid period there are {GRACE_DAYS} days&apos; grace, then the gym (or that extra branch) turns read-only. Nothing is ever deleted, and paying switches it back on at once.</p>
+          <p className="text-sm text-muted">
+            {razorpay && "A plan or branch paid through Razorpay renews by itself each period until you stop it under Automatic renewals; if a renewal fails, Razorpay tries again and you are told here and by email. "}
+            You get a reminder before your trial or a paid period ends. After a paid period there are {GRACE_DAYS} days&apos; grace, then the gym (or that extra branch) turns read-only. Nothing is ever deleted, and paying switches it back on at once.
+          </p>
         </Sub>
       </div>
     </SettingsShell>

@@ -25,12 +25,12 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
         </h1>
         <p className="mt-4 max-w-lg text-lg text-muted">{plan.tagline}</p>
         <p className="mt-6 text-2xl font-semibold">
-          {rupeesLabel(plan.price.MONTHLY)} <span className="text-base font-normal text-muted">/ month, or {rupeesLabel(plan.price.YEARLY)} / year, plus GST</span>
+          {rupeesLabel(plan.price.MONTHLY)} <span className="text-base font-normal text-muted">/ month, or {rupeesLabel(plan.price.YEARLY)} / year, GST included</span>
         </p>
         <ol className="mt-8 flex max-w-lg flex-col gap-3 text-muted">
           <li><b className="text-fg">1.</b> Send this form. It takes a minute.</li>
           <li><b className="text-fg">2.</b> We call or WhatsApp you within one working day and set up your account.</li>
-          <li><b className="text-fg">3.</b> {plan.trialDays ? "Use everything free for 7 days. Pay by UPI only if you want to continue: nothing auto-debits." : "Sign the partnership agreement and go live."}</li>
+          <li><b className="text-fg">3.</b> {plan.trialDays ? "Use everything free for 7 days. Pay online only if you want to continue (UPI AutoPay, card or net banking); plans renew automatically and you can cancel any time." : "Sign the partnership agreement and go live."}</li>
         </ol>
         <p className="mt-8 text-sm text-muted">
           Already have an account? <a href="/signin" className="text-accent underline">Sign in</a>

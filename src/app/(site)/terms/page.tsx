@@ -7,7 +7,7 @@ export default function TermsPage() {
   return (
     <LegalPage
       title="Terms & Conditions"
-      updated="1 October 2026"
+      updated="5 October 2026"
       intro={<p>These terms apply when you use fitron.in, the FITRON AI Trainer, FITRON Gym Accounting or a FITRON Gym Partnership. By creating an account or starting a trial you agree to them.</p>}
     >
       <section>
@@ -21,8 +21,10 @@ export default function TermsPage() {
         <h2 id="trials">Free trials, plans and payment</h2>
         <ul>
           <li>AI Trainer and Gym Accounting plans start with a 7-day free trial. No card is needed.</li>
-          <li>Prices are in Indian rupees and exclude GST, which is added at 18%. Current prices are on the <a href="/#pricing">pricing page</a>.</li>
-          <li>Plans are paid in advance for a month or a year. Nothing auto-debits unless you set up UPI Autopay yourself. If you don&apos;t renew, the plan ends at the end of the paid period.</li>
+          <li>Prices are in Indian rupees and include GST (18%), so you pay exactly the listed price. Current prices are on the <a href="/#pricing">pricing page</a>.</li>
+          <li>Plans are paid in advance for a month or a year, and renew automatically for the same period at the listed price until you cancel. Renewals are collected through Razorpay, by the UPI AutoPay, card or net-banking mandate you approve when you pay.</li>
+          <li>You can cancel at any time from Settings › Plan &amp; billing (Gym Accounting) or Settings › Subscription (AI Trainer). Cancel before your next renewal date to avoid the next charge. Your plan stays active until the end of the period you have paid for. That period is not refunded, except as the <a href="/refund">Refund Policy</a> says.</li>
+          <li>If a renewal payment fails, your plan stays active until the end of the period already paid. After that the plan ends; a Gym Accounting plan then has 7 days&apos; grace before the gym becomes read-only. Your records are kept, and paying switches it back on.</li>
           <li>Gym Accounting plans have member limits (Starter 100, Professional 300 active members; Enterprise unlimited). Extra branches cost ₹499 a month each.</li>
           <li>Refunds follow our <a href="/refund">Refund Policy</a>.</li>
         </ul>

@@ -11,7 +11,8 @@ import { THEME_SCRIPT } from "@/lib/theme-script";
 //    per-request nonce, so inline scripts must be allowed. Everything else (where data can be sent, what can be framed,
 //    plugins, the base address) is still restricted.
 //  - "trainer": the AI Trainer member app, a static page that compiles its own components in the browser, so it also
-//    needs 'unsafe-eval', and it loads Google Fonts.
+//    needs 'unsafe-eval', and it loads Google Fonts. Members pay for their plan in Razorpay's checkout, so, like the
+//    console, it may load checkout.razorpay.com and open Razorpay's frame.
 // Mode (CSP_MODE): "report" (the default) only reports what would be blocked, to /api/csp-report; "enforce" blocks it;
 // "off" sends nothing.
 
@@ -55,14 +56,14 @@ export function buildCsp({ tier, nonce, dev = false }: { tier: CspTier; nonce?: 
     d["frame-src"] = [RAZORPAY];
     d["media-src"] = ["'self'", "blob:"];
   } else {
-    d["script-src"] = ["'self'", "'unsafe-inline'", ...(tier === "trainer" ? ["'unsafe-eval'"] : []), ...(dev ? ["'unsafe-eval'"] : [])];
+    d["script-src"] = ["'self'", "'unsafe-inline'", ...(tier === "trainer" ? ["'unsafe-eval'", "https://checkout.razorpay.com"] : []), ...(dev ? ["'unsafe-eval'"] : [])];
     d["style-src"] = ["'self'", "'unsafe-inline'", ...(tier === "trainer" ? ["https://fonts.googleapis.com"] : [])];
     d["img-src"] = ["'self'", "data:", "blob:", "https:"];
     d["font-src"] = ["'self'", "data:", ...(tier === "trainer" ? ["https://fonts.gstatic.com"] : [])];
-    d["connect-src"] = ["'self'", ...(dev ? ["ws:", "wss:"] : [])];
+    d["connect-src"] = ["'self'", ...(tier === "trainer" ? [RAZORPAY] : []), ...(dev ? ["ws:", "wss:"] : [])];
     // The trainer's page has an iframe whose address is a {{placeholder}} until its template fills it in, which the browser
     // first tries as a same-origin address (our own X-Frame-Options refuses it); 'self' keeps that out of the reports.
-    d["frame-src"] = tier === "trainer" ? ["'self'", ...YOUTUBE] : ["'none'"];
+    d["frame-src"] = tier === "trainer" ? ["'self'", ...YOUTUBE, RAZORPAY] : ["'none'"];
     d["media-src"] = ["'self'", "blob:", ...(tier === "trainer" ? ["https:"] : [])];
   }
   d["report-uri"] = ["/api/csp-report"];

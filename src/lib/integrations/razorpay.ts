@@ -80,3 +80,28 @@ export function verifyCheckout(orderId: string, paymentId: string, signature: st
 }
 
 export const fitronWebhookSecret = () => env("FITRON_RAZORPAY_WEBHOOK_SECRET");
+
+// ── Fitron's own account: plans that renew themselves (Razorpay Subscriptions) ──
+
+export type FitronSubscription = { id: string; status: string; plan_id?: string; charge_at?: number | null; paid_count?: number; current_end?: number | null };
+
+/** A subscription on one of FITRON's Razorpay plans. The customer authorises and pays the first period in Checkout. */
+export const createFitronSubscription = (a: { planId: string; totalCount: number; notes: Record<string, string> }) =>
+  rzp<FitronSubscription>("POST", "/subscriptions", { plan_id: a.planId, total_count: a.totalCount, quantity: 1, customer_notify: 1, notes: a.notes }, "FITRON");
+
+/** A plan's per-period amount (paise), to be sure the plan id charges what the price list says before anyone is sent to pay. */
+export const getFitronPlan = (id: string) => rzp<{ id: string; period?: string; interval?: number; item?: { amount?: number; currency?: string } }>("GET", `/plans/${encodeURIComponent(id)}`, undefined, "FITRON");
+
+export const getFitronSubscription = (id: string) => rzp<FitronSubscription>("GET", `/subscriptions/${encodeURIComponent(id)}`, undefined, "FITRON");
+
+export const getFitronPayment = (id: string) => rzp<{ id: string; status: string; amount?: number; captured?: boolean }>("GET", `/payments/${encodeURIComponent(id)}`, undefined, "FITRON");
+
+/** Stops future charges now. What was already paid for stays valid: access runs on the paid period, not on Razorpay's state. */
+export const cancelFitronSubscription = (id: string) => rzp<FitronSubscription>("POST", `/subscriptions/${encodeURIComponent(id)}/cancel`, { cancel_at_cycle_end: 0 }, "FITRON");
+
+/** Checkout's success handler for a subscription returns this signature: HMAC-SHA256 of "payment_id|subscription_id" with the key secret. */
+export function verifySubscriptionPayment(paymentId: string, subscriptionId: string, signature: string) {
+  const secret = env("FITRON_RAZORPAY_KEY_SECRET");
+  if (!secret || !signature || !paymentId || !subscriptionId) return false;
+  return verifyWebhook(`${paymentId}|${subscriptionId}`, signature, secret);
+}
