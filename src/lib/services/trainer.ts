@@ -12,6 +12,7 @@ import { isUniqueViolation, UserError } from "./errors";
 import { gymView } from "./trainer-gym";
 import { sha256 } from "./trainer-session";
 import { fromIso, toIso, todayIso } from "./time";
+import { log } from "@/lib/log";
 
 // The AI Trainer member app (public/trainer, served at /trainer) keeps its data here:
 // accounts, what the member told the app, their daily log, coach chats, and UPI payments to FITRON.
@@ -321,7 +322,7 @@ export async function submitTrainerUtr(memberId: string, id: string, raw: string
       to,
       subject: `AI Trainer UPI payment to check: ${(p.total / 100).toFixed(2)} from ${p.member.email}`,
       text: `${p.member.name || p.member.email} says they paid Rs ${(p.total / 100).toFixed(2)} for ${what}.\n\nUTR: ${utr}\nReference: ${trainerPaymentRef(p.id)}${p.mode === "DEMO" ? "\n(DEMO: FITRON_UPI_ID wasn't set, so no real money was asked for.)" : ""}\n\nCheck your bank or UPI app for this UTR, then confirm or reject it:\n${appUrl()}/fitron-admin`,
-    }).catch((e) => console.error("Trainer UTR email failed", e));
+    }).catch((e) => log.error("trainer.utr_email_failed", e));
   }
   return paymentView({ ...p, status: "SUBMITTED", utr, submittedAt: new Date() });
 }

@@ -9,6 +9,7 @@ import { audit } from "./audit";
 import { MAX_LOGO_BYTES } from "./gym-logo";
 import { ensureExpenseCategories, ensureRoles } from "../../../prisma/roles";
 import { isUniqueViolation, UserError } from "./errors";
+import { log } from "@/lib/log";
 
 // Self sign-up for gyms, email verification and password reset.
 
@@ -105,7 +106,7 @@ export async function createGymAccount(d: GymSignup, emailVerified = false) {
       const row = await db.setting.findUniqueOrThrow({ where: { orgId_key: { orgId: user.orgId, key: "gym" } } });
       await db.setting.update({ where: { orgId_key: { orgId: user.orgId, key: "gym" } }, data: { value: { ...(row.value as object), logoKey: key } } });
     } catch (e) {
-      console.error("Gym logo upload failed at sign-up", e);
+      log.error("signup.logo_upload_failed", e);
     }
   }
   if (!verifyNow) await sendVerification(user.id);

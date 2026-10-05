@@ -2,6 +2,7 @@ import "server-only";
 import type { TrainerMember } from "@/generated/prisma/client";
 import { UserError } from "@/lib/services/errors";
 import { currentTrainer } from "@/lib/services/trainer-session";
+import { log } from "@/lib/log";
 
 // Shared bits of the AI Trainer API routes: who is signed in, JSON bodies, and errors as JSON.
 
@@ -46,7 +47,7 @@ export async function withTrainer(fn: (m: TrainerMember) => Promise<Response>) {
     return await fn(m);
   } catch (e) {
     if (e instanceof UserError) return json({ error: e.message }, 400);
-    console.error("[trainer api]", e);
+    log.error("trainer_api.failed", e);
     return json({ error: "Something went wrong. Try again." }, 500);
   }
 }

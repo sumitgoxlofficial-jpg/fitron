@@ -5,6 +5,7 @@ import { refundCoachMessage, takeCoachMessage } from "@/lib/services/trainer";
 import { coachAnswer } from "@/lib/services/trainer-coach";
 import { currentTrainer } from "@/lib/services/trainer-session";
 import { readCapped } from "../trainer/_lib/http";
+import { log } from "@/lib/log";
 
 // The AI Trainer app's coach: POST { messages: [{ role, text }], profile } → { text }.
 // 503 without ANTHROPIC_API_KEY and 429 over the plan's daily limit; the app then uses its built-in replies.
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
     }
     return Response.json({ text, used: quota.used, limit: quota.limit });
   } catch (e) {
-    console.error("[coach]", e);
+    log.error("coach.failed", e);
     await refundCoachMessage(m.id);
     return Response.json({ error: "The coach couldn't answer just now." }, { status: 502 });
   }

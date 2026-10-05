@@ -8,6 +8,7 @@ import { GOOGLE_FLOWS, GOOGLE_FLOW_COOKIE, GOOGLE_SIGNUP_COOKIE, exchangeCode, g
 import { gymSignupHref } from "@/lib/domain/site-links";
 import { appUrl, recordSignIn } from "@/lib/services/accounts";
 import { hasTrainerAccount, signInTrainerWithGoogle } from "@/lib/services/trainer-google";
+import { log } from "@/lib/log";
 
 // Google sends the visitor back here. The state must match the one we set in /auth/google,
 // and the code is redeemed with our PKCE verifier, so a forged or replayed callback goes nowhere.
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
   try {
     me = await exchangeCode(q.get("code")!, f.verifier, `${appUrl()}/auth/google/callback`);
   } catch (e) {
-    console.error("[google] sign-in failed:", e);
+    log.error("google.signin_failed", e);
     return done(to(back("failed")));
   }
 

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { findPlan, PRODUCT_LABEL, rupeesLabel } from "@/lib/domain/pricing";
 import { sendEmail } from "@/lib/integrations/email";
 import { TOPICS, type contactSchema, type trialRequestSchema } from "@/lib/validation/site";
+import { log } from "@/lib/log";
 
 // Website enquiries: saved first, then the team is emailed. A mail failure never loses the enquiry.
 
@@ -13,7 +14,7 @@ async function notify(subject: string, lines: (string | null | undefined)[], rep
   try {
     await sendEmail({ to: teamInbox(), subject, text: lines.filter(Boolean).join("\n"), replyTo });
   } catch (e) {
-    console.error("enquiry.notify", e);
+    log.error("enquiry.notify_failed", e);
   }
 }
 

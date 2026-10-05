@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/integrations/email";
 import { UserError } from "./errors";
 import { trainerPaymentRef } from "./trainer";
 import { fromIso, toIso, todayIso } from "./time";
+import { log } from "@/lib/log";
 
 // For the FITRON team page (fitron-admin): AI Trainer members' UPI payments waiting for a check.
 // Same shape of work as gym payments in saas.ts (paymentsToCheck / reviewPayment).
@@ -61,7 +62,7 @@ export async function reviewTrainerPayment(reviewer: { email: string }, id: stri
       to: p.member.email,
       subject: "We couldn't confirm your FITRON payment",
       text: `Hi ${p.member.name || "there"},\n\nWe couldn't match your UPI payment of ${amount} (UTR ${p.utr}): ${reason.trim()}.\nCheck the UTR in your UPI app and pay again from the app, or reply to this email.\n\nFITRON\nhello@fitron.in`,
-    }).catch((e) => console.error("Trainer payment email failed", e));
+    }).catch((e) => log.error("trainer_admin.payment_email_failed", e));
     return null;
   }
   const today = todayIso();
@@ -87,7 +88,7 @@ export async function reviewTrainerPayment(reviewer: { email: string }, id: stri
     to: p.member.email,
     subject: "Your FITRON plan is active",
     text: `Hi ${p.member.name || "there"},\n\nWe received your UPI payment of ${amount} (UTR ${p.utr}). Your ${label(done.plan, done.cycle)} plan is active until ${done.periodEnd ? toIso(done.periodEnd) : ""}.\n\nFITRON\nhello@fitron.in`,
-  }).catch((e) => console.error("Trainer payment email failed", e));
+  }).catch((e) => log.error("trainer_admin.payment_email_failed", e));
   return done;
 }
 

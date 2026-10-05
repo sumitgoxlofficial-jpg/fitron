@@ -5,6 +5,7 @@ import { chat, type ChatEvent } from "@/lib/services/ai";
 import { localChat } from "@/lib/services/ai-local";
 import { rateLimit } from "@/lib/rate-limit";
 import { AI_OFF_MESSAGE, aiOn } from "@/lib/services/ai-settings";
+import { log } from "@/lib/log";
 
 // Fitron AI chat. Streams newline-delimited JSON events: tool progress, text, proposals, done.
 export const maxDuration = 120;
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
         const events = aiReady() ? chat(u, parsed.data.messages) : localChat(u, parsed.data.messages.at(-1)!.content);
         for await (const e of events) send(e);
       } catch (e) {
-        console.error("ai.chat", e);
+        log.error("ai_chat.failed", e);
         send({ type: "error", message: "Fitron AI couldn't answer just now. Try again in a minute." });
       }
       ctrl.close();

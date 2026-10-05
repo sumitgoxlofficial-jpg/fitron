@@ -15,6 +15,7 @@ import { getGymProfile, getSetting } from "./settings";
 import { getSubscriptionSettings, gymWhatsAppNumber, renewalEmails } from "./subscription";
 import { sendGymWhatsApp } from "./whatsapp";
 import { fromIso, toIso, todayIso } from "./time";
+import { log } from "@/lib/log";
 
 type Tx = Prisma.TransactionClient | typeof db;
 
@@ -228,7 +229,7 @@ export async function submitUtr(u: CurrentUser, id: string, raw: string) {
       to,
       subject: `UPI payment to check: ${(sub.total / 100).toFixed(2)} from ${u.orgName}`,
       text: `${u.orgName} says they paid Rs ${(sub.total / 100).toFixed(2)} for ${what} (${sub.cycle.toLowerCase()}).\n\nUTR: ${utr}\nReference: ${paymentRef(sub.id)}\nBy: ${u.name} <${u.email}>\n\nCheck your bank or UPI app for this UTR, then confirm or reject it:\n${process.env.APP_URL?.trim() || "https://fitron.in"}/fitron-admin`,
-    }).catch((e) => console.error("UTR email failed", e));
+    }).catch((e) => log.error("saas.utr_email_failed", e));
   }
 }
 
@@ -306,7 +307,7 @@ export async function paymentsToCheck() {
 async function tellGym(orgId: string, text: string, subject: string) {
   await db.$transaction((tx) => notify(tx, { orgId, type: "BILLING", text, link: "/settings/billing" }));
   const owners = await db.user.findMany({ where: { orgId, active: true, deletedAt: null, role: { name: "Super Admin" } }, select: { email: true, name: true } });
-  for (const o of owners) await sendEmail({ to: o.email, subject, text: `Hi ${o.name},\n\n${text}\n\nFITRON\nhello@fitron.in` }).catch((e) => console.error("Billing email failed", e));
+  for (const o of owners) await sendEmail({ to: o.email, subject, text: `Hi ${o.name},\n\n${text}\n\nFITRON\nhello@fitron.in` }).catch((e) => log.error("saas.billing_email_failed", e));
 }
 
 /** The FITRON team found the UTR in the bank statement (or didn't). Confirming makes it paid and issues the invoice. */
@@ -375,7 +376,7 @@ async function deliverReminder(orgId: string, cfg: SubscriptionSettings, text: s
   if (cfg.whatsapp) {
     const to = await gymWhatsAppNumber(orgId);
     if (to) {
-      const m = await sendGymWhatsApp({ orgId, key: "fitron_renewal", to, body: `${text}\n\nPay in FITRON › Settings › Plan & billing.` }).catch((e) => (console.error("Renewal WhatsApp failed", e), null));
+      const m = await sendGymWhatsApp({ orgId, key: "fitron_renewal", to, body: `${text}\n\nPay in FITRON › Settings › Plan & billing.` }).catch((e) => (log.error("saas.renewal_whatsapp_failed", e), null));
       if (m && m.status !== "Failed") n.whatsapp++;
     }
   }
@@ -384,7 +385,7 @@ async function deliverReminder(orgId: string, cfg: SubscriptionSettings, text: s
     for (const to of await renewalEmails(orgId, cfg)) {
       const ok = await sendEmail({ to, subject: reminderSubject(text), text: `Hi,\n\n${text}\n\nPay in Settings › Plan & billing: ${link}\n\nFITRON\nhello@fitron.in` })
         .then(() => true)
-        .catch((e) => (console.error("Renewal email failed", e), false));
+        .catch((e) => (log.error("saas.renewal_email_failed", e), false));
       if (ok) n.email++;
     }
   }

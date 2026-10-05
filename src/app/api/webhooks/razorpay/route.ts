@@ -1,5 +1,6 @@
 import { verifyWebhook } from "@/lib/integrations/razorpay";
 import { applyRazorpayEvent } from "@/lib/services/autopay";
+import { log } from "@/lib/log";
 
 // Razorpay → Fitron. Add https://<your-domain>/api/webhooks/razorpay in the Razorpay dashboard
 // with RAZORPAY_WEBHOOK_SECRET and the subscription.* and payment.failed events.
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   try {
     return Response.json({ ok: true, result: await applyRazorpayEvent(eventId, ev) });
   } catch (e) {
-    console.error("Razorpay webhook failed", e);
+    log.error("razorpay_webhook.failed", e);
     // A 500 makes Razorpay retry later.
     return Response.json({ error: "Failed to apply" }, { status: 500 });
   }

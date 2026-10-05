@@ -17,6 +17,7 @@ import { notify } from "./notifications";
 import { getSetting, putSettingIn } from "./settings";
 import { getTax } from "./tax";
 import { todayIso } from "./time";
+import { log } from "@/lib/log";
 
 export type { ReminderSettings };
 export { DEFAULT_REMINDERS };
@@ -285,7 +286,7 @@ export async function sendGymWhatsApp(o: { orgId: string; key: string; to: strin
  * Outside a request (jobs, tests) it runs in the background.
  */
 export function sendLater(o: Omit<SendOpts, "auto">) {
-  const run = () => sendTemplate({ ...o, auto: true }).catch((e) => console.error("WhatsApp auto-send failed", e));
+  const run = () => sendTemplate({ ...o, auto: true }).catch((e) => log.error("whatsapp.auto_send_failed", e));
   try {
     after(run);
   } catch {
