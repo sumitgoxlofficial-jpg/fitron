@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -52,7 +52,7 @@ describe.each(GYM_PAGES.map((p) => [p.path, p] as const))("%s", (_path, page) =>
   });
 
   it("only links to pages and sections that exist", () => {
-    const known = new Set(["/", "/login", "/contact", "/privacy", "/ai-personal-trainer", "/site/gym-demo.html", ...GYM_PAGES.map((p) => p.path), ...GUIDES.map(guidePath)]);
+    const known = new Set(["/", "/login", "/contact", "/privacy", "/ai-personal-trainer", "/tools", "/site/gym-demo.html", ...GYM_PAGES.map((p) => p.path), ...GUIDES.map(guidePath)]);
     const links = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => decode(m[1]!));
     expect(links.length).toBeGreaterThan(8);
     const bad: string[] = [];
@@ -124,6 +124,38 @@ describe("the pages about Gym Accounting", () => {
     const settings = gst.blocks.flatMap((b) => b.points ?? []).find((x) => x.startsWith("A ₹1,500 plan"));
     expect(settings).toBe("A ₹1,500 plan is billed as ₹1,500 + CGST 9% + SGST 9% = ₹1,770.");
     expect(gst.faq.some((f) => f.a.includes("₹1,500 plus CGST 9% and SGST 9%, ₹1,770 in all"))).toBe(true);
+  });
+});
+
+describe("the screenshots on the Gym Accounting pages", () => {
+  const shots = GYM_PAGES.flatMap((p) => p.blocks.flatMap((b) => (b.shots ?? []).map((x) => ({ page: p.path, block: b.id, ...x }))));
+
+  it("are real files, small enough to load quickly, with alt text that says what is on the screen", () => {
+    expect(shots.length).toBeGreaterThanOrEqual(15);
+    for (const x of shots) {
+      const file = path.join(root, "public", x.src);
+      expect(existsSync(file), x.src).toBe(true);
+      expect(statSync(file).size, `${x.src} is under 120 KB`).toBeLessThan(120 * 1024);
+      expect(x.src.endsWith(".webp"), x.src).toBe(true);
+      expect(x.alt.length, `${x.page}#${x.block} alt text`).toBeGreaterThan(40);
+      expect(x.alt.startsWith("FITRON") || x.alt.startsWith("A FITRON"), x.alt).toBe(true);
+    }
+  });
+
+  it("are drawn at the size of the file, so the page does not jump while they load", () => {
+    for (const x of shots) {
+      const buf = readFileSync(path.join(root, "public", x.src));
+      // WebP (lossy, VP8): 14-bit width and height, little-endian, at bytes 26 and 28.
+      expect([buf.readUInt16LE(26) & 0x3fff, buf.readUInt16LE(28) & 0x3fff], x.src).toEqual([x.width, x.height]);
+    }
+  });
+
+  it("each pages says they show a demo gym, and every section that has one is on a page that renders it", () => {
+    for (const p of GYM_PAGES.filter((q) => q.blocks.some((b) => b.shots))) {
+      const html = render(p);
+      expect(html).toContain("from FITRON&#x27;s demo gym, with sample members and numbers");
+      for (const b of p.blocks) for (const x of b.shots ?? []) expect(html.includes(`src="${x.src}"`) || html.includes(x.src), x.src).toBe(true);
+    }
   });
 });
 

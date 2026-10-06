@@ -10,6 +10,9 @@ const sourceSerif = Source_Serif_4({
   // The prototype stack: Source Serif 4, then the system UI font.
   fallback: ["system-ui", "sans-serif"],
   adjustFontFallback: false,
+  // Only the signed-in console (and the sign-in forms) are set in this font. The public pages use the home page's fonts,
+  // so preloading it there was 51 KB nobody used, ahead of the fonts they do use.
+  preload: false,
 });
 
 export const metadata: Metadata = {

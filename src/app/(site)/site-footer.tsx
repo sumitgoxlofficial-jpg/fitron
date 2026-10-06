@@ -19,6 +19,7 @@ const columns = [
       ["/#pricing", "Pricing"],
       ["/contact", "Contact"],
       ["/guides", "Guides"],
+      ["/tools", "Free tools"],
     ],
   ],
   [
@@ -50,7 +51,7 @@ export function SiteFooter() {
       <div className="mx-auto grid w-full max-w-6xl gap-x-8 gap-y-10 px-4 py-12 sm:grid-cols-3 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
         <div className="sm:col-span-3 lg:col-span-1">
           <a href="/" aria-label="FITRON home">
-            <Logo size={34} />
+            <Logo size={34} priority={false} />
           </a>
           <p className="mt-4 max-w-xs text-sm text-muted">Your AI personal trainer and gym management platform, built for India.</p>
           <p className="mt-4 flex flex-col gap-1.5 text-sm">

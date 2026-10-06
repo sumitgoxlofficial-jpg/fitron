@@ -16,7 +16,13 @@ export type Block = {
   /** The plan feature this section needs; the page says which plan opens it. Left out for what every plan has. */
   feature?: Feature;
   link?: readonly [label: string, href: string];
+  /** Real screenshots of the console (public/site/features), shown under the section. */
+  shots?: readonly Shot[];
 };
+
+/** A screenshot of the console's demo gym, with the text a screen-reader reads instead of it. All are 1280 × 760 WebP. */
+export type Shot = { src: string; alt: string; width: 1280; height: 760 };
+const shot = (file: string, alt: string): Shot => ({ src: `/site/features/${file}.webp`, alt, width: 1280, height: 760 });
 
 export type Faq = { q: string; a: string };
 
@@ -61,6 +67,7 @@ export const GYM_ACCOUNTING: GymPage = {
   blocks: [
     {
       id: "fees",
+      shots: [shot("invoices", "FITRON Gym Accounting invoice list showing numbered invoices with their members, totals, balances and Paid or Overdue status"), shot("receivables", "FITRON Gym Accounting outstanding payments screen listing overdue invoices with the amount pending, days overdue and a Collect button")],
       heading: "Membership fees, invoices and dues",
       body: "Sell a membership and FITRON creates a numbered invoice for it. Record the payment as UPI, cash, card or bank transfer. If a member pays part of the amount, the balance stays on their invoice as an outstanding amount until it is cleared.",
       points: [
@@ -73,6 +80,7 @@ export const GYM_ACCOUNTING: GymPage = {
     },
     {
       id: "gst",
+      shots: [shot("invoice", "A FITRON GST invoice with the gym name and GSTIN, the member, line items, the CGST 9% and SGST 9% split, the grand total and the amount in words")],
       heading: "GST on every invoice",
       body: "Turn GST on in the Billing & GST settings, set the rate, choose whether it is split into CGST and SGST or charged as IGST, and set your SAC code. Your gym's GSTIN prints on the invoice, and each invoice keeps the rate it was issued with, so changing the rate later does not touch old invoices.",
       points: ["CGST + SGST or IGST on every invoice", "A GST invoice register with taxable value, CGST, SGST, IGST and total for any period", "GST can be switched off for a gym that does not charge it"],
@@ -80,47 +88,55 @@ export const GYM_ACCOUNTING: GymPage = {
     },
     {
       id: "expenses",
+      shots: [shot("expenses", "FITRON Gym Accounting expenses screen with the month total, a monthly expense trend and each expense with its category, vendor and payment method")],
       heading: "Expenses",
       body: "Record rent, utilities, repairs and every other cost against a category, with the vendor, the bill number and how it was paid. The expense list shows them by date, category and group.",
     },
     {
       id: "pl",
+      shots: [shot("accounting", "FITRON Gym Accounting profit and loss statement for the month, with revenue, expenses and a reconciliation of invoices, collections and receivables")],
       heading: "Profit and loss",
       feature: "accounting",
       body: "See revenue, expenses and net profit for this month, last month, this quarter, this financial year or any dates you pick. Revenue is split into membership, renewals, personal training, registration fees and product sales, and the statement carries the depreciation on your equipment.",
     },
     {
       id: "ledgers",
+      shots: [shot("ledger", "FITRON Gym Accounting payment ledger listing each payment with its invoice, member, method and status, with tabs for the other ledgers and a CSV export")],
       heading: "Ledgers and the cash and bank book",
       feature: "accounting",
       body: "Open the income, expense, payment and receivable ledgers for any period, and a cash and bank book of the money that came in and went out. Each entry links back to the invoice, payment or bill it came from, and the ledgers download as CSV.",
     },
     {
       id: "purchases",
+      shots: [shot("purchases", "FITRON Gym Accounting purchases screen listing vendor bills with their totals, amounts paid, balance and Paid or Part paid status"), shot("assets", "FITRON Gym Accounting fixed assets register with gross block, accumulated depreciation and net book value for each asset")],
       heading: "Purchases, vendor bills and fixed assets",
       feature: "accounting",
       body: "Record purchases of stock, equipment and expenses by supplier, and see what you still owe each one. Equipment goes into a fixed asset register that works out depreciation (written-down value or straight-line), month by month and for the financial year, and records the gain or loss when you sell an asset.",
     },
     {
       id: "close",
+      shots: [shot("close", "FITRON Gym Accounting month-end closing screen with the month summary and a button to lock the month")],
       heading: "Month-end closing and lock",
       feature: "accounting",
       body: "The month-end view shows revenue, expenses, net profit, cash and what is still receivable, and reconciles them. Once a month has ended you can lock it: after that only the Super Admin can add or change entries dated in it, and every unlock is recorded in the audit log.",
     },
     {
       id: "reports",
+      shots: [shot("report-gst", "FITRON Report Center showing the GST invoice register with taxable value, CGST, SGST and IGST, and CSV, Excel and PDF download buttons")],
       heading: "Reports you can download",
       body: "Collections, revenue by category, sales by plan, the GST invoice register and GST summary, the expense list, outstanding dues, memberships about to expire and member reports such as active, expired, new, renewals and retention open in the app and download as CSV or Excel files. Profit and loss, cash flow, purchases, vendor payables and the fixed-asset reports come with the accounting features.",
       points: ["Excel and CSV files you can pass to your accountant", "FITRON does not create a Tally import file"],
     },
     {
       id: "branches",
+      shots: [shot("dashboard", "FITRON Gym Accounting dashboard with a branch comparison table showing active members, collections, expenses and outstanding dues for each branch")],
       heading: "One gym or every branch",
       feature: "analytics",
       body: "Run a single gym, or a chain: each branch keeps its own members, invoices and expenses, and you can see one branch or all of them together, with branch-wise revenue and expenses and a consolidated view.",
     },
     {
       id: "trust",
+      shots: [shot("audit", "FITRON audit log listing who did what and when, with the integrity check, filters by module and severity, and CSV and Excel export")],
       heading: "Who changed what",
       body: "Every change in Gym Accounting is written to an audit log, staff see only what their role allows, and your data is hosted in India. You can back it up and restore it from Settings, and import members, payments, expenses, products and assets from CSV files when you move over from registers or spreadsheets.",
       link: ["Read the privacy policy", "/privacy"],
@@ -167,16 +183,19 @@ export const GYM_MANAGEMENT: GymPage = {
   blocks: [
     {
       id: "members",
+      shots: [shot("members", "FITRON Gym Accounting member list with plan, expiry date, status and outstanding dues, and search and filters")],
       heading: "Members and their records",
       body: "Every member has a profile with their plan, expiry date, dues and documents. Import your existing members from a CSV file (up to 5,000 rows at a time), or add them as they join.",
     },
     {
       id: "renewals",
+      shots: [shot("renewals", "FITRON renewals screen listing memberships expiring today, within 7 days and already expired, with Remind and Renew buttons")],
       heading: "Memberships, renewals and freezes",
       body: "Sell a membership plan with discounts, offer codes and a registration fee. Expiries are tracked automatically and collected in a renewals list. A member who is travelling or unwell can freeze a membership, and the unused days are given back when it is unfrozen.",
     },
     {
       id: "attendance",
+      shots: [shot("attendance", "FITRON attendance screen with today's check-ins, a front-desk check-in box and a chart of the last 14 days")],
       heading: "Attendance",
       feature: "attendance",
       body: "Check members in at the desk, with a QR code scanned by the camera of a phone or tablet, and see check-ins by day and by hour so you know when the gym is busy.",
@@ -189,6 +208,7 @@ export const GYM_MANAGEMENT: GymPage = {
     },
     {
       id: "classes",
+      shots: [shot("classes", "FITRON classes timetable for the week showing each class, its time, trainer and how full it is")],
       heading: "Classes, leads and trials",
       feature: "classes",
       body: "Run a timetable of group classes, and keep enquiries, trials and walk-ins as leads that move through stages, each with a follow-up date, so none is forgotten.",
@@ -201,6 +221,7 @@ export const GYM_MANAGEMENT: GymPage = {
     },
     {
       id: "pos",
+      shots: [shot("pos", "FITRON point of sale and inventory screen with products, prices, stock levels and low-stock warnings")],
       heading: "Point of sale and stock",
       feature: "pos",
       body: "Sell supplements, water and merchandise at the front desk. Stock goes down with each sale, and you can set a reorder level for each product and restock when it is reached.",
@@ -213,6 +234,7 @@ export const GYM_MANAGEMENT: GymPage = {
     },
     {
       id: "staff",
+      shots: [shot("staff", "FITRON staff and roles screen with each team member, their role, branch, phone and salary")],
       heading: "Staff, payroll and access",
       feature: "staff",
       body: "Add staff and trainers, give each a role that decides what they can open, and work out pay from base salary, personal-training commission, bonus, deductions and advances.",
@@ -267,11 +289,13 @@ export const GYM_GST: GymPage = {
     },
     {
       id: "invoice",
+      shots: [shot("invoice", "A FITRON GST invoice with the gym name and GSTIN, the member, line items, the CGST 9% and SGST 9% split, the grand total and the amount in words")],
       heading: "What is on the invoice",
       body: "Each invoice is a numbered PDF with your gym's name and GSTIN, the member's details, the lines sold, the tax split and the total, with your SAC code in the footer. Each invoice keeps the rate it was issued with, so changing the rate later does not touch old invoices.",
     },
     {
       id: "register",
+      shots: [shot("report-gst", "FITRON GST invoice register with taxable value, CGST, SGST and IGST for each invoice, and CSV, Excel and PDF download buttons")],
       heading: "The GST invoice register",
       body: "Pick a period and the register lists every invoice with its date, number, member, taxable value, CGST, SGST, IGST and total. It opens in the app and downloads as a CSV or Excel file, which is what your accountant needs when preparing your return.",
       link: ["More on gym accounting", "/gym-accounting"],

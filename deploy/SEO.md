@@ -40,4 +40,5 @@ To add a page, add it to `GYM_PAGES`; the sitemap, robots file, link checks and 
 ## More
 
 - `docs/ANALYTICS.md`: switching on Google Analytics (`GA_MEASUREMENT_ID`) and the events it records.
+- `docs/PERFORMANCE.md`: how Lighthouse was run, the results and what was done.
 - `docs/GROWTH.md`: the content plan, link building, trust gaps and the known gaps of the redesign.

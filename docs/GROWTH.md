@@ -27,8 +27,11 @@ such as how the city's gyms bill or which GST questions come up. Never a templat
 ## Linkable assets (build once, earn links over time)
 
 Small free tools people share: gym profit calculator, membership revenue calculator, break-even calculator, GST on gym
-memberships calculator, member churn calculator, protein and calorie calculators. Each is a page under `/tools/…` with its
-method written out and a link to the matching product page. None exists yet.
+memberships calculator, member churn and gym pricing calculators, protein and calorie calculators. They are built, at
+`/tools` and `/tools/<name>` (words in `src/lib/domain/tools.ts`, maths in `src/lib/domain/calculators.ts`, both tested), each
+with its method written out, a caution that it is not tax or medical advice, and a link to the product page it belongs to.
+What is left is the part code cannot do: tell gym owners and fitness writers they exist. Add a tool by adding it to `TOOLS`,
+writing its screen in `src/app/(site)/tools/calculators.tsx` and its maths with tests.
 
 ## Off-page
 
@@ -64,8 +67,9 @@ Do not add review or rating markup until real reviews exist on a third-party sit
   decision, so it was not changed here.
 - **The sign-in page is a chooser, not a form.** Gym owners and members have separate sign-in systems (`/login` and `/trainer`),
   so `/signin` sends people to the right one instead of asking for a password itself.
-- **Per-feature screenshots** for each Gym Accounting feature are not on the page: the repository holds one real dashboard
-  screenshot and one real app screenshot, and a made-up screen would break the rule above. Capture real ones and add them.
-- **Lighthouse and Core Web Vitals** were not measured here (no field data or lab run). The home page's heaviest assets are the
-  two WebP screenshots; the 3D logo library (1.2 MB) loads only when idle and is now visible only near the closing section.
-  Measure after deploy with PageSpeed Insights and Search Console's Core Web Vitals report.
+- **Screenshots** on the Gym Accounting pages are real captures of the console's demo gym (`public/site/features`, 1280 × 760
+  WebP), and the pages say so. Retake them when the console changes: sign in to a seeded demo gym (`npm run db:seed`) and
+  capture the same pages. The WhatsApp and UPI autopay screens are left out on purpose: in the demo gym they run in
+  simulated mode, and a simulated screen should not stand in for live behaviour.
+- **Performance** was measured with Lighthouse 12 against a production build (see `docs/PERFORMANCE.md`). Field data (real
+  visitors) only exists after launch: watch Search Console's Core Web Vitals report.

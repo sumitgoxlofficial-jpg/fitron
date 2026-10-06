@@ -46,7 +46,9 @@ export function SiteConsent() {
   const [preferences, setPreferences] = useState(false);
 
   useEffect(() => {
-    const first = setTimeout(() => setOpen(read() === null), 600);
+    // Not at once: the banner is the biggest block of text on a short page, and as the first thing painted it would be the page's
+    // Largest Contentful Paint. Waiting a moment lets the page's own content be that. Nothing runs before a choice, so nothing is lost.
+    const first = setTimeout(() => setOpen(read() === null), 2500);
     const reopen = () => {
       const c = read();
       setAnalytics(!!c?.analytics);
