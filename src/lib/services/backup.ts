@@ -52,7 +52,8 @@ const WHERE: Record<string, (c: Ctx) => Record<string, unknown>> = {
   Branch: byOrg,
   User: byOrg,
   UserBranch: (c) => ({ user: { orgId: c.orgId } }),
-  Setting: byOrg,
+  // The WhatsApp Business connection holds a sealed token: it is not exported, and a restored gym connects again.
+  Setting: (c) => ({ ...byOrg(c), key: { not: "whatsapp_cloud" } }),
   Sequence: byOrg,
   MonthLock: (c) => ({ branch: { orgId: c.orgId } }),
   MembershipPlan: byOrg,

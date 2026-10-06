@@ -8,6 +8,8 @@ import { DEFAULT_TEMPLATES, defaultTemplateRows, placeholders, REMINDER_KEYS, re
 import { DEFAULT_REMINDERS, type ReminderSettings } from "@/lib/domain/reminders";
 import { fromColumns, holdUntil, toColumns, validateRule, type Rule, type RuleInput } from "@/lib/domain/wa-rules";
 import { connectorResults, sendWhatsApp, type WaMode } from "@/lib/integrations/whatsapp";
+import { DOC_HEADER_KEYS, metaTemplateName } from "@/lib/domain/wa-meta";
+import { getCloudCreds } from "./wa-cloud-store";
 import { fmtDate } from "@/lib/format";
 import { audit } from "./audit";
 import { UserError } from "./errors";
@@ -205,16 +207,17 @@ export async function deliverMessage(id: string) {
   const settings = await getWaSettings(msg.orgId);
   const tpl = (await listTemplates(msg.orgId)).find((t) => t.key === msg.templateKey);
   const to = waNumber(msg.toNumber);
+  const cloud = settings.mode === "cloud" ? await getCloudCreds(msg.orgId) : null;
   const invoiceId = msg.attachment?.startsWith("invoice:") ? msg.attachment.slice(8) : null;
   const pdf = invoiceId ? await invoicePdf(await systemUser(msg.orgId), invoiceId) : null;
   // A Cloud API template only when the text is the template's own (not a custom message).
-  let template: { name: string; language: string; params: string[] } | undefined;
+  let template: { name: string; language: string; params: string[]; docHeader?: boolean } | undefined;
   if (settings.mode === "cloud" && tpl?.metaTemplateName && msg.memberId) {
     const vars = await memberVars(msg.orgId, msg.memberId);
-    if (render(tpl.body, vars) === msg.body) template = { name: tpl.metaTemplateName, language: tpl.language, params: placeholders(tpl.body).map((k) => vars[k as keyof TemplateVars] ?? "") };
+    if (render(tpl.body, vars) === msg.body) template = { name: tpl.metaTemplateName, language: tpl.language, params: placeholders(tpl.body).map((k) => vars[k as keyof TemplateVars] ?? ""), docHeader: DOC_HEADER_KEYS.includes(tpl.key) };
   }
   const result = to
-    ? await sendWhatsApp(settings.mode, { orgId: msg.orgId, localId: msg.id, to, body: msg.body, template, pdf: pdf ? { bytes: pdf.bytes, filename: pdf.filename } : undefined })
+    ? await sendWhatsApp(settings.mode, { orgId: msg.orgId, cloud, localId: msg.id, to, body: msg.body, template, pdf: pdf ? { bytes: pdf.bytes, filename: pdf.filename } : undefined })
     : { status: "Failed" as const, error: FAILED_NUMBER };
   const saved = await db.whatsAppMessage.update({
     where: { id: msg.id },
@@ -257,7 +260,10 @@ export async function sendTest(u: CurrentUser) {
   if (!to) throw new UserError("Add the gym phone in Gym profile first.");
   const settings = await getWaSettings(u.orgId);
   const msg = await db.whatsAppMessage.create({ data: { orgId: u.orgId, memberId: null, templateKey: "test", toNumber: to, body: TEST_BODY, provider: settings.mode, status: "Queued", sentById: u.id } });
-  const result = await sendWhatsApp(settings.mode, { orgId: u.orgId, localId: msg.id, to, body: TEST_BODY });
+  // Cloud API: a business may not start a conversation with free text, so the test is its own approved template.
+  const cloud = settings.mode === "cloud" ? await getCloudCreds(u.orgId) : null;
+  const template = settings.mode === "cloud" ? { name: metaTemplateName("test"), language: "en", params: [] } : undefined;
+  const result = await sendWhatsApp(settings.mode, { orgId: u.orgId, cloud, localId: msg.id, to, body: TEST_BODY, template });
   return db.$transaction(async (tx) => {
     const saved = await tx.whatsAppMessage.update({ where: { id: msg.id }, data: { status: result.status, providerMessageId: result.providerMessageId ?? null, error: result.error ?? null } });
     await audit(tx, { orgId: u.orgId, userId: u.id, action: "whatsapp.test", entity: "WhatsAppMessage", entityId: msg.id, after: { status: saved.status, error: saved.error } });

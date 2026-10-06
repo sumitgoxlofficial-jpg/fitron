@@ -20,15 +20,15 @@ describe("every policy", () => {
     expect(p["form-action"]).toEqual(["'self'", "https://accounts.google.com"]);
   });
 
-  it.each(["app", "site", "trainer"] as const)("%s: lets scripts come from nowhere but ourselves, apart from Razorpay where plans are paid for", (t) => {
+  it.each(["app", "site", "trainer"] as const)("%s: lets scripts come from nowhere but ourselves, apart from Razorpay where plans are paid for (and, in the console, Meta's WhatsApp Connect pop-up)", (t) => {
     const hosts = policy(t)["script-src"]!.filter((s) => /^https?:|\*/.test(s));
-    expect(hosts).toEqual(t === "site" ? [] : ["https://checkout.razorpay.com"]);
+    expect(hosts).toEqual(t === "site" ? [] : t === "app" ? ["https://checkout.razorpay.com", "https://connect.facebook.net"] : ["https://checkout.razorpay.com"]);
   });
 
   it.each(["app", "site", "trainer"] as const)("%s: only the allowed hosts can be connected to or framed, and never a bare wildcard", (t) => {
     const p = policy(t);
     for (const d of ["script-src", "connect-src", "frame-src", "style-src", "font-src"]) expect(p[d], d).not.toContain("*");
-    expect(p["connect-src"]!.filter((s) => s.startsWith("http"))).toEqual(t === "site" ? [] : ["https://*.razorpay.com"]);
+    expect(p["connect-src"]!.filter((s) => s.startsWith("http"))).toEqual(t === "site" ? [] : t === "app" ? ["https://*.razorpay.com", "https://www.facebook.com", "https://web.facebook.com"] : ["https://*.razorpay.com"]);
   });
 
   it("is a single line a header can carry", () => {
@@ -40,7 +40,7 @@ describe("the console's policy", () => {
   const p = policy("app");
 
   it("runs only scripts with this request's nonce (and the ones they load), and the theme script by its hash", () => {
-    expect(p["script-src"]).toEqual(["'self'", "'nonce-TESTNONCE'", THEME_SCRIPT_SOURCE, "'strict-dynamic'", "https://checkout.razorpay.com"]);
+    expect(p["script-src"]).toEqual(["'self'", "'nonce-TESTNONCE'", THEME_SCRIPT_SOURCE, "'strict-dynamic'", "https://checkout.razorpay.com", "https://connect.facebook.net"]);
     expect(p["script-src"]).not.toContain("'unsafe-inline'");
     expect(p["script-src"]).not.toContain("'unsafe-eval'");
   });
@@ -49,8 +49,8 @@ describe("the console's policy", () => {
     expect(() => buildCsp({ tier: "app" })).toThrow(/nonce/);
   });
 
-  it("opens Razorpay's checkout and nothing else to connect to or show", () => {
-    expect(p["frame-src"]).toEqual(["https://*.razorpay.com"]);
+  it("opens Razorpay's checkout and Meta's WhatsApp Connect pop-up, and nothing else to connect to or show", () => {
+    expect(p["frame-src"]).toEqual(["https://*.razorpay.com", "https://www.facebook.com", "https://web.facebook.com"]);
     expect(p["img-src"]).toEqual(["'self'", "data:", "blob:"]);
     expect(p["font-src"]).toEqual(["'self'"]);
   });

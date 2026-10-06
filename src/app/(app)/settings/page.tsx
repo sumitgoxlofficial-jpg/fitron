@@ -13,11 +13,15 @@ import { gymLogoUrl } from "@/components/gym-logo";
 import { LogoForm } from "./logo-form";
 import { TaxForm } from "./tax-form";
 import { SETTINGS_TABS, SectionTabs } from "@/components/section-tabs";
-import { makeTrainerCode, saveAi, saveAutopay, saveGym, saveCookieNotice, saveNumbering, savePrivacyNotice, savePrivacyOfficer, saveReminders, saveReports, saveWhatsApp, sendTestAction, testAutopayConnection, unlinkAction } from "./actions";
+import { makeTrainerCode, saveAi, saveAutopay, saveGym, saveCookieNotice, saveNumbering, savePrivacyNotice, savePrivacyOfficer, saveReminders, saveReports, resubmitTemplatesAction, saveWhatsApp, sendTestAction, testAutopayConnection, unlinkAction } from "./actions";
 import { getReminderSettings, getWaSettings, listTemplates } from "@/lib/services/whatsapp";
 import { reminderSchedule } from "@/lib/services/reminders";
 import { monthlyPlOn } from "@/lib/services/pl-email";
 import { LinkWatcher } from "./link-watcher";
+import { CloudConnect } from "./cloud-connect";
+import { getCloudCreds, getCloudInfo } from "@/lib/services/wa-cloud-store";
+import { cloudTemplateStatus } from "@/lib/services/wa-connect";
+import { signupConfig } from "@/lib/integrations/whatsapp-cloud";
 import { Dialog } from "@/components/dialog";
 import { ConfirmButton } from "@/components/confirm-button";
 import { PaperPlaneTiltIcon, PlugsIcon, QrCodeIcon, WhatsappLogoIcon } from "@phosphor-icons/react/dist/ssr";
@@ -77,7 +81,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     getWaSettings(u.orgId),
     getAutopaySettings(u.orgId),
   ]);
-  const waStatus = await providerStatus(wa.mode, u.orgId);
+  const [cloudInfo, cloudCreds] = await Promise.all([getCloudInfo(u.orgId), getCloudCreds(u.orgId)]);
+  const waStatus = await providerStatus(wa.mode, u.orgId, cloudCreds);
+  const templateStatus = tab === "wa" && wa.mode === "cloud" && cloudInfo ? await cloudTemplateStatus(u.orgId) : null;
+  const meta = signupConfig();
   const reminders =
     tab === "reminders"
       ? await (async () => {
@@ -299,7 +306,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
       {tab === "wa" && (
         <div className="flex max-w-[760px] flex-col gap-7">
           {!u.has("whatsapp") && <Notice>Automatic WhatsApp messages are on the Professional plan.</Notice>}
-          <LinkedCard wa={wa} cloud={wa.mode === "cloud" && waStatus.ok ? { number: waStatus.number ?? "", name: waStatus.name ?? "" } : null} canUse={u.has("whatsapp")} />
+          <LinkedCard wa={wa} cloud={wa.mode === "cloud" && cloudInfo ? { number: waStatus.number ?? cloudInfo.number, name: waStatus.name ?? cloudInfo.name } : null} canUse={u.has("whatsapp")} />
           <p className="m-0 text-[13px] text-muted">
             Quiet hours {fmtClock(wa.quietFrom)} – {fmtClock(wa.quietTo)} ·{" "}
             <Link href="/whatsapp" className="underline">
@@ -310,11 +317,29 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             <form action={saveWhatsApp} className="flex flex-col gap-3 text-sm">
               <Field label="Sending mode" className="max-w-[420px]">
                 <Select name="mode" key={wa.mode} defaultValue={wa.mode === "demo" ? "connector" : wa.mode}>
-                  <option value="cloud">WhatsApp Cloud API (official)</option>
+                  <option value="cloud">WhatsApp Business (official, Meta)</option>
                   <option value="connector">Linked gym phone (connector)</option>
                 </Select>
               </Field>
               <p className={waStatus.ok ? "text-ok" : "text-alert"}>{waStatus.text}</p>
+              {templateStatus && (
+                <div className="flex flex-col gap-1 text-[13px]" data-testid="wa-templates">
+                  <span>
+                    Message templates with Meta: <strong className="text-ok">{templateStatus.approved} approved</strong>
+                    {templateStatus.pending > 0 && <>, {templateStatus.pending} waiting for approval</>}
+                    {templateStatus.rejected > 0 && <span className="text-alert">, {templateStatus.rejected} rejected</span>}
+                  </span>
+                  {templateStatus.pending > 0 && <span className="text-xs text-muted">A message can only go out once its template is approved, which usually takes a few minutes and sometimes a day.</span>}
+                  {templateStatus.list
+                    .filter((t) => t.status === "REJECTED")
+                    .map((t) => (
+                      <span key={t.name} className="text-xs text-alert">
+                        {t.name}: {t.reason ?? "rejected"}
+                      </span>
+                    ))}
+                  {cloudInfo && cloudInfo.templates.some((t) => !t.ok) && <span className="text-xs text-alert">{cloudInfo.templates.filter((t) => !t.ok).length} templates could not be submitted: {cloudInfo.templates.find((t) => !t.ok)?.error}</span>}
+                </div>
+              )}
               <p className="text-xs text-muted">
                 Reminder days, cadence and birthday wishes are under{" "}
                 <Link href="/settings?tab=reminders" className="underline">
@@ -329,10 +354,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                 </Link>
               </div>
             </form>
+            {wa.mode === "cloud" && cloudInfo && (
+              <form action={resubmitTemplatesAction}>
+                <Button disabled={!u.has("whatsapp")} title="Send the message templates to Meta again">
+                  Resubmit templates to Meta
+                </Button>
+              </form>
+            )}
           </Panel>
           {sp.link === "1" && u.has("whatsapp") && (
             <Dialog kicker="WhatsApp" title="Link WhatsApp" close="/settings?tab=wa" width={600}>
-              <LinkWatcher envMessage={providerReady("connector")} address={connectorAddress()} hosted={providerReady("connector") === HOSTED_NEEDS_CONNECTOR} />
+              {meta ? <CloudConnect appId={meta.appId} configId={meta.configId} version={meta.version} /> : <LinkWatcher envMessage={providerReady("connector")} address={connectorAddress()} hosted={providerReady("connector") === HOSTED_NEEDS_CONNECTOR} />}
               <div className="flex flex-wrap justify-end gap-2.5">
                 <LinkButton href="/settings?tab=wa" scroll={false}>
                   Cancel
@@ -543,10 +575,10 @@ function LinkedCard({ wa, cloud, canUse }: { wa: Awaited<ReturnType<typeof getWa
             {linked || cloud ? (
               <div className="text-[13px]">
                 {linked ? `+91 ${linked.number}` : cloud!.number} · <span className="text-accent">Connected</span>
-                <span className="block text-xs text-muted">{linked ? `${linked.device} · linked ${at && !Number.isNaN(at.getTime()) ? `${fmtShort(at)}, ${fmtTime(at)}` : "—"}` : `WhatsApp Cloud API · ${cloud!.name}`}</span>
+                <span className="block text-xs text-muted">{linked ? `${linked.device} · linked ${at && !Number.isNaN(at.getTime()) ? `${fmtShort(at)}, ${fmtTime(at)}` : "—"}` : `WhatsApp Business · ${cloud!.name}`}</span>
               </div>
             ) : (
-              <div className="text-[13px] text-muted">Not linked · no API key needed, just scan a QR code</div>
+              <div className="text-[13px] text-muted">Not connected yet · link your own WhatsApp in about 5 minutes</div>
             )}
           </div>
         </div>
@@ -558,10 +590,10 @@ function LinkedCard({ wa, cloud, canUse }: { wa: Awaited<ReturnType<typeof getWa
                 Send test
               </Button>
             </form>
-            {linked && (
+            {(linked || cloud) && (
               <form action={unlinkAction}>
-                <ConfirmButton variant="ghost" className="text-alert hover:bg-alert-soft" confirm="Unlink WhatsApp? Automatic sending stops. Messages are logged until you link again." disabled={!canUse}>
-                  Unlink
+                <ConfirmButton variant="ghost" className="text-alert hover:bg-alert-soft" confirm="Unlink WhatsApp? Automatic sending stops. Messages are saved but not sent until you link again." disabled={!canUse}>
+                  {cloud ? "Disconnect" : "Unlink"}
                 </ConfirmButton>
               </form>
             )}
@@ -574,9 +606,9 @@ function LinkedCard({ wa, cloud, canUse }: { wa: Awaited<ReturnType<typeof getWa
         )}
       </div>
       <div className="text-[13px] leading-relaxed">
-        Works like WhatsApp Web: the Fitron connector (a small app on the gym computer or our server) stays linked to your WhatsApp and sends reminders, invoices and renewals by itself at the scheduled time. It sends one message every 8 to 15 seconds, up to 250 a day, to keep your number safe.
+        Connect your own WhatsApp Business number once. Fitron then sends reminders, invoices and renewals to your members from it by itself at the scheduled time. Your members don&apos;t need to connect anything.
       </div>
-      <div className="text-xs leading-relaxed text-alert">This is unofficial automation of WhatsApp. WhatsApp can restrict numbers that send too many messages to people who haven&apos;t saved your number. Use it for your own members only, never cold broadcasts, and keep a backup number.</div>
+      <div className="text-xs leading-relaxed text-muted">This uses WhatsApp&apos;s official business service from Meta. Messages that start a conversation use templates Meta approves first, and Meta charges per conversation. Use it for your own members only.</div>
     </section>
   );
 }
