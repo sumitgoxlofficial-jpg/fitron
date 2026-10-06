@@ -88,11 +88,20 @@ describe.skipIf(!hasDb)("Coupons (database)", () => {
     expect(await db.trainerPayment.count({ where: { memberId: member.id } })).toBe(0);
   });
 
+  it("a flat-price coupon charges ₹1 on any plan", async () => {
+    const { owner } = await gym();
+    const c = await coupon({ payRupees: 1 });
+    expect(c.payPaise).toBe(100);
+    const q = await quoteGymCoupon(owner, { kind: "PLAN", plan: "enterprise" }, "MONTHLY", c.code);
+    expect(q).toMatchObject({ payPaise: 100, listTotal: 3_99_900, discount: 3_99_800, total: 100 });
+    expect(await startPayment(owner, { kind: "PLAN", plan: "enterprise" }, "MONTHLY", c.code)).toMatchObject({ mode: "DEMO", total: 100 });
+  });
+
   it("a gym pays the coupon price once, and each gym can use a coupon one time", async () => {
     const { g, owner } = await gym();
     const c = await coupon({ percentOff: 99 });
     const q = await quoteGymCoupon(owner, { kind: "PLAN", plan: "enterprise" }, "MONTHLY", c.code.toLowerCase());
-    expect(q).toEqual({ code: c.code, percentOff: 99, listTotal: 3_99_900, discount: 3_95_901, total: 3_999 });
+    expect(q).toEqual({ code: c.code, percentOff: 99, payPaise: null, listTotal: 3_99_900, discount: 3_95_901, total: 3_999 });
 
     const pay = await startPayment(owner, { kind: "PLAN", plan: "enterprise" }, "MONTHLY", ` ${c.code.toLowerCase()} `);
     expect(pay).toMatchObject({ mode: "DEMO", total: 3_999 });
@@ -191,7 +200,7 @@ describe.skipIf(!hasDb)("Coupons (database)", () => {
     const rz = fakeRazorpay();
     const m = await findOrCreateTrainer(`t-${uid()}@test.local`, "EMAIL", "Ravi");
     const c = await coupon({ percentOff: 99, appliesTo: "TRAINER" });
-    expect(await quoteTrainerCoupon(m.id, { plan: "ai-premium", cycle: "YEARLY", code: c.code })).toEqual({ code: c.code, percentOff: 99, listTotal: 4_99_900, discount: 4_94_901, total: 4_999 });
+    expect(await quoteTrainerCoupon(m.id, { plan: "ai-premium", cycle: "YEARLY", code: c.code })).toEqual({ code: c.code, percentOff: 99, payPaise: null, listTotal: 4_99_900, discount: 4_94_901, total: 4_999 });
 
     const pay = await startTrainerCouponPayment(m.id, { plan: "ai-premium", cycle: "YEARLY", kind: "purchase" }, c.code);
     expect(pay).toMatchObject({ mode: "LIVE", total: 4_999, base: 4_236, gst: 763, couponCode: c.code, keyId: "rzp_live_x" });

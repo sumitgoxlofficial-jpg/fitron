@@ -11,6 +11,7 @@ import { reasonInput } from "@/lib/validation/billing";
 import { deleteBranch, putSetting, saveBranch, setBranchActive, saveGymProfile, saveTax as saveTaxSettings } from "@/lib/services/settings";
 import { getWaSettings, sendTest, setLinked } from "@/lib/services/whatsapp";
 import { connectorAddress, connectorLogout, connectorProblem, connectorStatus, providerReady } from "@/lib/integrations/whatsapp";
+import { connectCloud, disconnectCloud, resubmitTemplates } from "@/lib/services/wa-connect";
 import { removeGymLogo, setGymLogo } from "@/lib/services/gym-logo";
 import { aiInput, autopayInput, branchInput, cookieNoticeInput, gymInput, numberingInput, privacyNoticeInput, privacyOfficerInput, reminderInput, reportsInput, taxInput } from "@/lib/validation/settings";
 import { assertCanErase, eraseCheck, eraseMember, findMemberByCode, savePrivacyNotice as storeNotice } from "@/lib/services/privacy";
@@ -279,13 +280,48 @@ export async function sendTestAction() {
   waBack({ msg: msg.status === "Queued" ? "Test message queued on your linked WhatsApp." : msg.status === "Logged" ? "WhatsApp is not linked yet: test message saved, not sent." : "Test message sent." });
 }
 
-/** "Unlink": the connector signs out and messages are logged until the gym links again. */
+/** "Unlink": the connector signs out (or the Meta connection is forgotten) and messages are saved but not sent until the gym links again. */
 export async function unlinkAction() {
   const u = await waUser();
-  if ((await getWaSettings(u.orgId)).mode === "connector" && !providerReady("connector")) await connectorLogout(u.orgId);
-  await setLinked(u, null, "demo");
+  const mode = (await getWaSettings(u.orgId)).mode;
+  if (mode === "cloud") await disconnectCloud(u);
+  else {
+    if (mode === "connector" && !providerReady("connector")) await connectorLogout(u.orgId);
+    await setLinked(u, null, "demo");
+  }
   revalidatePath("/", "layout");
   waBack({ msg: "WhatsApp unlinked." });
+}
+
+export type ConnectResult = { ok: true; number: string; name: string; submitted: number; failed: number; warnings: string[] } | { ok: false; error: string };
+
+/**
+ * After Meta's Connect pop-up: the browser sends the code and the ids Meta returned. Stores the gym's own WhatsApp Business
+ * connection, switches sending to it and submits the message templates for approval.
+ */
+export async function connectCloudAction(input: { code: string; wabaId: string; phoneNumberId: string }): Promise<ConnectResult> {
+  const u = await waUser();
+  if (!rateLimit(`wa-connect:${u.orgId}`, 10, 60 * 60_000)) return { ok: false, error: "Too many tries in an hour. Wait a little and try again." };
+  try {
+    const r = await connectCloud(u, { code: String(input?.code ?? ""), wabaId: String(input?.wabaId ?? ""), phoneNumberId: String(input?.phoneNumberId ?? "") });
+    revalidatePath("/", "layout");
+    return { ok: true, ...r };
+  } catch (e) {
+    if (e instanceof UserError) return { ok: false, error: e.message };
+    throw e;
+  }
+}
+
+/** "Resubmit templates": sends the gym's message templates to Meta again (the ones it refused, or that never went). */
+export async function resubmitTemplatesAction() {
+  const u = await waUser();
+  try {
+    const r = await resubmitTemplates(u);
+    waBack({ msg: r.failed ? `${r.submitted} templates are with Meta; ${r.failed} could not be submitted (see the list).` : `${r.submitted} templates are with Meta for approval.` });
+  } catch (e) {
+    if (e instanceof UserError) waBack({ error: e.message });
+    throw e;
+  }
 }
 
 export type LinkStatus = { state: "offline" | "waiting" | "qr" | "ready"; qr?: string; number?: string; text: string; problem?: string };

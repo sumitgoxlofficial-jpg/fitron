@@ -1,9 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { applyDeliveryStatus } from "@/lib/services/whatsapp";
 
-// Meta WhatsApp Cloud API → Fitron delivery receipts. In the Meta app, set the callback URL to
-// https://<your-domain>/api/webhooks/whatsapp, the verify token to WHATSAPP_VERIFY_TOKEN, and
-// subscribe to "messages". Payloads are signed with WHATSAPP_APP_SECRET.
+// Meta WhatsApp Business → Fitron delivery receipts, for every gym at once: in the Meta app (once, not per gym), set the
+// WhatsApp Business Account webhook callback URL to https://<your-domain>/api/webhooks/whatsapp, the verify token to
+// WHATSAPP_VERIFY_TOKEN, and subscribe to "messages". Each gym's account is subscribed to the app when it connects. Payloads are
+// signed with WHATSAPP_APP_SECRET; a receipt is matched to its message by the message id Meta returned when it was sent.
 
 export function GET(req: Request) {
   const u = new URL(req.url).searchParams;

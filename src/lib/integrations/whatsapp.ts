@@ -1,9 +1,12 @@
 import "server-only";
+import { graphCall, phoneInfo, type CloudCreds } from "./whatsapp-cloud";
 
 // Sends one WhatsApp message through the configured provider. Secrets come from the server
 // environment only; the app stores which mode is on, never the keys.
 //   demo       nothing leaves the server; the message is logged
-//   cloud      Meta WhatsApp Cloud API (official). Needs WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID
+//   cloud      Meta WhatsApp Cloud API (official). Each gym connects its own number (Settings › WhatsApp › Connect) and
+//              Fitron sends with that gym's credentials; WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID on the server are
+//              only a fallback for one number shared by every gym.
 //   connector  the linked-phone connector in prototype/connector. WA_CONNECTOR_URL and WA_CONNECTOR_KEY say where it is and
 //              its key; without them the app looks for it on this computer (http://127.0.0.1:3131, key fitron-local),
 //              which is what the connector's double-click start files use out of the box.
@@ -16,7 +19,9 @@ export type Outgoing = {
   to: string;
   body: string;
   /** Approved Cloud API template and its body parameters, in order. */
-  template?: { name: string; language: string; params: string[] };
+  template?: { name: string; language: string; params: string[]; /** The template has a document header for the invoice PDF. */ docHeader?: boolean };
+  /** The gym's own WhatsApp Business connection (cloud mode). Without it the server-wide one is used, if set. */
+  cloud?: CloudCreds | null;
   pdf?: { bytes: Uint8Array; filename: string };
 };
 export type SendResult = { status: "Logged" | "Sent" | "Queued" | "Failed"; providerMessageId?: string; error?: string };
@@ -26,33 +31,31 @@ const DEFAULT_CONNECTOR_URL = "http://127.0.0.1:3131";
 const DEFAULT_CONNECTOR_KEY = "fitron-local";
 const connectorUrl = () => (env("WA_CONNECTOR_URL") || DEFAULT_CONNECTOR_URL).replace(/\/+$/, "");
 const connectorKey = () => env("WA_CONNECTOR_KEY") || DEFAULT_CONNECTOR_KEY;
-const graph = () => `https://graph.facebook.com/${env("WHATSAPP_API_VERSION") || "v21.0"}`;
+/** The server-wide connection, when the Fitron team set one number for every gym (WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID). */
+const sharedCloud = (): CloudCreds | null => (env("WHATSAPP_TOKEN") && env("WHATSAPP_PHONE_NUMBER_ID") ? { token: env("WHATSAPP_TOKEN"), phoneNumberId: env("WHATSAPP_PHONE_NUMBER_ID"), wabaId: "" } : null);
 
 /** Fitron on Vercel cannot reach a connector on the gym PC (127.0.0.1 is Vercel's own machine): the connector must be hosted and WA_CONNECTOR_URL set. */
 export const HOSTED_NEEDS_CONNECTOR = "Fitron is hosted online, so it cannot reach a connector on your own computer. Run the Fitron connector on an always-on server, then set WA_CONNECTOR_URL and WA_CONNECTOR_KEY on the Fitron server (prototype/connector/README.md).";
 
-export const providerReady = (mode: WaMode): string | null => {
-  if (mode === "cloud" && !(env("WHATSAPP_TOKEN") && env("WHATSAPP_PHONE_NUMBER_ID"))) return "WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are not set on the server.";
+export const providerReady = (mode: WaMode, cloud?: CloudCreds | null): string | null => {
+  if (mode === "cloud" && !cloud && !sharedCloud()) return "This gym has not connected its WhatsApp Business number yet. Press Connect WhatsApp in Settings › WhatsApp.";
   if (mode === "connector" && !env("WA_CONNECTOR_URL") && env("VERCEL")) return HOSTED_NEEDS_CONNECTOR;
   if (mode === "connector" && env("WA_CONNECTOR_URL") && !/^https?:\/\//i.test(env("WA_CONNECTOR_URL"))) return "WA_CONNECTOR_URL must start with http:// or https://.";
   return null;
 };
 
-async function cloudCall(path: string, init: RequestInit) {
-  const res = await fetch(`${graph()}/${env("WHATSAPP_PHONE_NUMBER_ID")}${path}`, { ...init, headers: { Authorization: `Bearer ${env("WHATSAPP_TOKEN")}`, ...(init.headers ?? {}) }, signal: AbortSignal.timeout(15_000) });
-  const json = (await res.json().catch(() => ({}))) as { error?: { message?: string }; id?: string; messages?: { id: string }[] };
-  if (!res.ok) throw new Error(json.error?.message ?? `WhatsApp API returned ${res.status}`);
-  return json;
-}
+const credsOf = (m: { cloud?: CloudCreds | null }) => m.cloud ?? sharedCloud();
 
 async function sendCloud(m: Outgoing): Promise<SendResult> {
+  const c = credsOf(m);
+  if (!c) throw new Error(providerReady("cloud") ?? "WhatsApp is not connected.");
   let mediaId: string | undefined;
   if (m.pdf) {
     const form = new FormData();
     form.append("messaging_product", "whatsapp");
     form.append("type", "application/pdf");
     form.append("file", new Blob([m.pdf.bytes as BlobPart], { type: "application/pdf" }), m.pdf.filename);
-    mediaId = (await cloudCall("/media", { method: "POST", body: form })).id;
+    mediaId = (await graphCall<{ id: string }>(`/${c.phoneNumberId}/media`, c.token, { method: "POST", body: form })).id;
   }
   const document = mediaId ? { id: mediaId, filename: m.pdf!.filename } : undefined;
   const payload = m.template
@@ -61,13 +64,14 @@ async function sendCloud(m: Outgoing): Promise<SendResult> {
         template: {
           name: m.template.name,
           language: { code: m.template.language },
-          components: [...(document ? [{ type: "header", parameters: [{ type: "document", document }] }] : []), ...(m.template.params.length ? [{ type: "body", parameters: m.template.params.map((text) => ({ type: "text", text: text || "-" })) }] : [])],
+          // The invoice goes in the template's document header, only when the approved template has one.
+          components: [...(document && m.template.docHeader ? [{ type: "header", parameters: [{ type: "document", document }] }] : []), ...(m.template.params.length ? [{ type: "body", parameters: m.template.params.map((text) => ({ type: "text", text: text || "-" })) }] : [])],
         },
       }
     : document
       ? { type: "document", document: { ...document, caption: m.body } }
       : { type: "text", text: { body: m.body, preview_url: true } };
-  const json = await cloudCall("/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: m.to, ...payload }) });
+  const json = await graphCall<{ messages?: { id: string }[] }>(`/${c.phoneNumberId}/messages`, c.token, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: m.to, ...payload }) });
   return { status: "Sent", providerMessageId: json.messages?.[0]?.id };
 }
 
@@ -106,7 +110,7 @@ async function sendConnector(m: Outgoing): Promise<SendResult> {
 
 export async function sendWhatsApp(mode: WaMode, m: Outgoing): Promise<SendResult> {
   if (mode === "demo") return { status: "Logged" };
-  const missing = providerReady(mode);
+  const missing = providerReady(mode, m.cloud);
   if (missing) return { status: "Failed", error: missing };
   try {
     return mode === "cloud" ? await sendCloud(m) : await sendConnector(m);
@@ -150,15 +154,13 @@ export async function connectorLogout(orgId: string) {
 }
 
 /** Connection check for Settings: who we'd send as, or why we can't. */
-export async function providerStatus(mode: WaMode, orgId: string): Promise<{ ok: boolean; text: string; qr?: string; number?: string; name?: string }> {
+export async function providerStatus(mode: WaMode, orgId: string, cloud?: CloudCreds | null): Promise<{ ok: boolean; text: string; qr?: string; number?: string; name?: string }> {
   if (mode === "demo") return { ok: false, text: "WhatsApp is not linked yet. Messages are saved in Fitron but nothing is sent until you link it." };
-  const missing = providerReady(mode);
+  const missing = providerReady(mode, cloud);
   if (missing) return { ok: false, text: missing };
   try {
     if (mode === "cloud") {
-      const res = await fetch(`${graph()}/${env("WHATSAPP_PHONE_NUMBER_ID")}?fields=display_phone_number,verified_name,quality_rating`, { headers: { Authorization: `Bearer ${env("WHATSAPP_TOKEN")}` }, signal: AbortSignal.timeout(10_000) });
-      const j = (await res.json()) as { display_phone_number?: string; verified_name?: string; quality_rating?: string; error?: { message?: string } };
-      if (!res.ok) return { ok: false, text: j.error?.message ?? `WhatsApp API returned ${res.status}` };
+      const j = await phoneInfo(credsOf({ cloud })!);
       return { ok: true, text: `Connected as ${j.verified_name ?? "?"} (${j.display_phone_number ?? "?"}), quality ${j.quality_rating ?? "unknown"}.`, number: j.display_phone_number, name: j.verified_name };
     }
     const st = await connectorStatus(orgId);
