@@ -41,6 +41,17 @@ describe("every place that opens a staff session", () => {
     expect(step.indexOf("if (!how)")).toBeLessThan(step.indexOf("createSession("));
   });
 
+  it("asks for the second step after an emailed code or link, too", () => {
+    const s = read("src/app/login/actions.ts");
+    const finish = s.slice(s.indexOf("async function finishEmailSignIn("), s.indexOf("const clientIp"));
+    expect(finish.indexOf("user.totpEnabledAt")).toBeGreaterThan(-1);
+    expect(finish.indexOf("startChallenge(")).toBeLessThan(finish.indexOf("createSession("));
+    // Both ways in end there, and neither opens a session by itself.
+    expect(s.match(/finishEmailSignIn\(/g)).toHaveLength(3);
+    expect(s.indexOf("redeemSignInCode(")).toBeLessThan(s.indexOf('finishEmailSignIn(user, "email-code"'));
+    expect(s.indexOf("redeemSignInLink(")).toBeLessThan(s.indexOf('finishEmailSignIn(user, "email-link"'));
+  });
+
   it("asks for the second step after Google, too", () => {
     const s = read("src/app/auth/google/callback/route.ts");
     const staffIn = s.slice(s.indexOf("async function staffIn("));

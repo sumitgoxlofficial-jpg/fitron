@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { findPlan, TRIAL_DAYS, type Cycle } from "@/lib/domain/pricing";
@@ -11,12 +11,16 @@ import { ensureExpenseCategories, ensureRoles } from "../../../prisma/roles";
 import { isUniqueViolation, UserError } from "./errors";
 import { log } from "@/lib/log";
 
-// Self sign-up for gyms, email verification and password reset.
+// Self sign-up for gyms, email verification, password reset and passwordless sign-in (emailed link or six-digit code).
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 const HOUR = 3_600_000;
-const LIFETIME = { VERIFY_EMAIL: 48 * HOUR, RESET_PASSWORD: 1 * HOUR } as const;
+const LIFETIME = { VERIFY_EMAIL: 48 * HOUR, RESET_PASSWORD: 1 * HOUR, LOGIN: 15 * 60_000 } as const;
 type Purpose = keyof typeof LIFETIME;
+/** The emailed six-digit codes (the typed-in twin of a link) last this long and allow this many tries, as 10^6 guesses is few. */
+const CODE_LIFETIME = 10 * 60_000;
+const CODE_TRIES = 5;
+type CodePurpose = "RESET_PASSWORD" | "LOGIN";
 
 export const appUrl = () => (process.env.APP_URL?.trim() || (process.env.NODE_ENV === "production" ? "https://fitron.in" : "http://localhost:3000")).replace(/\/$/, "");
 
@@ -35,7 +39,46 @@ async function redeemToken(token: string, purpose: Purpose) {
   const row = await db.authToken.findUnique({ where: { id: sha256(token) } });
   if (!row || row.purpose !== purpose || row.usedAt || row.expiresAt.getTime() < Date.now()) return null;
   const { count } = await db.authToken.updateMany({ where: { id: row.id, usedAt: null }, data: { usedAt: new Date() } });
-  return count === 1 ? row.userId : null;
+  if (count !== 1) return null;
+  if (purpose !== "VERIFY_EMAIL") await retireCodes(row.userId, purpose);
+  return row.userId;
+}
+
+const codeHash = (userId: string, purpose: CodePurpose, code: string) => sha256(`${userId}:${purpose}:${code}`);
+
+/** Makes a six-digit code for the same email as a link; only its hash is stored. Older unused codes of the same kind stop working. */
+async function issueCode(userId: string, purpose: CodePurpose) {
+  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  await db.$transaction([
+    db.authCode.updateMany({ where: { userId, purpose, usedAt: null }, data: { usedAt: new Date() } }),
+    db.authCode.create({ data: { userId, purpose, codeHash: codeHash(userId, purpose, code), expiresAt: new Date(Date.now() + CODE_LIFETIME) } }),
+  ]);
+  return code;
+}
+
+/** Once a link or a code has worked, its twin from the same email must not work as well. */
+const retireCodes = (userId: string, purpose: CodePurpose) => db.authCode.updateMany({ where: { userId, purpose, usedAt: null }, data: { usedAt: new Date() } });
+const retireLinks = (userId: string, purpose: CodePurpose) => db.authToken.updateMany({ where: { userId, purpose, usedAt: null }, data: { usedAt: new Date() } });
+
+/**
+ * Checks the code someone typed for this email and, if right, uses it up and returns the user. Every try is counted before
+ * the code is compared, so one code can only ever be guessed at CODE_TRIES times, however many requests arrive at once.
+ * Wrong, expired, used and unknown all look the same (null).
+ */
+async function redeemCode(email: string, code: string, purpose: CodePurpose) {
+  const user = await db.user.findFirst({ where: { email, active: true, deletedAt: null } });
+  if (!user) return null;
+  const row = await db.authCode.findFirst({ where: { userId: user.id, purpose, usedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: "desc" } });
+  if (!row) return null;
+  const tried = await db.authCode.updateMany({ where: { id: row.id, usedAt: null, attempts: { lt: CODE_TRIES } }, data: { attempts: { increment: 1 } } });
+  if (tried.count !== 1) return null;
+  const want = Buffer.from(row.codeHash);
+  const got = Buffer.from(codeHash(user.id, purpose, code.replace(/\s/g, "")));
+  if (want.length !== got.length || !timingSafeEqual(want, got)) return null;
+  const used = await db.authCode.updateMany({ where: { id: row.id, usedAt: null }, data: { usedAt: new Date() } });
+  if (used.count !== 1) return null;
+  await retireLinks(user.id, purpose);
+  return user;
 }
 
 export type GymSignup = { plan: string; cycle: Cycle; name: string; email: string; phone: string; business: string; city?: string; password: string;
@@ -119,7 +162,7 @@ const compact = (o: Record<string, string | undefined>) => Object.fromEntries(Ob
 
 /** A successful sign-in: stamps lastLoginAt and records how, in one transaction. */
 /** `secondStep` says how a two-step sign-in finished: with an authenticator "code", or by using up a "recovery" code. */
-export async function recordSignIn(userId: string, via: "email" | "google", secondStep?: "code" | "recovery") {
+export async function recordSignIn(userId: string, via: "email" | "google" | "email-link" | "email-code", secondStep?: "code" | "recovery") {
   await db.$transaction(async (tx) => {
     const u = await tx.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
     await audit(tx, { orgId: u.orgId, userId, action: "auth.login", entity: "User", entityId: userId, after: secondStep ? { via, secondStep } : { via } });
@@ -149,25 +192,21 @@ export async function verifyEmail(token: string) {
   return db.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } });
 }
 
-/** Emails a reset link if the address belongs to an active account. Always looks the same to the caller. */
+/** Emails a reset link and code if the address belongs to an active account. Always looks the same to the caller. */
 export async function requestPasswordReset(email: string) {
   const user = await db.user.findFirst({ where: { email, active: true, deletedAt: null } });
   if (!user) return;
   const link = `${appUrl()}/reset-password?token=${await issueToken(user.id, "RESET_PASSWORD")}`;
+  const code = await issueCode(user.id, "RESET_PASSWORD");
   await sendEmail({
     to: user.email,
-    subject: "Reset your FITRON password",
-    text: `Hi ${user.name},\n\nChoose a new password here:\n${link}\n\nThe link works for 1 hour. If you didn't ask for this, ignore this email: your password stays the same.\n\nFITRON\nhello@fitron.in`,
+    subject: `${code} is your FITRON password reset code`,
+    text: `Hi ${user.name},\n\nYour code to reset your FITRON password: ${code}\nIt works for 10 minutes. Enter it where you asked for the reset.\n\nOr choose a new password with this link (it works for 1 hour):\n${link}\n\nIf you didn't ask for this, ignore this email: your password stays the same. Never share the code with anyone.\n\nFITRON\nhello@fitron.in`,
   });
 }
 
-/**
- * Sets a new password from a reset link and signs the user out everywhere. Clicking a link
- * from their inbox also proves the address, so it counts as verified.
- */
-export async function resetPassword(token: string, password: string) {
-  const userId = await redeemToken(token, "RESET_PASSWORD");
-  if (!userId) throw new UserError("This link has expired or was already used. Ask for a new one.");
+/** Sets the password and signs the user out everywhere. Reaching the inbox also proves the address, so it counts as verified. */
+async function setNewPassword(userId: string, password: string) {
   const passwordHash = await hashPassword(password);
   const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
   await db.$transaction([
@@ -176,3 +215,44 @@ export async function resetPassword(token: string, password: string) {
   ]);
   return user;
 }
+
+/** Sets a new password from a reset link and signs the user out everywhere. */
+export async function resetPassword(token: string, password: string) {
+  const userId = await redeemToken(token, "RESET_PASSWORD");
+  if (!userId) throw new UserError("This link has expired or was already used. Ask for a new one.");
+  return setNewPassword(userId, password);
+}
+
+/** The same, with the six-digit code from the reset email instead of the link. */
+export async function resetPasswordWithCode(email: string, code: string, password: string) {
+  const user = await redeemCode(email, code, "RESET_PASSWORD");
+  if (!user) throw new UserError("That code is not right, or it has expired. Check it, or ask for a new one.", "code");
+  return setNewPassword(user.id, password);
+}
+
+/**
+ * Passwordless sign-in: emails a link and a six-digit code to an active account. Always looks the same to the caller.
+ * Clicking or typing proves the address, like a reset does. Two-step sign-in (authenticator app) still applies afterwards.
+ */
+export async function requestSignInLink(email: string) {
+  const user = await db.user.findFirst({ where: { email, active: true, deletedAt: null } });
+  if (!user) return;
+  const link = `${appUrl()}/login/email?token=${await issueToken(user.id, "LOGIN")}`;
+  const code = await issueCode(user.id, "LOGIN");
+  await sendEmail({
+    to: user.email,
+    subject: `${code} is your FITRON sign-in code`,
+    text: `Hi ${user.name},\n\nYour FITRON sign-in code: ${code}\nIt works for 10 minutes. Enter it where you asked to sign in.\n\nOr open this link on the same device (it works for 15 minutes, once):\n${link}\n\nIf you didn't ask to sign in, ignore this email: nobody can get in without the code or the link. Never share the code with anyone.\n\nFITRON\nhello@fitron.in`,
+  });
+}
+
+/** A signed-in-by-email user, or null for a code or link that is wrong, expired, used, or for an account since switched off. */
+async function signedInByEmail(userId: string | null) {
+  if (!userId) return null;
+  const user = await db.user.findFirst({ where: { id: userId, active: true, deletedAt: null } });
+  if (!user) return null;
+  return user.emailVerifiedAt ? user : db.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+}
+
+export const redeemSignInLink = async (token: string) => signedInByEmail(await redeemToken(token, "LOGIN"));
+export const redeemSignInCode = async (email: string, code: string) => signedInByEmail((await redeemCode(email, code, "LOGIN"))?.id ?? null);

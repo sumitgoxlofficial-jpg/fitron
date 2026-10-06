@@ -16,9 +16,10 @@ vi.mock("@/lib/integrations/email", () => ({
   },
 }));
 
-const { recordSignIn, createGymAccount, requestPasswordReset, resetPassword, verifyEmail, resendVerification } = await import("./accounts");
+const { recordSignIn, createGymAccount, requestPasswordReset, resetPassword, resetPasswordWithCode, requestSignInLink, redeemSignInLink, redeemSignInCode, verifyEmail, resendVerification } = await import("./accounts");
 
 const linkToken = (text: string, path: string) => new URL(text.match(new RegExp(`https?://\\S+${path}\\?token=\\S+`))![0]).searchParams.get("token")!;
+const codeIn = (text: string) => text.match(/code[^\n]*: (\d{6})/)![1]!;
 const signup = (email: string) => ({ plan: "starter", cycle: "YEARLY" as const, name: "Owner One", email, phone: "9876543210", business: "Iron Den", city: "Pune", password: "a-long-password" });
 
 describe.skipIf(!hasDb)("Gym self sign-up (database)", () => {
@@ -125,5 +126,78 @@ describe.skipIf(!hasDb)("Gym self sign-up (database)", () => {
     expect(await verifyPassword(after.passwordHash, "another-long-password")).toBe(true);
     expect(after.emailVerifiedAt).toBeInstanceOf(Date);
     expect(await db.session.count({ where: { userId: user.id } })).toBe(0);
+  });
+  it("resets a password with the emailed code, once, and not with a wrong or an old one", async () => {
+    const email = `${randomUUID()}@gym.test`;
+    const { user } = await createGymAccount(signup(email));
+    await db.session.create({ data: { id: randomUUID(), userId: user.id, expiresAt: new Date(Date.now() + 86_400_000) } });
+    sent.length = 0;
+    await requestPasswordReset(email);
+    await requestPasswordReset(email);
+    const [old, code] = sent.map((m) => codeIn(m.text));
+    expect(sent[1]!.text).toContain("/reset-password?token=");
+    const wrong = code === "000000" ? "000001" : "000000";
+    await expect(resetPasswordWithCode(email, wrong, "another-long-password")).rejects.toThrow(/not right/);
+    if (old !== code) await expect(resetPasswordWithCode(email, old!, "another-long-password")).rejects.toThrow(/not right/);
+    await expect(resetPasswordWithCode("nobody@nowhere.test", code!, "another-long-password")).rejects.toThrow(/not right/);
+    await resetPasswordWithCode(email, ` ${code!.slice(0, 3)} ${code!.slice(3)}`.replace(/\s/g, ""), "another-long-password");
+    await expect(resetPasswordWithCode(email, code!, "third-long-password")).rejects.toThrow(/not right/);
+    expect(await verifyPassword((await db.user.findUniqueOrThrow({ where: { id: user.id } })).passwordHash, "another-long-password")).toBe(true);
+    expect(await db.session.count({ where: { userId: user.id } })).toBe(0);
+  });
+
+  it("uses up the link when its code is used, and the code when its link is used", async () => {
+    const email = `${randomUUID()}@gym.test`;
+    await createGymAccount(signup(email));
+    sent.length = 0;
+    await requestPasswordReset(email);
+    await resetPasswordWithCode(email, codeIn(sent[0]!.text), "another-long-password");
+    await expect(resetPassword(linkToken(sent[0]!.text, "/reset-password"), "third-long-password")).rejects.toThrow(/expired/);
+    sent.length = 0;
+    await requestPasswordReset(email);
+    await resetPassword(linkToken(sent[0]!.text, "/reset-password"), "third-long-password");
+    await expect(resetPasswordWithCode(email, codeIn(sent[0]!.text), "fourth-long-password")).rejects.toThrow(/not right/);
+  });
+
+  it("stops accepting a code after five wrong tries, even the right one", async () => {
+    const email = `${randomUUID()}@gym.test`;
+    await createGymAccount(signup(email));
+    sent.length = 0;
+    await requestSignInLink(email);
+    const code = codeIn(sent[0]!.text);
+    const wrong = code === "000000" ? "000001" : "000000";
+    for (let i = 0; i < 5; i++) expect(await redeemSignInCode(email, wrong)).toBeNull();
+    expect(await redeemSignInCode(email, code)).toBeNull();
+  });
+
+  it("signs in by code or by link once each, confirming the address, and ignores unknown or switched-off accounts", async () => {
+    const email = `${randomUUID()}@gym.test`;
+    const { user } = await createGymAccount(signup(email));
+    expect(user.emailVerifiedAt).toBeNull();
+    sent.length = 0;
+    await requestSignInLink("nobody@nowhere.test");
+    expect(sent).toHaveLength(0);
+
+    await requestSignInLink(email);
+    expect(sent[0]!.text).toMatch(/\/login\/email\?token=/);
+    expect((await redeemSignInCode(email, codeIn(sent[0]!.text)))?.id).toBe(user.id);
+    expect(await redeemSignInCode(email, codeIn(sent[0]!.text))).toBeNull();
+    expect(await redeemSignInLink(linkToken(sent[0]!.text, "/login/email"))).toBeNull();
+    expect((await db.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerifiedAt).toBeInstanceOf(Date);
+
+    await requestSignInLink(email);
+    const token = linkToken(sent[1]!.text, "/login/email");
+    expect((await redeemSignInLink(token))?.id).toBe(user.id);
+    expect(await redeemSignInLink(token)).toBeNull();
+    expect(await redeemSignInCode(email, codeIn(sent[1]!.text))).toBeNull();
+    // A reset link is not a sign-in link.
+    await requestPasswordReset(email);
+    expect(await redeemSignInLink(linkToken(sent[2]!.text, "/reset-password"))).toBeNull();
+    expect(await redeemSignInCode(email, codeIn(sent[2]!.text))).toBeNull();
+
+    await requestSignInLink(email);
+    await db.user.update({ where: { id: user.id }, data: { active: false } });
+    expect(await redeemSignInCode(email, codeIn(sent[3]!.text))).toBeNull();
+    expect(await redeemSignInLink(linkToken(sent[3]!.text, "/login/email"))).toBeNull();
   });
 });

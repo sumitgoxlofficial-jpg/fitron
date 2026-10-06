@@ -6,10 +6,10 @@ import { redirect } from "next/navigation";
 import { createSession } from "@/lib/auth/session";
 import { formAction } from "@/lib/form-action";
 import { rateLimit } from "@/lib/rate-limit";
-import { createGymAccount, requestPasswordReset, resendVerification, resetPassword } from "@/lib/services/accounts";
+import { createGymAccount, requestPasswordReset, resendVerification, resetPassword, resetPasswordWithCode } from "@/lib/services/accounts";
 import { GOOGLE_SIGNUP_COOKIE, unsign } from "@/lib/integrations/google";
 import { failed, type FormState } from "@/lib/validation/common";
-import { emailOnlySchema, gymSignupSchema, resetPasswordSchema } from "@/lib/validation/site";
+import { emailOnlySchema, gymSignupSchema, resetPasswordSchema, resetWithCodeSchema } from "@/lib/validation/site";
 
 async function limited(fd: FormData, key: string, n: number) {
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
@@ -66,7 +66,7 @@ export async function resendLink(_: FormState, fd: FormData): Promise<FormState>
 export async function forgotPassword(_: FormState, fd: FormData): Promise<FormState> {
   const blocked = await limited(fd, "forgot", 3);
   if (blocked) return blocked;
-  return formAction(fd, emailOnlySchema, (d) => requestPasswordReset(d.email), "If there's an account with that email, a reset link is on its way. It works for 1 hour. Check spam too.");
+  return formAction(fd, emailOnlySchema, (d) => requestPasswordReset(d.email), "If there's an account with that email, a six-digit code and a reset link are on their way. The code works for 10 minutes, the link for 1 hour. Check spam too.");
 }
 
 export async function chooseNewPassword(_: FormState, fd: FormData): Promise<FormState> {
@@ -75,6 +75,22 @@ export async function chooseNewPassword(_: FormState, fd: FormData): Promise<For
   let done = false;
   const state = await formAction(fd, resetPasswordSchema, async (d) => {
     await resetPassword(d.token, d.password);
+    done = true;
+  }, "");
+  if (done) redirect("/login?reset=1");
+  return state;
+}
+
+/** Password reset with the six-digit code from the email, typed here instead of opening the link. */
+export async function chooseNewPasswordWithCode(_: FormState, fd: FormData): Promise<FormState> {
+  const blocked = await limited(fd, "reset-code", 10);
+  if (blocked) return blocked;
+  // Per address too: a code has a million possibilities (and also stops after a few wrong tries).
+  const email = String(fd.get("email") ?? "").trim().toLowerCase();
+  if (!rateLimit(`reset-code-for:${email}`, 10, 10 * 60_000)) return failed(fd, { message: "Too many wrong codes. Wait a few minutes and ask for a new one." });
+  let done = false;
+  const state = await formAction(fd, resetWithCodeSchema, async (d) => {
+    await resetPasswordWithCode(d.email, d.code.replace(/\s/g, ""), d.password);
     done = true;
   }, "");
   if (done) redirect("/login?reset=1");

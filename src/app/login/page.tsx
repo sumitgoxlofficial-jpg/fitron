@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current";
 import { LoginForm } from "./login-form";
+import { EmailSignInForm } from "./email-signin-form";
+import { emailReady } from "@/lib/integrations/email";
 import { CreateAccountForm } from "./create-account-form";
 import { TwoStepForm } from "./two-step-form";
 import { readChallenge } from "@/lib/auth/two-step-challenge";
@@ -37,6 +39,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const twoStep = !up && q.step === "2" ? await readChallenge() : null
   // Back from Google on a sign-up: it has confirmed the email and name, so the form starts at the gym's details.
   const google = up && q.google === "1" ? unsign<{ email: string; name: string }>((await cookies()).get(GOOGLE_SIGNUP_COOKIE)?.value) : null;
+  // Passwordless sign-in needs the email service (without it, a development server only logs the email).
+  const emailSignInOn = emailReady() || process.env.NODE_ENV !== "production";
+  const emailMode = emailSignInOn && q.mode === "email";
   const stats: [string, string][] = [
     [fromMonthly, "a month, Starter"],
     ["24/7", "AI coach for members"],
@@ -95,7 +100,18 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
               {q.verified && <Notice tone="ok">Email confirmed. Sign in to open your console.</Notice>}
               {gMsg && <Notice tone="alert">{gMsg}</Notice>}
               <GoogleButton href={`/auth/google?${new URLSearchParams({ for: "staff", ...(next ? { next } : {}) })}`} divider="or with email" />
-              <LoginForm next={next} />
+              {emailMode ? (
+                <EmailSignInForm next={next} />
+              ) : (
+                <>
+                  <LoginForm next={next} />
+                  {emailSignInOn && (
+                    <Link href={`/login?${new URLSearchParams({ mode: "email", ...(next ? { next } : {}) })}`} className="self-start py-1 text-[13px] text-accent no-underline">
+                      Email me a code or sign-in link instead
+                    </Link>
+                  )}
+                </>
+              )}
             </>
           )}
           <p className="text-xs text-neutral-700">New to FITRON? <a href="/#pricing" className="text-accent underline">See plans and pricing</a></p>

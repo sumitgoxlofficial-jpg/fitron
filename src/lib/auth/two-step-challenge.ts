@@ -9,7 +9,9 @@ import { sign, unsign } from "@/lib/integrations/google";
 export const TWO_STEP_COOKIE = "fitron_2fa";
 const TTL_MS = 5 * 60_000;
 
-export type Challenge = { uid: string; next: string; via: "email" | "google" };
+export type SignInVia = "email" | "google" | "email-link" | "email-code";
+export type Challenge = { uid: string; next: string; via: SignInVia };
+const VIAS: readonly string[] = ["email", "google", "email-link", "email-code"];
 
 /** The cookie to set, for code that answers with a Response of its own (the Google callback). */
 export const challengeCookie = (c: Challenge) => ({
@@ -25,7 +27,7 @@ export async function startChallenge(c: Challenge) {
 
 export async function readChallenge(): Promise<Challenge | null> {
   const v = unsign<Challenge>((await cookies()).get(TWO_STEP_COOKIE)?.value);
-  return v && typeof v.uid === "string" && typeof v.next === "string" && (v.via === "email" || v.via === "google") ? { uid: v.uid, next: v.next, via: v.via } : null;
+  return v && typeof v.uid === "string" && typeof v.next === "string" && VIAS.includes(v.via) ? { uid: v.uid, next: v.next, via: v.via } : null;
 }
 
 export async function clearChallenge() {

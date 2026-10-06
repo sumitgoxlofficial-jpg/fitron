@@ -79,6 +79,16 @@ export const signupStep1Schema = z.object({
 
 export const emailOnlySchema = z.object({ email: contactBase.email });
 
+const emailedCode = z.string().trim().regex(/^\d{3}\s?\d{3}$/, { error: "Enter the six-digit code from the email." });
+
+/** Passwordless sign-in: the email and the six-digit code that was sent to it. */
+export const signInCodeSchema = z.object({ email: contactBase.email, code: emailedCode });
+
+/** Password reset with the emailed code instead of the link. */
+export const resetWithCodeSchema = z
+  .object({ email: contactBase.email, code: emailedCode, password: newPassword, confirm: z.string() })
+  .refine((d) => d.password === d.confirm, { path: ["confirm"], message: "The two passwords don't match." });
+
 export const resetPasswordSchema = z
   .object({ token: z.string().min(10), password: newPassword, confirm: z.string() })
   .refine((d) => d.password === d.confirm, { path: ["confirm"], message: "The two passwords don't match." });
