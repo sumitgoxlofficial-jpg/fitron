@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -76,5 +76,18 @@ describe("the guides index", () => {
     expect((robots().rules as { allow: string[] }).allow).toContain(GUIDES_PATH);
     expect(sitemap().map((s) => s.url)).toContain(`https://fitron.in${GUIDES_PATH}`);
     expect(home.includes(`href="${GUIDES_PATH}"`)).toBe(true);
+  });
+});
+
+describe("the guides after the console saves something", () => {
+  // The console's server actions call revalidatePath("/", "layout"), which throws away every cached page. A page built ahead
+  // of time with `dynamicParams = false` cannot be built again when asked for (Next answers NoFallbackError), so every guide
+  // gave a 404 until the server restarted. CI only showed it late in the e2e run, in the sitemap test; this keeps it out.
+  it("are not pages that refuse to be built again on request", () => {
+    const app = path.join(root, "src/app");
+    const files = (readdirSync(app, { recursive: true }) as string[]).filter((f) => /(^|[\\/])(page|layout)\.tsx$/.test(f));
+    expect(files.length).toBeGreaterThan(20);
+    const refusing = files.filter((f) => /^export const dynamicParams\s*=\s*false/m.test(readFileSync(path.join(app, f), "utf8")));
+    expect(refusing).toEqual([]);
   });
 });
