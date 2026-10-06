@@ -3,6 +3,7 @@ import { GYM_ACCOUNTING, GYM_PAGES, planNote, type GymPage } from "@/lib/domain/
 import { PLANS, TRIAL_DAYS, rupeesLabel } from "@/lib/domain/pricing";
 import { gymSignupHref } from "@/lib/domain/site-links";
 import { absoluteUrl, breadcrumbJsonLd, faqJsonLd, jsonLdScript, pageMetadata, SITE_NAME } from "@/lib/seo";
+import { LiveDemo } from "./live-demo";
 
 // One of the public pages about Gym Accounting (content in src/lib/domain/gym-pages.ts). Plain <a> links, like the rest of
 // the public pages: the home page they point to is a static file, not a route.
@@ -73,16 +74,13 @@ export function GymPageView({ page }: { page: GymPage }) {
         <p className="mt-3 text-sm text-muted">No card needed. Or ask us for a demo on WhatsApp +91 62077 74673.</p>
         {page.path === GYM_ACCOUNTING.path && (
           <figure className="mt-10 overflow-hidden rounded-lg border border-line">
-            {/* eslint-disable-next-line @next/next/no-img-element -- a static file of the home page, already optimised */}
-            <img
-              src="/site/console-dashboard.webp"
+            <LiveDemo
+              poster="/site/console-dashboard.webp"
               width={1400}
               height={658}
               alt="FITRON Gym Accounting dashboard showing active members, revenue, outstanding dues and renewals for a gym"
-              className="block h-auto w-full"
-              fetchPriority="high"
             />
-            <figcaption className="px-4 py-2 text-sm text-muted">The Gym Accounting dashboard: members, revenue, dues and renewals at a glance.</figcaption>
+            <figcaption className="px-4 py-2 text-sm text-muted">The Gym Accounting dashboard: members, revenue, dues and renewals at a glance. Try the live demo to click around it.</figcaption>
           </figure>
         )}
       </header>

@@ -52,7 +52,7 @@ describe.each(GYM_PAGES.map((p) => [p.path, p] as const))("%s", (_path, page) =>
   });
 
   it("only links to pages and sections that exist", () => {
-    const known = new Set(["/", "/login", "/contact", "/privacy", ...GYM_PAGES.map((p) => p.path), ...GUIDES.map(guidePath)]);
+    const known = new Set(["/", "/login", "/contact", "/privacy", "/site/gym-demo.html", ...GYM_PAGES.map((p) => p.path), ...GUIDES.map(guidePath)]);
     const links = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => decode(m[1]!));
     expect(links.length).toBeGreaterThan(8);
     const bad: string[] = [];
@@ -138,9 +138,9 @@ describe("the home page's links to them", () => {
     expect(description.length).toBeLessThanOrEqual(160);
   });
 
-  it("links to each page from the footer, and to the main one from the Gym Accounting card", () => {
+  it("links to each page from the footer, and opens the live demo from the Gym Accounting card", () => {
     for (const p of GYM_PAGES) expect(home.includes(`<li><a href="${p.path}">`), p.path).toBe(true);
-    expect(home.includes('<a class="btn btn-ghost" href="/gym-accounting">Full details</a>')).toBe(true);
+    expect(home).toMatch(/<a class="btn btn-ghost" href="\/site\/gym-demo\.html"[^>]*data-ld-open>Demo product /);
   });
 
   it("does not say every payment makes a GST invoice: GST can be switched off", () => {
