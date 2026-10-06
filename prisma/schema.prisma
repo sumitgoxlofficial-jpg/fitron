@@ -1344,6 +1344,8 @@ model Coupon {
   description String             @default("")
   /// 1 to 100: the share of the listed price taken off. 100 makes the payment free.
   percentOff  Int
+  /// Paise. When set, the payer is charged exactly this (never more than the listed price, never below ₹1) and percentOff is only a label.
+  payPaise    Int?
   /// ALL | GYM (Gym Accounting, Gym Partnership, extra branches, add-ons) | TRAINER (AI Trainer plans)
   appliesTo   String             @default("ALL")
   /// Last day it works; null for no end date

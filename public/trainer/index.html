@@ -2418,7 +2418,7 @@ class Component extends DCLogic {
       couponBtn: st.couponBusy ? 'Checking…' : 'Apply',
       couponHasMsg: !!(st.couponMsg || st.couponQuote),
       couponMsgColor: st.couponQuote ? '#7fd3b0' : '#e0a5a5',
-      couponMsg: st.couponQuote ? 'Coupon ' + st.couponQuote.code + ' applied: ' + st.couponQuote.percentOff + '% off. ' + (st.couponQuote.total === 0 ? 'Nothing to pay.' : 'You pay ' + this._inr(st.couponQuote.total / 100) + ' instead of ' + this._inr(st.couponQuote.listTotal / 100) + '.') : (st.couponMsg || ''),
+      couponMsg: st.couponQuote ? 'Coupon ' + st.couponQuote.code + ' applied: ' + (st.couponQuote.payPaise != null ? 'price set to ' + this._inr(st.couponQuote.payPaise / 100) : st.couponQuote.percentOff + '% off') + '. ' + (st.couponQuote.total === 0 ? 'Nothing to pay.' : 'You pay ' + this._inr(st.couponQuote.total / 100) + ' instead of ' + this._inr(st.couponQuote.listTotal / 100) + '.') : (st.couponMsg || ''),
       payKicker: 'Secure payment · FITRON',
       payHeading: 'Complete Your Payment',
       payFootNote: 'Payments are processed securely' + (st.payStep === 'checkout' ? ' by Razorpay' : '') + '. Fitron never sees your card or bank details.',

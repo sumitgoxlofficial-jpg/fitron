@@ -22,6 +22,8 @@ export type CouponQuote = {
   coupon: Coupon;
   code: string;
   percentOff: number;
+  /** Paise: set when the coupon charges a flat amount instead of a percentage off. */
+  payPaise: number | null;
   /** The listed price, what the coupon takes off, and what is left to pay (paise, GST included). */
   listTotal: number;
   discount: number;
@@ -58,7 +60,7 @@ export async function quoteCoupon(raw: string, product: CouponProduct, payer: Pa
   const coupon = await db.coupon.findUnique({ where: { code } });
   if (!coupon) throw new UserError("That coupon code isn't valid.", "coupon");
   await assertUsable(db, coupon, product, payer);
-  return { coupon, code, percentOff: coupon.percentOff, listTotal, ...applyCoupon(listTotal, coupon.percentOff) };
+  return { coupon, code, percentOff: coupon.percentOff, payPaise: coupon.payPaise, listTotal, ...applyCoupon(listTotal, coupon.percentOff, coupon.payPaise) };
 }
 
 /**
@@ -124,7 +126,7 @@ export async function recentRedemptions(take = 15) {
 export async function createCoupon(by: string, input: CouponInput) {
   try {
     return await db.coupon.create({
-      data: { code: input.code, description: input.description, percentOff: input.percentOff, appliesTo: input.appliesTo, validTill: input.validTill ? fromIso(input.validTill) : null, usageLimit: input.usageLimit, createdBy: by },
+      data: { code: input.code, description: input.description, percentOff: input.percentOff, payPaise: input.payRupees ? input.payRupees * 100 : null, appliesTo: input.appliesTo, validTill: input.validTill ? fromIso(input.validTill) : null, usageLimit: input.usageLimit, createdBy: by },
     });
   } catch (e) {
     if (isUniqueViolation(e)) throw new UserError(`${input.code} already exists.`, "code");

@@ -87,6 +87,9 @@ export default async function CouponsPage({ searchParams }: PageProps<"/fitron-a
               <Field label="Discount (%)" hint="99 takes 99% off. 100 makes it free.">
                 <Input name="percentOff" type="number" required min={1} max={100} step={1} inputMode="numeric" placeholder="99" />
               </Field>
+              <Field label="Or flat price (₹, optional)" hint="Fill this and the customer pays exactly this amount, whatever the plan costs. The percentage is then only a label. Minimum ₹1.">
+                <Input name="payRupees" type="number" min={1} step={1} inputMode="numeric" placeholder="1" />
+              </Field>
               <Field label="Works on">
                 <Select name="appliesTo" defaultValue="ALL">
                   {Object.entries(COUPON_AUDIENCES).map(([k, l]) => (
@@ -143,7 +146,7 @@ export default async function CouponsPage({ searchParams }: PageProps<"/fitron-a
                           {c.createdBy} · {fmtStamp(c.createdAt)}
                         </div>
                       </td>
-                      <td className={`${TD} text-right tabular-nums`}>{c.percentOff}%</td>
+                      <td className={`${TD} text-right tabular-nums`}>{c.payPaise != null ? `Pay ${formatInr(c.payPaise)}` : `${c.percentOff}%`}</td>
                       <td className={TD}>{COUPON_AUDIENCES[c.appliesTo as keyof typeof COUPON_AUDIENCES] ?? c.appliesTo}</td>
                       <td className={`${TD} whitespace-nowrap`}>{c.validTill ? fmtDate(c.validTill) : "—"}</td>
                       <td className={`${TD} text-right tabular-nums`}>
