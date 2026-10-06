@@ -26,7 +26,9 @@ export type NavIcon =
   | "biometric"
   | "staff"
   | "audit"
-  | "settings";
+  | "settings"
+  /** The FITRON team console; added by the layout for FITRON_ADMIN_EMAILS only. */
+  | "platform";
 
 export type NavItem = {
   href: string;

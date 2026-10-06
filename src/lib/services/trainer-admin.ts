@@ -10,11 +10,11 @@ const label = (plan: string, cycle: string) => `${findPlan(plan)?.name ?? plan},
 
 // ── The FITRON team's view of the whole AI Trainer (fitron-admin/trainer) ──────────────────────
 
-const monthRange = (month: string) => {
+export const monthRange = (month: string) => {
   const start = fromIso(`${month}-01`);
   return { start, end: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1)) };
 };
-const prevMonth = (month: string) => {
+export const prevMonth = (month: string) => {
   const d = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 2, 1));
   return d.toISOString().slice(0, 7);
 };

@@ -21,6 +21,7 @@ import { getSubscriptionSettings } from "@/lib/services/subscription";
 import { getAiSettings } from "@/lib/services/ai-settings";
 import { gymLogoUrl } from "@/components/gym-logo";
 import { gymPlan } from "@/lib/services/saas";
+import { isFitronAdmin } from "@/lib/integrations/fitron-team";
 import { lowestGymPrice } from "@/lib/domain/pricing";
 import { daysBetween } from "@/lib/domain/dates";
 import { todayIso } from "@/lib/services/time";
@@ -81,6 +82,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       .filter((i) => (!i.perm || u.can(i.perm)) && (!i.anyPerm || i.anyPerm.some((p) => u.can(p))) && (ai.enabled || i.icon !== "ai"))
       .map((i) => (i.feature && !u.has(i.feature) ? { ...i, locked: true, href: upgradePath(u, i.feature) } : { ...i, badge: i.count ? counts[i.count] : undefined })),
   })).filter((g) => g.items.length);
+  // The FITRON team (FITRON_ADMIN_EMAILS) also gets the console for the whole SaaS: every gym, user and rupee earned.
+  if (isFitronAdmin(u.email)) groups.push({ group: "FITRON team", items: [{ href: "/fitron-admin", label: "FITRON admin", icon: "platform", badge: undefined }] });
   const branchName = u.branch === "ALL" ? "All branches (consolidated)" : (u.branches.find((b) => b.id === u.branch)?.name ?? "");
 
   return (
