@@ -1172,7 +1172,7 @@ model BranchSubscription {
   periodEnd              DateTime? @db.Date
   /// PENDING | PAID | FAILED. (SUBMITTED and REJECTED belong to the UPI QR + UTR way of paying, which is gone: old rows keep them.)
   status                 String    @default("PENDING")
-  /// LIVE (Razorpay Checkout, one payment) | SUBSCRIPTION (Razorpay, renews itself) | DEMO (no keys, test server only). Old rows may say UPI.
+  /// LIVE (Razorpay Checkout, one payment) | SUBSCRIPTION (Razorpay, renews itself) | COUPON (a 100% coupon: nothing to pay) | DEMO (no keys, test server only). Old rows may say UPI.
   mode                   String
   /// Legacy, UPI QR + UTR payments only (no longer made): the 12-digit UTR the gym typed after paying
   utr                    String?   @unique
@@ -1187,6 +1187,9 @@ model BranchSubscription {
   razorpaySubscriptionId String?
   /// Fitron's tax invoice number, set when paid
   invoiceNo              String?   @unique
+  /// The coupon (Coupon.code) this payment used, and how much it took off the listed price (paise, GST included). `total` is what was charged.
+  couponCode             String?
+  discount               Int       @default(0)
   createdById            String
   createdAt              DateTime  @default(now()) @db.Timestamptz
   paidAt                 DateTime? @db.Timestamptz
@@ -1327,6 +1330,54 @@ model Offer {
   updatedAt   DateTime     @updatedAt @db.Timestamptz
 
   @@unique([orgId, code])
+}
+
+/// A discount code the FITRON team makes (/fitron-admin/coupons) for payments to FITRON: Gym Accounting and Gym Partnership
+/// plans, extra branches and add-ons, and AI Trainer plans. Not the same as Offer, which is a gym's own code for its members.
+model Coupon {
+  id          String             @id @default(cuid())
+  /// Upper-case, no spaces, unique
+  code        String             @unique
+  description String             @default("")
+  /// 1 to 100: the share of the listed price taken off. 100 makes the payment free.
+  percentOff  Int
+  /// ALL | GYM (Gym Accounting, Gym Partnership, extra branches, add-ons) | TRAINER (AI Trainer plans)
+  appliesTo   String             @default("ALL")
+  /// Last day it works; null for no end date
+  validTill   DateTime?          @db.Date
+  /// Most payments it may be used on in all; null for no limit
+  usageLimit  Int?
+  /// ACTIVE | PAUSED (past validTill or used up reads Expired or Used up)
+  status      String             @default("ACTIVE")
+  createdBy   String
+  createdAt   DateTime           @default(now()) @db.Timestamptz
+  updatedAt   DateTime           @updatedAt @db.Timestamptz
+  redemptions CouponRedemption[]
+}
+
+/// One use of a coupon on one payment. A gym (orgId) or an AI Trainer member (memberId) may use a coupon once.
+model CouponRedemption {
+  id        String    @id @default(cuid())
+  couponId  String
+  /// Restrict: a coupon that was used can't be deleted, only paused
+  coupon    Coupon    @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  /// Who used it: the gym or the AI Trainer member
+  orgId     String?
+  memberId  String?
+  /// The payment it was used on: BranchSubscription.id (gym) or TrainerPayment.id (member)
+  paymentId String    @unique
+  /// PENDING (payment started; holds a place for a while) | USED (payment made) | RELEASED (payment not made, or started again)
+  status    String    @default("PENDING")
+  /// The listed price, what the coupon took off, and what was charged (paise, GST included)
+  listTotal Int
+  discount  Int
+  paid      Int
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  usedAt    DateTime? @db.Timestamptz
+
+  @@index([couponId, status])
+  @@index([orgId])
+  @@index([memberId])
 }
 
 // ── AI Trainer (member app at /trainer) ────────────────────────────────────
@@ -1478,7 +1529,7 @@ model TrainerPayment {
   base                   Int
   gst                    Int
   total                  Int
-  /// SUBSCRIPTION (Razorpay, renews itself). Old rows may say UPI or DEMO.
+  /// SUBSCRIPTION (Razorpay, renews itself) | LIVE (one Razorpay payment, used with a coupon) | COUPON (a 100% coupon: nothing to pay). Old rows may say UPI or DEMO.
   mode                   String
   /// PENDING | PAID. Old rows may also be SUBMITTED or REJECTED.
   status                 String        @default("PENDING")
@@ -1494,6 +1545,11 @@ model TrainerPayment {
   /// SUBSCRIPTION: the Razorpay subscription (RazorpaySubscription.id) and the payment of this charge
   razorpaySubscriptionId String?
   razorpayPaymentId      String?       @unique
+  /// LIVE: the Razorpay order this payment is for
+  razorpayOrderId        String?       @unique
+  /// The coupon (Coupon.code) this payment used, and how much it took off the listed price (paise, GST included). `total` is what was charged.
+  couponCode             String?
+  discount               Int           @default(0)
   /// true: the listed price was paid with the GST inside it (`total` is the listed price, `base` what is left after GST).
   /// false (older rows): GST was added on top of the listed price, which is then `base`.
   gstIncluded            Boolean       @default(false)

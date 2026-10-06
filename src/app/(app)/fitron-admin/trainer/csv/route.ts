@@ -30,13 +30,14 @@ export async function GET(req: Request) {
         { key: "base", label: "Before GST (Rs)" },
         { key: "gst", label: "GST (Rs)" },
         { key: "total", label: "Total (Rs)" },
+        { key: "couponCode", label: "Coupon" },
         { key: "mode", label: "Mode" },
         { key: "status", label: "Status" },
         { key: "paidAt", label: "Paid" },
         { key: "periodStart", label: "Period from" },
         { key: "periodEnd", label: "Period to" },
       ],
-      rows: rows.map((p) => ({ ...p, started: stamp(p.createdAt), createdAt: stamp(p.createdAt), paidAt: stamp(p.paidAt), base: p.base / 100, gst: p.gst / 100, total: p.total / 100, gym: p.gym ?? "", periodStart: p.periodStart ?? "", periodEnd: p.periodEnd ?? "" })),
+      rows: rows.map((p) => ({ ...p, started: stamp(p.createdAt), createdAt: stamp(p.createdAt), paidAt: stamp(p.paidAt), base: p.base / 100, gst: p.gst / 100, total: p.total / 100, gym: p.gym ?? "", couponCode: p.couponCode ?? "", periodStart: p.periodStart ?? "", periodEnd: p.periodEnd ?? "" })),
     });
   } else if (what === "payouts") {
     const m = sp.get("month") ?? "";

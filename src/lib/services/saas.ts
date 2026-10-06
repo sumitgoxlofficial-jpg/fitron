@@ -10,12 +10,13 @@ import { findService, servicePaise } from "@/lib/domain/services";
 import { createOrder, fitronKeyId, getFitronPayment, verifyCheckout, verifySubscriptionPayment } from "@/lib/integrations/razorpay";
 import { sendEmail } from "@/lib/integrations/email";
 import { audit } from "./audit";
+import { markCouponUsed, quoteCoupon, releaseCoupon, reserveCoupon } from "./coupons";
 import { UserError } from "./errors";
 import { notify } from "./notifications";
 import { getGymProfile, getSetting } from "./settings";
 import { getSubscriptionSettings, gymWhatsAppNumber, renewalEmails } from "./subscription";
 import { createSubscription, lockSubscription, markCharged, renewingSubscriptions, stopSubscription, syncSubscription, type SubscriptionEntity } from "./subscriptions";
-import { recordTrainerCharge, trainerRenewalTrouble } from "./trainer-billing";
+import { completeTrainerPayment, recordTrainerCharge, trainerRenewalTrouble } from "./trainer-billing";
 import { sendGymWhatsApp } from "./whatsapp";
 import { fromIso, toIso, todayIso } from "./time";
 import { log } from "@/lib/log";
@@ -136,6 +137,8 @@ export async function billingHistory(u: CurrentUser) {
 
 export type Checkout =
   | { mode: "DEMO"; id: string; total: number }
+  /** A coupon made the payment free: it is already paid, nothing to open. */
+  | { mode: "FREE"; id: string; total: 0 }
   /** Razorpay Checkout for one payment (a period at a time, or an add-on). */
   | { mode: "LIVE"; id: string; total: number; keyId: string; orderId: string; name: string; description: string; prefill: { name: string; email: string } }
   /** Razorpay Checkout for a plan that renews itself: the first payment authorises every later one. */
@@ -151,71 +154,99 @@ function describe(what: PaymentFor, cycle: Cycle | "ONCE") {
   return `${what.branchId ? "Renew extra branch" : "Extra branch"}, ${period}`;
 }
 
+/** What paying for this costs the gym at the listed price (GST inside), or why it can't be paid for. An add-on has no cycle (ONCE). */
+async function gymPrice(u: CurrentUser, what: PaymentFor, cycle: Cycle | "ONCE") {
+  const plan = await gymPlan(u.orgId);
+  if (what.kind === "SERVICE") {
+    const service = findService(what.service);
+    if (!service) throw new UserError("Pick an add-on.");
+    try {
+      return { price: gstInside(servicePaise(service, what.amount)), cycle: "ONCE" as const };
+    } catch (e) {
+      throw new UserError((e as Error).message);
+    }
+  }
+  if (cycle === "ONCE") throw new UserError("Pick monthly or yearly.");
+  if (what.kind === "PLAN") {
+    const p = findPlan(what.plan);
+    if (!p || (p.product !== "GYM_ACCOUNTING" && p.product !== "PARTNER")) throw new UserError("Pick a Gym Accounting or Gym Partnership plan.");
+    if (plan.terms.custom) throw new UserError("Your gym is on a plan FITRON set up for you, so there's nothing to pay here. Write to hello@fitron.in to change it.");
+    const branches = await db.branch.count({ where: { orgId: u.orgId, active: true } });
+    if (!p.multiBranch && branches > 1) throw new UserError(`You have ${branches} branches, and ${p.name} is for one branch. Stay on Enterprise, or write to hello@fitron.in.`);
+    return { price: planPrice(p.key, cycle), cycle };
+  }
+  if (!plan.terms.extraBranches) throw new UserError(`The ${plan.name} plan is for one branch. Move to Enterprise to add more.`);
+  if (what.branchId) {
+    const { branches } = await branchStandings(u.orgId);
+    const b = branches.find((x) => x.id === what.branchId);
+    if (!b) throw new UserError("Branch not found.");
+    if (b.standing.kind === "INCLUDED") throw new UserError("This branch is included in your plan.");
+  }
+  return { price: branchPrice(cycle), cycle };
+}
+
+/** What a coupon would do to this payment, for the coupon box before paying. Changes nothing. */
+export async function quoteGymCoupon(u: CurrentUser, what: PaymentFor, cycle: Cycle | "ONCE", code: string) {
+  const { price } = await gymPrice(u, what, cycle);
+  const q = await quoteCoupon(code, "GYM", { orgId: u.orgId }, price.total);
+  return { code: q.code, percentOff: q.percentOff, listTotal: q.listTotal, discount: q.discount, total: q.total };
+}
+
 /**
  * Starts a payment to FITRON for the gym's plan (a period of it, or a change to another plan), a Gym Partnership
  * plan, an extra branch (a new slot, or another period for an existing branch) or a one-time add-on. Listed prices
  * include GST. With Fitron's Razorpay keys set, a plan or branch that has a Razorpay plan is a subscription that
  * renews itself, and anything else is one Razorpay payment; without them the payment is simulated (development
  * only: a production server refuses).
+ *
+ * With a coupon the gym pays the reduced price once: one Razorpay payment, which does not renew by itself (a Razorpay plan
+ * has a fixed amount, so a subscription cannot start at a lower one). A 100% coupon has nothing to pay: it is paid at once.
  */
-export async function startPayment(u: CurrentUser, what: PaymentFor, cycle: Cycle | "ONCE"): Promise<Checkout> {
-  const plan = await gymPlan(u.orgId);
-  let price;
-  if (what.kind === "SERVICE") {
-    const service = findService(what.service);
-    if (!service) throw new UserError("Pick an add-on.");
-    try {
-      price = gstInside(servicePaise(service, what.amount));
-    } catch (e) {
-      throw new UserError((e as Error).message);
-    }
-    cycle = "ONCE";
-  } else if (cycle === "ONCE") {
-    throw new UserError("Pick monthly or yearly.");
-  } else if (what.kind === "PLAN") {
-    const p = findPlan(what.plan);
-    if (!p || (p.product !== "GYM_ACCOUNTING" && p.product !== "PARTNER")) throw new UserError("Pick a Gym Accounting or Gym Partnership plan.");
-    if (plan.terms.custom) throw new UserError("Your gym is on a plan FITRON set up for you, so there's nothing to pay here. Write to hello@fitron.in to change it.");
-    const branches = await db.branch.count({ where: { orgId: u.orgId, active: true } });
-    if (!p.multiBranch && branches > 1) throw new UserError(`You have ${branches} branches, and ${p.name} is for one branch. Stay on Enterprise, or write to hello@fitron.in.`);
-    price = planPrice(p.key, cycle);
-  } else {
-    if (!plan.terms.extraBranches) throw new UserError(`The ${plan.name} plan is for one branch. Move to Enterprise to add more.`);
-    if (what.branchId) {
-      const { branches } = await branchStandings(u.orgId);
-      const b = branches.find((x) => x.id === what.branchId);
-      if (!b) throw new UserError("Branch not found.");
-      if (b.standing.kind === "INCLUDED") throw new UserError("This branch is included in your plan.");
-    }
-    price = branchPrice(cycle);
-  }
+export async function startPayment(u: CurrentUser, what: PaymentFor, cycle: Cycle | "ONCE", couponCode?: string): Promise<Checkout> {
+  const priced = await gymPrice(u, what, cycle);
+  cycle = priced.cycle;
+  const quote = couponCode?.trim() ? await quoteCoupon(couponCode, "GYM", { orgId: u.orgId }, priced.price.total) : null;
+  const price = quote ? gstInside(quote.total) : priced.price;
+  const free = !!quote && quote.total === 0;
   const keyId = fitronKeyId();
   // Demo payments move no money and are marked paid by the gym itself, so a live server never starts one.
-  if (!keyId && process.env.NODE_ENV === "production") throw new UserError("Payments to FITRON aren't switched on yet. Write to hello@fitron.in and we will set up your plan.");
-  const renews = keyId && what.kind !== "SERVICE" ? razorpayPlan(what.kind === "PLAN" ? what.plan : BRANCH_PLAN_KEY, cycle) : null;
+  if (!keyId && !free && process.env.NODE_ENV === "production") throw new UserError("Payments to FITRON aren't switched on yet. Write to hello@fitron.in and we will set up your plan.");
+  const renews = !quote && keyId && what.kind !== "SERVICE" ? razorpayPlan(what.kind === "PLAN" ? what.plan : BRANCH_PLAN_KEY, cycle) : null;
   if (renews && what.kind !== "SERVICE") {
     // The same plan and cycle already renewing, or that branch already renewing: a second subscription would charge twice.
     const live = await renewingSubscriptions({ orgId: u.orgId, kind: what.kind === "PLAN" ? "GYM_PLAN" : "BRANCH" });
     const twin = live.find((s) => s.cycle === cycle && (what.kind === "PLAN" ? s.plan === what.plan : !!what.branchId && s.branchId === what.branchId));
     if (twin) throw new UserError(`${describe(what, cycle).replace(/, 1 (month|year)$/, "")} already renews automatically${twin.nextChargeAt ? ` (next charge ${longDate(toIso(twin.nextChargeAt))})` : ""}. To change it, pick another plan, or cancel the renewal under Automatic renewals.`);
   }
-  const mode = renews ? "SUBSCRIPTION" : keyId ? "LIVE" : "DEMO";
+  const mode = free ? "COUPON" : renews ? "SUBSCRIPTION" : keyId ? "LIVE" : "DEMO";
   // Razorpay first: if it refuses, nothing is left half-made here.
   const rz = renews ? await createSubscription({ kind: what.kind === "PLAN" ? "GYM_PLAN" : "BRANCH", plan: what.kind === "PLAN" ? what.plan : null, cycle: cycle as Cycle, expectedTotal: price.total, orgId: u.orgId, branchId: what.kind === "BRANCH" ? what.branchId : null }) : null;
-  const sub = await db.branchSubscription.create({
-    data: {
-      orgId: u.orgId,
-      kind: what.kind,
-      plan: what.kind === "PLAN" ? what.plan : what.kind === "SERVICE" ? what.service : null,
-      branchId: what.kind === "BRANCH" ? what.branchId : null,
-      cycle,
-      ...price,
-      mode,
-      razorpaySubscriptionId: rz?.id ?? null,
-      createdById: u.id,
-    },
+  const sub = await db.$transaction(async (tx) => {
+    const row = await tx.branchSubscription.create({
+      data: {
+        orgId: u.orgId,
+        kind: what.kind,
+        plan: what.kind === "PLAN" ? what.plan : what.kind === "SERVICE" ? what.service : null,
+        branchId: what.kind === "BRANCH" ? what.branchId : null,
+        cycle,
+        ...price,
+        mode,
+        couponCode: quote?.code ?? null,
+        discount: quote?.discount ?? 0,
+        razorpaySubscriptionId: rz?.id ?? null,
+        createdById: u.id,
+      },
+    });
+    if (quote) await reserveCoupon(tx, quote, "GYM", { orgId: u.orgId }, row.id);
+    // Nothing to pay: the coupon is the payment.
+    if (free) await completeIn(tx, { id: row.id }, null);
+    return row;
   });
-  const description = `${describe(what, cycle)} (GST included)`;
+  if (free) {
+    await afterCouponPayment(sub);
+    return { mode: "FREE", id: sub.id, total: 0 };
+  }
+  const description = `${describe(what, cycle)} (GST included${quote ? `, coupon ${quote.code} ${quote.percentOff}% off` : ""})`;
   if (!keyId) return { mode: "DEMO", id: sub.id, total: price.total };
   const seller = fitronSeller();
   const prefill = { name: u.name, email: u.email };
@@ -266,12 +297,26 @@ async function completeIn(tx: Prisma.TransactionClient, where: { id: string } | 
       invoiceNo: await invoiceNumber(tx, today),
     },
   });
+  await markCouponUsed(tx, fresh.id);
   const action = fresh.kind === "PLAN" ? "billing.plan-paid" : fresh.kind === "SERVICE" ? "billing.service-paid" : "billing.branch-paid";
   await audit(tx, { orgId: fresh.orgId, userId: fresh.createdById, action, entity: "BranchSubscription", entityId: fresh.id, before: fresh, after });
   return after;
 }
 
-const complete = (where: { id: string } | { razorpayOrderId: string }, paymentId: string | null) => db.$transaction((tx) => completeIn(tx, where, paymentId));
+/**
+ * A plan paid for with a coupon is one payment, not a subscription. If the gym has plans renewing by themselves other than
+ * this one, their next charge would switch the plan back, so they stop (the same as when a gym pays for another plan).
+ */
+async function afterCouponPayment(sub: { kind: string; orgId: string; plan: string | null; cycle: string; couponCode: string | null }) {
+  if (!sub.couponCode || sub.kind !== "PLAN") return;
+  for (const other of await renewingSubscriptions({ orgId: sub.orgId, kind: "GYM_PLAN" })) if (other.plan !== sub.plan || other.cycle !== sub.cycle) await stopSubscription(other.id);
+}
+
+async function complete(where: { id: string } | { razorpayOrderId: string }, paymentId: string | null) {
+  const done = await db.$transaction((tx) => completeIn(tx, where, paymentId));
+  if (done?.status === "PAID") await afterCouponPayment(done);
+  return done;
+}
 
 /** Demo mode only (Fitron's Razorpay keys not set): the payment is simulated. Never on a live server. */
 export async function confirmDemoPayment(u: CurrentUser, id: string) {
@@ -421,10 +466,17 @@ export async function applyFitronBillingEvent(ev: RzpEvent) {
   if (ev.event?.startsWith("subscription.") && subscription?.id) return applySubscriptionEvent(ev.event, subscription, pay);
   if (ev.event === "payment.captured" && pay?.order_id && pay.id) {
     const done = await complete({ razorpayOrderId: pay.order_id }, pay.id);
-    return done ? "paid" : "unknown order";
+    if (done) return "paid";
+    // Not a gym's payment: an AI Trainer member's, made at a coupon's price.
+    return (await completeTrainerPayment({ razorpayOrderId: pay.order_id }, pay.id)) ? "paid" : "unknown order";
   }
   if (ev.event === "payment.failed" && pay?.order_id) {
+    const failed = await db.branchSubscription.findMany({ where: { razorpayOrderId: pay.order_id, status: "PENDING" }, select: { id: true } });
     await db.branchSubscription.updateMany({ where: { razorpayOrderId: pay.order_id, status: "PENDING" }, data: { status: "FAILED" } });
+    // The coupon's use goes back; if the payment is retried and captured after all, it becomes a use again.
+    for (const f of failed) await releaseCoupon(db, f.id);
+    const memberPay = await db.trainerPayment.findUnique({ where: { razorpayOrderId: pay.order_id }, select: { id: true } });
+    if (memberPay) await releaseCoupon(db, memberPay.id);
     return "failed";
   }
   return "ignored";

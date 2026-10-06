@@ -291,6 +291,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
                         <td className={TD}>
                           {what}
                           {h.mode === "DEMO" ? " · demo" : h.mode === "SUBSCRIPTION" ? " · renews automatically" : ""}
+                          {h.couponCode ? ` · coupon ${h.couponCode}` : ""}
                         </td>
                         <td className={cx(TD, "tabular-nums")}>{h.razorpayPaymentId ?? "—"}</td>
                         <td className={cx(TD, "whitespace-nowrap")}>{h.status === "PAID" && h.periodEnd ? fmtDate(h.periodEnd) : "—"}</td>

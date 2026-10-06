@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Select } from "@/components/ui";
+import { Button, Input, Select } from "@/components/ui";
 import { formatInr } from "@/lib/format";
 import type { PaymentFor } from "@/lib/services/saas";
-import { confirmCheckoutAction, confirmDemoAction, confirmSubscriptionAction, startPaymentAction } from "./actions";
+import { confirmCheckoutAction, confirmDemoAction, confirmSubscriptionAction, previewCouponAction, startPaymentAction } from "./actions";
 
 /** What Checkout hands back: an order's id for one payment, or a subscription's id for a plan that renews itself. */
 type RazorpayResponse = {
@@ -31,7 +31,17 @@ function loadCheckout(): Promise<RazorpayCtor> {
   });
 }
 
-/** Pay FITRON for the gym's plan, an extra branch (new slot, or renewing one) or a one-time add-on. */
+/** The button's words once a coupon is applied: the price in it (after " · ", or after "Pay ") becomes the price to pay now. */
+function couponLabel(label: string, total: number) {
+  if (total === 0) return "Get it free";
+  const price = formatInr(total).replace(/\.00$/, "");
+  if (label.includes(" · ")) return `${label.replace(/ · .*$/, "")} · ${price}`;
+  return label.startsWith("Pay ") ? `Pay ${price}` : label;
+}
+
+type Quote = { code: string; percentOff: number; listTotal: number; discount: number; total: number };
+
+/** Pay FITRON for the gym's plan, an extra branch (new slot, or renewing one) or a one-time add-on. A coupon code can be typed before paying. */
 export function PayButton({
   what,
   label,
@@ -54,6 +64,21 @@ export function PayButton({
   const cycle: "YEARLY" | "MONTHLY" | "ONCE" = fixedCycle ?? picked;
   const [msg, setMsg] = useState<{ tone: "ok" | "alert"; text: string } | null>(null);
   const [pending, start] = useTransition();
+  // The coupon box: what was typed, and what the server said it does to this payment (only good for the payment it was asked about).
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [coupon, setCoupon] = useState("");
+  const [quote, setQuote] = useState<{ key: string; q: Quote } | null>(null);
+  const code = coupon.trim().toUpperCase().replace(/\s+/g, "");
+  const quoteKey = JSON.stringify([what, cycle]);
+  const applied = quote && quote.key === quoteKey && quote.q.code === code ? quote.q : null;
+
+  const apply = () =>
+    start(async () => {
+      setMsg(null);
+      const r = await previewCouponAction(what, cycle, code);
+      if (!r.ok) return setMsg({ tone: "alert", text: r.error });
+      setQuote({ key: quoteKey, q: r.data });
+    });
 
   const done = (r: { ok: boolean; error?: string }) => {
     if (!r.ok) return setMsg({ tone: "alert", text: r.error ?? "Payment failed." });
@@ -64,9 +89,11 @@ export function PayButton({
   const pay = () =>
     start(async () => {
       setMsg(null);
-      const r = await startPaymentAction(what, cycle);
+      const r = await startPaymentAction(what, cycle, code || undefined);
       if (!r.ok) return setMsg({ tone: "alert", text: r.error });
       const c = r.data;
+      // A coupon made it free: it is already paid.
+      if (c.mode === "FREE") return done({ ok: true });
       if (c.mode === "DEMO") {
         if (!window.confirm(`Demo mode: FITRON's Razorpay keys aren't set on this server, so no money is charged. Mark ${formatInr(c.total)} as paid?`)) return;
         return done(await confirmDemoAction(c.id));
@@ -120,6 +147,37 @@ export function PayButton({
 
   return (
     <div className="flex flex-col gap-2">
+      {couponOpen ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            value={coupon}
+            onChange={(e) => setCoupon(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (code && !pending) apply();
+              }
+            }}
+            placeholder="Coupon code"
+            aria-label="Coupon code"
+            maxLength={20}
+            autoComplete="off"
+            className={wide ? "min-w-0 flex-1 uppercase" : "w-40 uppercase"}
+          />
+          <Button onClick={apply} disabled={pending || !code} type="button">
+            Apply
+          </Button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setCouponOpen(true)} className="self-start text-[13px] text-accent underline underline-offset-2">
+          Have a coupon code?
+        </button>
+      )}
+      {applied && (
+        <p className="text-sm text-ok">
+          Coupon {applied.code} applied: {applied.percentOff}% off. {applied.total === 0 ? "Nothing to pay." : `You pay ${formatInr(applied.total)}, not ${formatInr(applied.listTotal)}.`} {cycle !== "ONCE" && applied.total > 0 ? "It is one payment and doesn't renew by itself." : ""}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         {!fixedCycle && prices && (
           <Select value={cycle} onChange={(e) => setCycle(e.target.value as "YEARLY" | "MONTHLY")} aria-label="Billing cycle" className="w-auto">
@@ -128,7 +186,7 @@ export function PayButton({
           </Select>
         )}
         <Button variant="primary" onClick={pay} disabled={pending} type="button" className={wide ? "w-full" : undefined}>
-          {pending ? "Working…" : label}
+          {pending ? "Working…" : applied ? couponLabel(label, applied.total) : label}
         </Button>
       </div>
       {msg && <p className={msg.tone === "ok" ? "text-sm text-ok" : "text-sm text-alert"}>{msg.text}</p>}

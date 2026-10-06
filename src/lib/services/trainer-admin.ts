@@ -132,6 +132,7 @@ export async function trainerPaymentList(f: { status?: string; page?: number; pa
       base: p.base,
       gst: p.gst,
       total: p.total,
+      couponCode: p.couponCode,
       mode: p.mode,
       status: p.status,
       createdAt: p.createdAt,
