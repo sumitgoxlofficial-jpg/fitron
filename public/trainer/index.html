@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="./fitron.css">
 </helmet>
 
-<div class="appwrap {{ themeClass }}" style="min-height:100vh;background:radial-gradient(120% 80% at 80% -10%,rgba(217,180,90,.10),transparent 60%),var(--bg);display:flex;flex-direction:column;align-items:center;gap:16px;padding:64px 18px 46px">
+<div class="appwrap {{ themeClass }}" style="{{ wrapStyle }}">
 
   <div class="{{ frameCls }}" style="{{ frameStyle }}">
 
@@ -933,7 +933,7 @@ class Component extends DCLogic {
   state = {
     consent: { main: false, notif: true, city: true, at: '' }, cnErr: false,
     theme: (() => { try { const t = localStorage.getItem('aif-look'); return ['sunrise','blossom','midnight','onyx'].includes(t) ? t : 'sunrise'; } catch (e) { return 'sunrise'; } })(),
-    device: 'mobile', screen: 'login', loginRole: 'member', signup: false, water: 0, onboardStep: 1, moreOpen: false, billing: 'yearly', subMode: 'manage', trialEnds: '', planCancelled: false, cnFrom: '', payGateKind: '', dbUserId: '', dbMember: null, dbMembers: [], dbStats: null, dbRecent: [], planLocked: false, linkErr: '', me: null, prog: null, review: null, coachUse: null, tier: 'ai-pro', payInfo: null, authNote: '', signinMode: false, devLink: '',
+    device: (typeof window !== 'undefined' && window.innerWidth >= 900) ? 'desktop' : 'mobile', screen: 'login', loginRole: 'member', signup: false, water: 0, onboardStep: 1, moreOpen: false, billing: 'yearly', subMode: 'manage', trialEnds: '', planCancelled: false, cnFrom: '', payGateKind: '', dbUserId: '', dbMember: null, dbMembers: [], dbStats: null, dbRecent: [], planLocked: false, linkErr: '', me: null, prog: null, review: null, coachUse: null, tier: 'ai-pro', payInfo: null, authNote: '', signinMode: false, devLink: '',
     vw: (typeof window !== 'undefined' ? window.innerWidth : 1200), running: false, phase: 'work', step: 0, setIdx: 0, timeLeft: 0,
     habits: { workout:false, water:false, steps:false, protein:false, meals:false, sleep:false },
     reminders: { workout:true, meals:true, water:false, sleep:true }, notifPerm: 'default', notificationsOn: true, supps: { whey:true, pre:true }, editSupp: false,
@@ -1000,7 +1000,7 @@ class Component extends DCLogic {
     this.restoreSession();
     this._api('content').then(r => { if (r.ok && r.data.videos) this.setState({ exVideos: r.data.videos }); }).catch(() => {});
     this._fired = {}; this.tick(); this._t = setInterval(() => this.tick(), 20000);
-    this._resize = () => this.setState({ vw: window.innerWidth });
+    this._resize = () => this.setState({ vw: window.innerWidth, device: window.innerWidth >= 900 ? 'desktop' : 'mobile' });
     window.addEventListener('resize', this._resize);
   }
   componentWillUnmount() { clearInterval(this._t); clearInterval(this._wt); window.removeEventListener('resize', this._resize); }
@@ -2208,7 +2208,8 @@ class Component extends DCLogic {
       mainCls: (s === 'home' && D && !st.signup) ? 'ph-hero-d' : '',
       frameStyle: (!D && st.vw <= 500)
         ? { width:'100vw', height:'100dvh', display:'flex', flexDirection:'column', background:'var(--bg)', overflow:'hidden', position:'relative' }
-        : { width: D ? '1240px' : '392px', maxWidth:'100%', height: D ? '820px' : '812px', display:'flex', flexDirection: D ? 'row' : 'column', background:'var(--bg)', border:'1px solid var(--line)', borderRadius: D ? '18px' : '34px', boxShadow:'0 30px 80px rgba(0,0,0,.55)', overflow:'hidden', position:'relative' },
+        : { width: D ? '100%' : '392px', maxWidth: D ? '1440px' : '100%', height: D ? 'calc(100dvh - 40px)' : '812px', ...(D ? { minHeight:'620px', maxHeight:'1000px' } : {}), display:'flex', flexDirection: D ? 'row' : 'column', background:'var(--bg)', border:'1px solid var(--line)', borderRadius: D ? '18px' : '34px', boxShadow:'0 30px 80px rgba(0,0,0,.55)', overflow:'hidden', position:'relative' },
+      wrapStyle: { minHeight:'100vh', background:'radial-gradient(120% 80% at 80% -10%,rgba(217,180,90,.10),transparent 60%),var(--bg)', display:'flex', flexDirection:'column', alignItems:'center', gap:'16px', padding: D ? '20px' : '64px 18px 46px', boxSizing:'border-box' },
       showLogin: s === 'login', showApp: isApp,
       lpMode: D ? 'lp-desk' : 'lp-mob',
       landNavStyle: { display:'flex', alignItems:'center', justifyContent:'space-between', gap:'16px', padding: D ? '20px 44px' : '16px 20px', borderBottom:'1px solid var(--line-2)', flexWrap:'wrap' },
