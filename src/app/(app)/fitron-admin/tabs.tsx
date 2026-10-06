@@ -2,6 +2,8 @@ import Link from "next/link";
 import { cx } from "@/components/ui";
 
 export const ADMIN_TABS = [
+  { href: "/fitron-admin", label: "Overview" },
+  { href: "/fitron-admin/gyms", label: "Gyms" },
   { href: "/fitron-admin/trainer", label: "AI Trainer" },
   { href: "/fitron-admin/trainer?tab=payments", label: "AI Trainer payments" },
   { href: "/fitron-admin/trainer?tab=payouts", label: "Gym payouts" },

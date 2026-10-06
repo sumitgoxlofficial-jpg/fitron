@@ -6,6 +6,7 @@ import {
   ArrowsClockwiseIcon,
   BarbellIcon,
   BellIcon,
+  BuildingsIcon,
   CalendarCheckIcon,
   CalendarDotsIcon,
   ChartBarIcon,
@@ -58,6 +59,7 @@ const ICONS: Record<NavIcon, Icon> = {
   staff: IdentificationBadgeIcon,
   audit: ListMagnifyingGlassIcon,
   settings: GearSixIcon,
+  platform: BuildingsIcon,
 };
 
 const within = (path: string, href: string) => path === href || path.startsWith(href + "/");
