@@ -4,9 +4,9 @@ import { findGuide, GUIDES, guidePath } from "@/lib/domain/guides";
 import { pageMetadata } from "@/lib/seo";
 import { GuideView } from "../../guide-view";
 
-// One guide for gym owners (content in src/lib/domain/guides.ts). Only the guides in that file exist.
-
-export const dynamicParams = false;
+// One guide for gym owners (content in src/lib/domain/guides.ts). Only the guides in that file exist: any other address
+// is a 404 from notFound() below. Not `dynamicParams = false`: the console's revalidatePath("/", "layout") marks these
+// prerendered pages stale, and with dynamicParams off Next.js then answered every guide with a 404 (NoFallbackError).
 
 export function generateStaticParams() {
   return GUIDES.map((g) => ({ slug: g.slug }));
