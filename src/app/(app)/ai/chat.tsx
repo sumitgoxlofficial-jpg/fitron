@@ -6,21 +6,26 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { ArrowRightIcon, ArrowUpIcon, ArrowsClockwiseIcon, CircleNotchIcon, CurrencyInrIcon, FunnelIcon, PackageIcon, PaperPlaneTiltIcon, TrendUpIcon, UserCircleMinusIcon, WarningIcon } from "@phosphor-icons/react";
 import { cx } from "@/components/ui";
 import type { BriefCard } from "@/lib/services/ai-local";
+import { TOOL_LABEL } from "@/lib/domain/ai-labels";
 import { dismissProposalAction, sendProposalAction } from "./actions";
 
-type Proposal = { id: string; summary: string; members: number; body: string };
+type Proposal = { id: string; kind: string; summary: string; members: number; body: string; confirm: string };
 type Turn = { role: "user" | "assistant"; content: string; proposals?: Proposal[]; error?: string };
 
-const STEP: Record<string, string> = {
-  get_overview: "Checking today's numbers…",
-  list_members: "Looking up members…",
-  find_member: "Finding the member…",
-  revenue_breakdown: "Reading the accounts…",
-  class_and_attendance: "Checking classes and attendance…",
-  propose_action: "Drafting a message…",
+const SUGGESTIONS = [
+  "Who owes us money?",
+  "GST collected this month",
+  "Create an invoice for a member",
+  "How is this month vs last month?",
+  "Record an expense",
+  "Which invoices are overdue?",
+  "What can you do?",
+];
+const GREETING: Turn = {
+  role: "assistant",
+  content:
+    "Hi! I'm your accounting assistant. I read your gym's live books and can answer questions on GST, invoices, payments, expenses, profit and cash. I can also prepare invoices, membership sales, payments and expenses. You check each one and press Confirm; nothing is saved until you do.",
 };
-const SUGGESTIONS = ["Who should I follow up with today?", "How is this month vs last month?", "Which members are at risk?", "Draft reminders for pending dues", "Which classes are underbooked?"];
-const GREETING: Turn = { role: "assistant", content: "Hi! I read your gym's live data. Ask me about members, renewals, dues, classes or this month's numbers. I'll draft messages, but nothing is sent until you press Send." };
 
 /** The conversation, streamed from /api/ai/chat (the model, or the built-in answers without a key). */
 export function useAiChat() {
@@ -32,7 +37,7 @@ export function useAiChat() {
     const history = [...turns.slice(1).filter((t) => !t.error && t.content), { role: "user" as const, content: q.trim() }];
     setTurns((ts) => [...ts, { role: "user", content: q.trim() }, { role: "assistant", content: "", proposals: [] }]);
     setBusy(true);
-    setStep("Reading your gym data…");
+    setStep("Reading your books…");
     const patch = (f: (t: Turn) => Turn) => setTurns((ts) => [...ts.slice(0, -1), f(ts[ts.length - 1]!)]);
     try {
       const res = await fetch("/api/ai/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: history.slice(-20).map(({ role, content }) => ({ role, content })) }) });
@@ -55,7 +60,7 @@ export function useAiChat() {
           if (!line.trim()) continue;
           const e = JSON.parse(line);
           if (e.type === "text") patch((t) => ({ ...t, content: t.content ? `${t.content}\n\n${e.text}` : e.text }));
-          if (e.type === "tool") setStep(STEP[e.name] ?? "Working…");
+          if (e.type === "tool") setStep(TOOL_LABEL[e.name] ? `${TOOL_LABEL[e.name]}…` : "Working…");
           if (e.type === "proposal") patch((t) => ({ ...t, proposals: [...(t.proposals ?? []), e] }));
           if (e.type === "error") patch((t) => ({ ...t, error: e.message }));
         }
@@ -74,23 +79,45 @@ function ProposalButtons({ p }: { p: Proposal }) {
   const [sent, send, sending] = useActionState(sendProposalAction.bind(null, p.id), undefined);
   const [dropped, drop, dropping] = useActionState(dismissProposalAction.bind(null, p.id), undefined);
   const chip = "inline-flex items-center rounded-full border border-line bg-bg px-3 py-1.5 text-[13px] font-semibold hover:bg-fg/7 disabled:opacity-45";
-  if (sent?.message) return <div className={cx("mt-2.5 text-[13px]", sent.ok ? "text-ok" : "text-alert")}>{sent.message}</div>;
-  if (dropped?.ok) return <div className="mt-2.5 text-[13px] text-muted">Not sent.</div>;
+  const whatsapp = p.kind === "WHATSAPP";
+  if (sent?.message)
+    return (
+      <div className={cx("mt-2.5 text-[13px]", sent.ok ? "text-ok" : "text-alert")}>
+        {sent.message}
+        {sent.ok && sent.href && (
+          <span className="mt-1 flex flex-wrap gap-3">
+            <Link href={sent.href} className="font-semibold underline">
+              Open
+            </Link>
+            {sent.pdf && (
+              <a href={sent.pdf} target="_blank" rel="noreferrer" className="font-semibold underline">
+                Invoice PDF
+              </a>
+            )}
+          </span>
+        )}
+      </div>
+    );
+  if (dropped?.ok) return <div className="mt-2.5 text-[13px] text-muted">{whatsapp ? "Not sent." : "Discarded. Nothing was saved."}</div>;
   return (
     <div className="mt-2.5 flex flex-col gap-2">
-      <details className="text-[13px] text-muted">
-        <summary className="cursor-pointer">Message to {p.members} member{p.members === 1 ? "" : "s"}</summary>
-        <p className="mt-1 whitespace-pre-line">{p.body}</p>
-      </details>
+      {whatsapp ? (
+        <details className="text-[13px] text-muted">
+          <summary className="cursor-pointer">Message to {p.members} member{p.members === 1 ? "" : "s"}</summary>
+          <p className="mt-1 whitespace-pre-line">{p.body}</p>
+        </details>
+      ) : (
+        <div className="rounded-lg border border-line bg-bg px-3 py-2 text-[13px] leading-[1.55] whitespace-pre-line">{p.body}</div>
+      )}
       <div className="flex flex-wrap gap-1.5">
         <form action={send}>
           <button className={chip} disabled={sending || dropping}>
-            {sending ? "Sending…" : p.summary.replace(/^(\w)/, (c) => c.toUpperCase())}
+            {sending ? "Working…" : p.confirm}
           </button>
         </form>
         <form action={drop}>
           <button className={cx(chip, "font-normal")} disabled={sending || dropping}>
-            Don&apos;t send
+            {whatsapp ? "Don\u2019t send" : "Discard"}
           </button>
         </form>
       </div>
@@ -152,7 +179,7 @@ export function ChatPanel({ chat, drawer = false }: { chat: ReturnType<typeof us
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={drawer ? "Ask about members, dues, revenue…" : "Ask anything about your gym…"}
+            placeholder={drawer ? "Ask about GST, invoices, dues…" : "Ask about your accounts, or say \u201Ccreate an invoice\u201D…"}
             aria-label="Ask Fitron AI"
             maxLength={4000}
             className="min-w-0 flex-1 border-0 bg-transparent py-2 text-[15px] text-fg outline-0 placeholder:text-fg/55"
@@ -211,7 +238,7 @@ export function AiWorkspace({ brief, today }: { brief: BriefCard[]; today: strin
           <Image src="/fitron-mark.png" alt="" width={30} height={30} className="rounded-full" />
           <div>
             <div className="text-sm font-semibold">Chat with Fitron AI</div>
-            <div className="text-xs text-muted">Ask about members, money, renewals or staff</div>
+            <div className="text-xs text-muted">Accounting, GST, invoices and billing · asks before saving</div>
           </div>
         </div>
         <ChatPanel chat={chat} />

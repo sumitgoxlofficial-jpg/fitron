@@ -6,8 +6,11 @@ import { profitAndLoss } from "./accounting";
 import { listMembers } from "./members";
 import { weekSchedule, weekStart } from "./classes";
 import { fromIso, todayIso } from "./time";
-import type { ChatEvent } from "./ai";
+import { proposalEvent, type ChatEvent } from "./ai";
 import { getAiSettings } from "./ai-settings";
+import { runTool } from "./ai-tools";
+import { bestAccountingFact, CAPABILITY_SUMMARY } from "@/lib/domain/ai-knowledge";
+import { canUsePermission } from "@/lib/domain/features";
 
 /**
  * Fitron AI without a model (no ANTHROPIC_API_KEY): the prototype's built-in answers (A.aiLocal),
@@ -25,12 +28,117 @@ const BODY = {
 async function propose(u: CurrentUser, ids: string[], body: string, summary: string): Promise<ChatEvent | null> {
   if (!ids.length || !u.can("whatsapp.send")) return null;
   const p = await db.aiProposal.create({ data: { orgId: u.orgId, userId: u.id, kind: "WHATSAPP", memberIds: ids.slice(0, 250), body, summary } });
-  return { type: "proposal", id: p.id, summary, members: Math.min(ids.length, 250), body };
+  return proposalEvent(p);
+}
+
+type Rows = Record<string, unknown>[];
+const asRows = (v: unknown) => (Array.isArray(v) ? (v as Rows) : []);
+const kv = (o: unknown) => Object.entries((o ?? {}) as Record<string, unknown>).map(([k, v]) => `- ${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join("\n");
+
+const NEEDS_MODEL = "Preparing that needs the AI model, which isn't switched on for this site (ANTHROPIC_API_KEY). You can do it yourself in a minute: Invoices › New invoice, a member's Sell or renew page, an invoice's Collect payment, or Expenses › Add expense. I can still read your books: ask about unpaid invoices, GST this month, expenses, cash, supplier bills or any accounting question.";
+
+/** Accounting questions answered from live data with the same read tools the model uses. Null when the question isn't one of them. */
+async function* accountingAnswer(u: CurrentUser, t: string, today: string): AsyncGenerator<ChatEvent, boolean> {
+  const monthFrom = `${today.slice(0, 7)}-01`;
+  const lastMonth = `${addDays(monthFrom, -1).slice(0, 7)}-01`;
+  const lastTo = addDays(monthFrom, -1);
+  const last = /last month|pichhle|previous month/.test(t);
+  const from = last ? lastMonth : monthFrom;
+  const to = last ? lastTo : today;
+  const say = (text: string): ChatEvent => ({ type: "text", text });
+  const err = (x: unknown) => (x && typeof x === "object" && "error" in x ? String((x as { error: string }).error) : null);
+
+  if (/what can you do|what do you do|help me|capabilit|kya kar sakt/.test(t)) {
+    yield say(CAPABILITY_SUMMARY.replace("I can read your books and explain them, and I can draft the work for you to approve:", "I can read your books and answer accounting questions. Drafting invoices, payments and expenses needs the AI model, which isn't switched on here, so for now I can do the reading part:"));
+    return true;
+  }
+  if (/(create|make|generate|raise|prepare|banao|bana)\b.*\b(invoice|bill|receipt)|\b(record|add|enter)\b.*\b(expense|payment)|collect.*payment|cancel.*invoice|reverse.*payment|sell.*membership/.test(t)) {
+    yield say(NEEDS_MODEL);
+    return true;
+  }
+  const concept = /^\s*(what|why|when|how (do|does|to|can|should)|explain|difference|can i|do i|should i|is it|are there|kya|kaise|kab)\b/.test(t) && !/how (much|many)|\b(my|our|this month|last month|today|so far|collected|total)\b/.test(t);
+  if (concept) {
+    const fact = bestAccountingFact(t, 2);
+    if (fact) {
+      yield say(fact.answer);
+      return true;
+    }
+  }
+  const inv = t.match(/\b([a-z]{2,6}-?\d{3,6})\b/i);
+  if (inv && /invoice|bill|inv/.test(t)) {
+    yield { type: "tool", name: "get_invoice" };
+    const r = (await runTool(u, "get_invoice", { invoice: inv[1] })) as Record<string, unknown>;
+    if (err(r)) yield say(String(err(r)));
+    else
+      yield say(
+        `${r.number} for ${(r.member as { name: string }).name}: total ${r.total}, paid ${r.paid}, balance ${r.balance} (${String(r.status).toLowerCase().replace("_", " ")}).\nGST ${r.gstTotal} (${r.gst}). Due ${r.due}.\nOpen: ${(r.links as { page: string }).page} · PDF: ${(r.links as { pdf: string }).pdf}`,
+      );
+    return true;
+  }
+  const denied = (what: string): ChatEvent => say(`Your role doesn't include ${what}. Ask a Super Admin or Accountant, or ask them to change your role in Staff.`);
+  if (/gst|cgst|sgst|igst|tax collected|output tax/.test(t)) {
+    if (!canUsePermission(u, "accounting.view")) {
+      yield denied("the accounts and GST figures");
+      return true;
+    }
+    yield { type: "tool", name: "gst_summary" };
+    const r = (await runTool(u, "gst_summary", { from, to })) as Record<string, unknown>;
+    if (err(r)) yield say(String(err(r)));
+    else yield say(`GST on sales, ${from} to ${to}:\n- Taxable value: ${r.taxableValue}\n- CGST ${r.cgst} · SGST ${r.sgst} · IGST ${r.igst}\n- Total GST: ${r.totalTax} on ${r.invoices} invoices (total invoiced ${r.totalInvoiced})\nThis is output tax on sales; returns are filed outside Fitron.`);
+    return true;
+  }
+  if (/unpaid|overdue|receivable|outstanding invoice|open invoice/.test(t)) {
+    if (!canUsePermission(u, "invoices.view")) {
+      yield denied("invoices");
+      return true;
+    }
+    yield { type: "tool", name: "receivables" };
+    const r = (await runTool(u, "receivables", {})) as Record<string, unknown>;
+    if (err(r)) yield say(String(err(r)));
+    else yield say(`${r.totalOutstanding} is outstanding on ${r.openInvoices} open invoices.\nAgeing:\n${kv(r.ageing)}\nLargest:\n${asRows(r.largest).slice(0, 5).map((x) => `- ${x.number} ${x.member}: ${x.balance}${Number(x.overdueDays) > 0 ? `, ${x.overdueDays} days overdue` : ""}`).join("\n")}`);
+    return true;
+  }
+  if (/expense|kharch/.test(t)) {
+    if (!canUsePermission(u, "expenses.manage") && !canUsePermission(u, "accounting.view")) {
+      yield denied("expenses");
+      return true;
+    }
+    yield { type: "tool", name: "list_expenses" };
+    const r = (await runTool(u, "list_expenses", { from, to, limit: 8 })) as Record<string, unknown>;
+    if (err(r)) yield say(String(err(r)));
+    else yield say(`Expenses ${from} to ${to}: ${r.totalOperating} operating${r.totalCapital !== "₹0" ? ` plus ${r.totalCapital} capital` : ""}.\nBy category:\n${kv(r.byCategory) || "- none"}`);
+    return true;
+  }
+  if (/cash|bank balance|money on hand|balance in/.test(t)) {
+    if (!canUsePermission(u, "accounting.view")) {
+      yield denied("the cash and bank books");
+      return true;
+    }
+    yield { type: "tool", name: "cash_position" };
+    const r = (await runTool(u, "cash_position", {})) as Record<string, unknown>;
+    if (err(r)) yield say(String(err(r)));
+    else yield say(`Money on hand today: ${r.total}.\n${kv(r.byMethod)}`);
+    return true;
+  }
+  if (/payable|supplier|vendor/.test(t)) {
+    if (!canUsePermission(u, "purchases.manage")) {
+      yield denied("supplier bills");
+      return true;
+    }
+    yield { type: "tool", name: "payables" };
+    const r = (await runTool(u, "payables", {})) as Record<string, unknown>;
+    if (err(r)) yield say(String(err(r)));
+    else yield say(`You owe suppliers ${r.totalOwed} on ${r.bills} bills.\n${asRows(r.oldestFirst).slice(0, 6).map((x) => `- ${x.vendor} ${x.billNo ?? x.code}: ${x.balance}, ${x.ageDays} days old`).join("\n")}`);
+    return true;
+  }
+  return false;
 }
 
 export async function* localChat(u: CurrentUser, question: string): AsyncGenerator<ChatEvent> {
   const t = question.toLowerCase();
   const today = todayIso();
+  const handled = yield* accountingAnswer(u, t, today);
+  if (handled) return;
   const canMembers = u.can("members.view");
   const rows = canMembers ? (await listMembers(u, { all: true })).rows : [];
   const left = (r: (typeof rows)[number]) => (r.latestEnd ? daysBetween(r.latestEnd, today) : null);
@@ -109,7 +217,7 @@ export async function* localChat(u: CurrentUser, question: string): AsyncGenerat
   const atRisk = canMembers ? await db.member.count({ where: { orgId: u.orgId, branchId: { in: u.branchIds }, deletedAt: null, walkIn: false, suspended: false, riskScore: { gte: 35 } } }) : 0;
   yield {
     type: "text",
-    text: `${canMembers ? `Today: ${active} active members, ${checkins} check-ins, ${expiring} expiring this week, ${inr(dues)} outstanding and ${atRisk} members at risk.` : `Today: ${checkins} check-ins so far.`}\nAsk me about renewals, dues, members at risk, classes or this month's numbers.`,
+    text: `${canMembers ? `Today: ${active} active members, ${checkins} check-ins, ${expiring} expiring this week, ${inr(dues)} outstanding and ${atRisk} members at risk.` : `Today: ${checkins} check-ins so far.`}\nAsk me about invoices, GST, expenses, cash, renewals, dues, members at risk, classes or this month's numbers, or any GST or accounting question.`,
   };
 }
 

@@ -196,6 +196,7 @@ const SENTENCES: Record<string, (c: Ctx) => string> = {
   "lead.call": named("Called", "enquiry"),
   "lead.message": named("Messaged", "enquiry"),
   "ai.proposal.send": () => "Sent an AI Trainer proposal",
+  "ai.proposal.confirm": (c) => `Confirmed a Fitron AI draft: ${str(c.a.summary) || c.id}`,
   "workout.create": named("Added", "workout plan"),
   "workout.update": named("Edited", "workout plan"),
   "diet.create": named("Added", "diet plan"),

@@ -31,7 +31,7 @@ export function AskAi() {
             <Image src="/fitron-mark.png" alt="" width={44} height={44} className="flex-none rounded-full" />
             <div className="min-w-0 flex-1">
               <div className="text-lg leading-tight font-semibold">Fitron AI</div>
-              <div className="mt-0.5 text-[12.5px] leading-snug text-muted">Live gym data · asks before acting</div>
+              <div className="mt-0.5 text-[12.5px] leading-snug text-muted">Live books · asks before saving</div>
             </div>
             <Link href="/ai" onClick={() => setOpen(false)} aria-label="Open full view" className="grid h-[38px] w-[38px] place-items-center rounded-full text-accent hover:bg-accent/10">
               <ArrowsOutSimpleIcon size={18} weight="duotone" />

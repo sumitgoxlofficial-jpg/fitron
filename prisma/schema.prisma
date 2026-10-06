@@ -1056,11 +1056,14 @@ model AiProposal {
   id        String    @id @default(cuid())
   orgId     String
   userId    String
-  /// WHATSAPP
+  /// WHATSAPP | INVOICE | PAYMENT | EXPENSE | MEMBERSHIP_SALE | CANCEL_INVOICE
   kind      String
   memberIds String[]
+  /// The WhatsApp text; for the accounting kinds, the plain-language preview shown to the user.
   body      String
   summary   String
+  /// What to run when the user confirms an accounting action (validated again at that moment).
+  payload   Json?
   /// PENDING | DONE | DISMISSED
   status    String    @default("PENDING")
   result    String?
