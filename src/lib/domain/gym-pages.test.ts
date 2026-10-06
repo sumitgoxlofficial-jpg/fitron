@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { GymPageView, gymPageMetadata } from "@/app/(site)/gym-page";
 import sitemap from "@/app/sitemap";
+import { GUIDES, guidePath } from "./guides";
 import { GYM_ACCOUNTING, GYM_PAGES } from "./gym-pages";
 import { FEATURES, PLAN_FEATURES, planFor } from "./features";
 import { PLANS } from "./pricing";
@@ -51,7 +52,7 @@ describe.each(GYM_PAGES.map((p) => [p.path, p] as const))("%s", (_path, page) =>
   });
 
   it("only links to pages and sections that exist", () => {
-    const known = new Set(["/", "/login", "/contact", "/privacy", ...GYM_PAGES.map((p) => p.path)]);
+    const known = new Set(["/", "/login", "/contact", "/privacy", ...GYM_PAGES.map((p) => p.path), ...GUIDES.map(guidePath)]);
     const links = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => decode(m[1]!));
     expect(links.length).toBeGreaterThan(8);
     const bad: string[] = [];

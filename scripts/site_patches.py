@@ -299,6 +299,8 @@ def apply(page):
         assert n == 1, "WhatsApp link not found"
     page = add(page, "</body>", MENU_JS, "fitron:menu-a11y", "menu keyboard focus", before=True)
     page = swap(page, BOOT_OLD, BOOT_NEW, "3D logo loading")
+    # The guides for gym owners (src/lib/domain/guides.ts), at the end of the footer links.
+    page = swap(page, '<li><a href="#faq">FAQ</a></li></ul>', '<li><a href="#faq">FAQ</a></li><li><a href="/guides">Guides for gym owners</a></li></ul>', "footer: guides link")
     page = add(page, '<link rel="apple-touch-icon" href="/fitron-mark.png">', '\n<link rel="manifest" href="/manifest.webmanifest">', 'rel="manifest"', "web app manifest (src/app/manifest.ts)")
     page = add(page, '<li><a href="/contact">Contact us</a></li>', '\n      <li><a href="/contact#company">Company details</a></li>', "/contact#company", "footer company link")
     # Rebuilt each time, so a changed FAQ or price list reaches the structured data.

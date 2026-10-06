@@ -9,6 +9,7 @@ const products = [
   ["/gym-accounting", "Gym accounting software"],
   ["/gym-management-software", "Gym management software"],
   ["/gym-gst-billing", "GST invoices for gyms"],
+  ["/guides", "Guides for gym owners"],
 ] as const;
 
 const legal = [
