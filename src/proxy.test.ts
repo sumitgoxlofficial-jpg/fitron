@@ -14,7 +14,7 @@ const visit = (p: string, cookie = false) => proxy(new NextRequest(`http://local
 afterEach(() => vi.unstubAllEnvs());
 
 describe("which paths are open to visitors who are not signed in", () => {
-  it.each(["/", "/signin", "/login", "/signup", "/trainer", "/contact", "/privacy", "/terms", "/refund", "/c/power-haus-gym/cm1abc", "/verify-email", "/forgot-password", "/reset-password", "/auth/google/callback", "/api/health", "/api/client-error", "/api/csp-report", "/api/webhooks/razorpay", "/api/trainer/auth/link", "/api/coach", "/iclock/cdata", "/site/fitron-3d.js", "/robots.txt", "/sitemap.xml", ...GYM_PAGES.map((p) => p.path)])(
+  it.each(["/", "/signin", "/login", "/signup", "/trainer", "/contact", "/privacy", "/terms", "/refund", "/c/power-haus-gym/cm1abc", "/verify-email", "/forgot-password", "/reset-password", "/auth/google/callback", "/api/health", "/api/client-error", "/api/csp-report", "/api/webhooks/razorpay", "/api/trainer/auth/link", "/api/coach", "/iclock/cdata", "/site/fitron-3d.js", "/robots.txt", "/sitemap.xml", "/manifest.webmanifest", "/ai-personal-trainer", ...GYM_PAGES.map((p) => p.path)])(
     "%s",
     (p) => expect(isPublicPath(p)).toBe(true),
   );

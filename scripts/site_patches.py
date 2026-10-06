@@ -148,6 +148,15 @@ TEXT = [
         "never shown to the gym. The AI replies are written by an AI provider that may process them outside India: the privacy policy says what is sent. <a href=\"/privacy\">Read the policies.</a>",
         "FAQ: data",
     ),
+    # The AI Trainer has its own page (/ai-personal-trainer, src/lib/domain/trainer-page.ts), like Gym Accounting does,
+    # so the links that promise more about it go there and search engines find it from the home page.
+    ('<a class="btn btn-ghost" href="#products">Full details</a>', '<a class="btn btn-ghost" href="/ai-personal-trainer">Full details</a>', "AI Trainer card: details link"),
+    ('<a href="#faq">More on the AI trainer.</a>', '<a href="/ai-personal-trainer">More on the AI trainer.</a>', "FAQ: AI trainer link"),
+    (
+        '<ul class="foot-links"><li><a href="#products">AI Trainer</a></li>',
+        '<ul class="foot-links"><li><a href="/ai-personal-trainer">AI personal trainer</a></li>',
+        "footer: AI Trainer link",
+    ),
 ]
 
 # On a phone the cookie banner and the WhatsApp button float above the open menu and cover its lower links.
@@ -240,8 +249,8 @@ def structured_data(page):
         ai = name.endswith("AI Trainer")
         apps.append({
             "@type": "SoftwareApplication",
-            # The Gym Accounting entity is described in full on its own page (src/app/(site)/gym-page.tsx).
-            **({} if ai else {"@id": "https://fitron.in/gym-accounting#software", "url": "https://fitron.in/gym-accounting"}),
+            # Each product is described in full on its own page (src/app/(site)/gym-page.tsx and ai-personal-trainer/page.tsx).
+            **({"@id": "https://fitron.in/ai-personal-trainer#software", "url": "https://fitron.in/ai-personal-trainer"} if ai else {"@id": "https://fitron.in/gym-accounting#software", "url": "https://fitron.in/gym-accounting"}),
             "name": name,
             "applicationCategory": "HealthApplication" if ai else "BusinessApplication",
             "operatingSystem": "Web",
@@ -290,6 +299,7 @@ def apply(page):
         assert n == 1, "WhatsApp link not found"
     page = add(page, "</body>", MENU_JS, "fitron:menu-a11y", "menu keyboard focus", before=True)
     page = swap(page, BOOT_OLD, BOOT_NEW, "3D logo loading")
+    page = add(page, '<link rel="apple-touch-icon" href="/fitron-mark.png">', '\n<link rel="manifest" href="/manifest.webmanifest">', 'rel="manifest"', "web app manifest (src/app/manifest.ts)")
     page = add(page, '<li><a href="/contact">Contact us</a></li>', '\n      <li><a href="/contact#company">Company details</a></li>', "/contact#company", "footer company link")
     # Rebuilt each time, so a changed FAQ or price list reaches the structured data.
     page = re.sub(r'<script type="application/ld\+json">.*?</script>\n', "", page, flags=re.S)

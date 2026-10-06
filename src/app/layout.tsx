@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Source_Serif_4 } from "next/font/google";
 import "./globals.css";
+import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import { THEME_SCRIPT } from "@/lib/theme-script";
 
 const sourceSerif = Source_Serif_4({
@@ -12,8 +13,13 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  title: "Fitron",
+  metadataBase: new URL(SITE_URL),
+  title: SITE_NAME,
   description: "Gym management and accounting",
+  applicationName: SITE_NAME,
+  // The console, sign-in and member pages stay out of search results. The public pages (pageMetadata in
+  // src/lib/seo.ts) say index; the home page and the AI Trainer are static files with their own tags.
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
