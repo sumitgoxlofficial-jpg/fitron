@@ -52,6 +52,15 @@ describe("linked-phone connector", () => {
     expect(wa.connectorAddress()).toBe("http://127.0.0.1:3131");
   });
 
+  it("on Vercel, without a hosted connector, says what to set up instead of looking at 127.0.0.1", async () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("WA_CONNECTOR_URL", "");
+    const wa = await load();
+    expect(wa.providerReady("connector")).toBe(wa.HOSTED_NEEDS_CONNECTOR);
+    vi.stubEnv("WA_CONNECTOR_URL", "https://fitron-whatsapp.onrender.com");
+    expect((await load()).providerReady("connector")).toBeNull();
+  });
+
   it("rejects an address that is not http(s)", async () => {
     vi.stubEnv("WA_CONNECTOR_URL", "localhost:3131");
     expect((await load()).providerReady("connector")).toMatch(/http/);

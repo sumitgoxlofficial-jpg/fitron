@@ -11,7 +11,7 @@ type View = LinkStatus["state"] | "checking";
  * The Link WhatsApp dialog's live part: asks the server for the connector's state every few seconds
  * (a bit slower while it is offline), shows the QR code, and moves on once the phone is linked.
  */
-export function LinkWatcher({ envMessage, address }: { envMessage: string | null; address: string }) {
+export function LinkWatcher({ envMessage, address, hosted }: { envMessage: string | null; address: string; hosted: boolean }) {
   const router = useRouter();
   const [st, setSt] = useState<{ state: View; qr?: string; text: string; problem?: string }>({ state: "checking", text: "" });
   useEffect(() => {
@@ -40,6 +40,28 @@ export function LinkWatcher({ envMessage, address }: { envMessage: string | null
     };
   }, [router]);
 
+  if (hosted)
+    return (
+      <div className="flex items-start gap-3.5">
+        <PlugsIcon size={30} weight="duotone" className="flex-none text-accent" />
+        <div className="flex flex-col gap-1.5 text-sm leading-relaxed">
+          <strong>One-time setup: host the WhatsApp connector</strong>
+          <span>Fitron runs online, so it cannot reach a connector on the gym PC. Run the connector on a small always-on server, then the QR code appears here.</span>
+          <ol className="m-0 list-decimal pl-[18px]">
+            <li>
+              On render.com create a Web Service from this repository with Root Directory <code>prototype/connector</code>, Docker runtime, a Starter instance and a 1 GB disk mounted at <code>/app/session</code>.
+            </li>
+            <li>
+              Give it an environment variable <code>FITRON_KEY</code> with a long secret you make up.
+            </li>
+            <li>
+              In Vercel › Environment Variables set <code>WA_CONNECTOR_URL</code> (the Render address) and <code>WA_CONNECTOR_KEY</code> (the same secret), then redeploy.
+            </li>
+            <li>Open this dialog again and scan the QR from WhatsApp › Linked devices.</li>
+          </ol>
+        </div>
+      </div>
+    );
   if (st.state === "offline")
     return (
       <div className="flex items-start gap-3.5">

@@ -13,7 +13,7 @@ import { gymLogoUrl } from "@/components/gym-logo";
 import { LogoForm } from "./logo-form";
 import { TaxForm } from "./tax-form";
 import { SETTINGS_TABS, SectionTabs } from "@/components/section-tabs";
-import { makeTrainerCode, saveAi, saveAutopay, saveGym, saveCookieNotice, saveNumbering, savePrivacyNotice, savePrivacyOfficer, saveReminders, saveReports, saveWhatsApp, sendTestAction, simulateLinkAction, testAutopayConnection, unlinkAction } from "./actions";
+import { makeTrainerCode, saveAi, saveAutopay, saveGym, saveCookieNotice, saveNumbering, savePrivacyNotice, savePrivacyOfficer, saveReminders, saveReports, saveWhatsApp, sendTestAction, testAutopayConnection, unlinkAction } from "./actions";
 import { getReminderSettings, getWaSettings, listTemplates } from "@/lib/services/whatsapp";
 import { reminderSchedule } from "@/lib/services/reminders";
 import { monthlyPlOn } from "@/lib/services/pl-email";
@@ -22,7 +22,7 @@ import { Dialog } from "@/components/dialog";
 import { ConfirmButton } from "@/components/confirm-button";
 import { PaperPlaneTiltIcon, PlugsIcon, QrCodeIcon, WhatsappLogoIcon } from "@phosphor-icons/react/dist/ssr";
 import { fmtClock, fmtDate, fmtShort, fmtStamp, fmtTime } from "@/lib/format";
-import { connectorAddress, providerReady } from "@/lib/integrations/whatsapp";
+import { connectorAddress, HOSTED_NEEDS_CONNECTOR, providerReady } from "@/lib/integrations/whatsapp";
 import { getAccessRules } from "@/lib/services/attendance";
 import { JOBS, recentRuns } from "@/lib/services/jobs";
 import { todayIso } from "@/lib/services/time";
@@ -309,8 +309,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <Panel id="whatsapp">
             <form action={saveWhatsApp} className="flex flex-col gap-3 text-sm">
               <Field label="Sending mode" className="max-w-[420px]">
-                <Select name="mode" key={wa.mode} defaultValue={wa.mode}>
-                  <option value="demo">Demo: log only, send nothing</option>
+                <Select name="mode" key={wa.mode} defaultValue={wa.mode === "demo" ? "connector" : wa.mode}>
                   <option value="cloud">WhatsApp Cloud API (official)</option>
                   <option value="connector">Linked gym phone (connector)</option>
                 </Select>
@@ -333,13 +332,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           </Panel>
           {sp.link === "1" && u.has("whatsapp") && (
             <Dialog kicker="WhatsApp" title="Link WhatsApp" close="/settings?tab=wa" width={600}>
-              <LinkWatcher envMessage={providerReady("connector")} address={connectorAddress()} />
+              <LinkWatcher envMessage={providerReady("connector")} address={connectorAddress()} hosted={providerReady("connector") === HOSTED_NEEDS_CONNECTOR} />
               <div className="flex flex-wrap justify-end gap-2.5">
-                <form action={simulateLinkAction}>
-                  <Button variant="ghost" title="For demos without a connector">
-                    Simulate instead
-                  </Button>
-                </form>
                 <LinkButton href="/settings?tab=wa" scroll={false}>
                   Cancel
                 </LinkButton>

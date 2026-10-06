@@ -276,7 +276,7 @@ export async function sendTestAction() {
   }
   revalidatePath("/whatsapp");
   if (msg.status === "Failed") waBack({ error: `Test failed: ${msg.error}` });
-  waBack({ msg: msg.status === "Queued" ? "Test message queued on your linked WhatsApp." : msg.status === "Logged" ? "Demo mode: test message logged, not sent." : "Test message sent." });
+  waBack({ msg: msg.status === "Queued" ? "Test message queued on your linked WhatsApp." : msg.status === "Logged" ? "WhatsApp is not linked yet: test message saved, not sent." : "Test message sent." });
 }
 
 /** "Unlink": the connector signs out and messages are logged until the gym links again. */
@@ -286,14 +286,6 @@ export async function unlinkAction() {
   await setLinked(u, null, "demo");
   revalidatePath("/", "layout");
   waBack({ msg: "WhatsApp unlinked." });
-}
-
-/** "Simulate instead" in the Link WhatsApp dialog: demo mode, for gyms without a connector. */
-export async function simulateLinkAction() {
-  const u = await waUser();
-  await setLinked(u, null, "demo");
-  revalidatePath("/", "layout");
-  waBack({ msg: "Demo mode: messages are logged, not sent." });
 }
 
 export type LinkStatus = { state: "offline" | "waiting" | "qr" | "ready"; qr?: string; number?: string; text: string; problem?: string };
