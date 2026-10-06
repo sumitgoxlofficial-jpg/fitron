@@ -7,7 +7,8 @@ import { razorpayPlan } from "@/lib/domain/razorpay-plans";
 import { gstInside } from "@/lib/domain/saas";
 import { trainerPeriod } from "@/lib/domain/trainer";
 import { sendEmail } from "@/lib/integrations/email";
-import { getFitronPayment, verifySubscriptionPayment } from "@/lib/integrations/razorpay";
+import { getFitronPayment, verifyCheckout, verifySubscriptionPayment } from "@/lib/integrations/razorpay";
+import { markCouponUsed } from "./coupons";
 import { UserError } from "./errors";
 import { lockSubscription, markCharged, renewingSubscriptions, stopSubscription } from "./subscriptions";
 import { fromIso, toIso, todayIso } from "./time";
@@ -102,6 +103,41 @@ export async function confirmTrainerSubscription(memberId: string, id: string, a
   if (pay.status !== "captured") return { status: "PROCESSING" as const };
   const { row } = await recordTrainerCharge(a.subscriptionId, a.paymentId, pay.amount ?? null);
   return { status: row.status === "PAID" ? ("PAID" as const) : ("PROCESSING" as const) };
+}
+
+/**
+ * A plan paid for with a coupon is one payment, not a subscription. If the member has plans renewing by themselves other than
+ * this one, their next charge would switch the plan back, so they stop (the same as when a member pays for another plan).
+ */
+async function afterCouponPayment(p: { memberId: string; plan: string; cycle: string; couponCode: string | null }) {
+  if (!p.couponCode) return;
+  for (const other of await renewingSubscriptions({ memberId: p.memberId, kind: "TRAINER" })) if (other.plan !== p.plan || other.cycle !== p.cycle) await stopSubscription(other.id);
+}
+
+/**
+ * Marks a one-time Razorpay payment (made at a coupon's price) paid, once, and turns the plan on. `paymentId` is null for a
+ * 100% coupon, which has nothing to pay. Checkout's reply and Razorpay's webhook both call this: the second changes nothing.
+ */
+export async function completeTrainerPayment(where: { id: string } | { razorpayOrderId: string }, paymentId: string | null) {
+  const out = await db.$transaction(async (tx) => {
+    const p = await tx.trainerPayment.findFirst({ where, select: { id: true } });
+    if (!p) return null;
+    const done = await activateTrainerPaymentIn(tx, p.id);
+    if (paymentId) await tx.trainerPayment.updateMany({ where: { id: p.id, razorpayPaymentId: null }, data: { razorpayPaymentId: paymentId } });
+    await markCouponUsed(tx, p.id);
+    return done;
+  });
+  if (out) await afterCouponPayment(out);
+  return out;
+}
+
+/** Checkout's success handler for a payment made at a coupon's price. Trusted only when Razorpay's signature checks out; the webhook records it too. */
+export async function confirmTrainerOrder(memberId: string, id: string, a: { orderId: string; paymentId: string; signature: string }) {
+  const p = await db.trainerPayment.findFirst({ where: { id, memberId, razorpayOrderId: a.orderId } });
+  if (!p) throw new UserError("Payment not found. Close this and start again.");
+  if (!verifyCheckout(a.orderId, a.paymentId, a.signature)) throw new UserError("Razorpay couldn't confirm this payment. If money left your account, your plan turns on once Razorpay tells us.");
+  const row = await completeTrainerPayment({ id: p.id }, a.paymentId);
+  return { status: row?.status === "PAID" ? ("PAID" as const) : ("PROCESSING" as const) };
 }
 
 /** Razorpay could not charge a renewal (pending: it will retry) or gave up (halted). The member is told by email. */

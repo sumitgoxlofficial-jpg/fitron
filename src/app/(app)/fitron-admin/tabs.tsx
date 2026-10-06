@@ -6,6 +6,7 @@ export const ADMIN_TABS = [
   { href: "/fitron-admin/trainer?tab=payments", label: "AI Trainer payments" },
   { href: "/fitron-admin/trainer?tab=payouts", label: "Gym payouts" },
   { href: "/fitron-admin/trainer/content", label: "Form videos" },
+  { href: "/fitron-admin/coupons", label: "Coupons" },
 ] as const;
 
 /** The FITRON team's pages, as a tab row. */

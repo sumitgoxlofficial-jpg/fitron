@@ -179,6 +179,7 @@ export default async function TrainerAdminPage({ searchParams }: PageProps<"/fit
                         </td>
                         <td className={TD}>
                           {p.what} · {p.kind}
+                          {p.couponCode ? <span className="text-muted"> · coupon {p.couponCode}</span> : null}
                           {p.periodEnd ? <span className="text-muted"> · till {fmtShort(p.periodEnd)}</span> : null}
                         </td>
                         <td className={`${TD} font-mono text-xs`}>{p.ref}</td>

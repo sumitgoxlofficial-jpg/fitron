@@ -121,6 +121,13 @@
               </div>
               <img src="assets/brand/fitron-mark-new.png" alt="FITRON" style="width:46px;height:46px;border-radius:50%;object-fit:cover;border:1px solid rgba(212,175,55,.4)">
             </div>
+            <sc-if value="{{ payShowCoupon }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-top:14px">
+                <div style="font-size:11px;letter-spacing:1px;color:#8a8a90;font-weight:600">COUPON CODE (OPTIONAL)</div>
+                <div style="display:flex;gap:8px;margin-top:6px"><input class="fin" style="flex:1;min-width:0;min-height:44px;text-transform:uppercase;background:rgba(255,255,255,.06);border-color:rgba(212,175,55,.3);color:#f5f5f2" placeholder="Have a coupon code?" maxlength="20" autocomplete="off" autocapitalize="characters" aria-label="Coupon code" value="{{ couponCode }}" onInput="{{ setCouponCode }}" onKeyDown="{{ couponKey }}"><button style="min-height:44px;flex:none;padding:0 18px;border-radius:12px;border:1px solid rgba(212,175,55,.6);background:transparent;color:#f5d576;font-weight:700;font-size:14px;cursor:pointer" onClick="{{ applyCoupon }}">{{ couponBtn }}</button></div>
+                <sc-if value="{{ couponHasMsg }}" hint-placeholder-val="{{ false }}"><p role="status" style="font-size:12px;margin:8px 0 0;color:{{ couponMsgColor }}">{{ couponMsg }}</p></sc-if>
+              </div>
+            </sc-if>
             <p style="font-size:13px;line-height:1.55;margin:14px 0 0;color:#8a8a90">{{ payGateNote }}</p>
             <sc-if value="{{ payGateHasErr }}" hint-placeholder-val="{{ false }}"><p role="alert" style="color:#e0a5a5;font-size:12px;margin:8px 0 0">{{ payGateErr }}</p></sc-if>
             <button style="margin-top:14px;width:100%;padding:15px;border-radius:15px;border:none;background:linear-gradient(135deg,#f5d576,#c9a227);color:#1a1206;font-weight:800;font-size:15px;cursor:pointer;opacity:{{ payGateOpacity }}" onClick="{{ payGateGo }}"><i class="ph-duotone ph-lock-simple"></i>&nbsp;{{ payGateBtn }}</button>
@@ -974,7 +981,7 @@ class Component extends DCLogic {
     plan: { Mon:'Chest', Tue:'Back', Wed:'Legs', Thu:'Shoulders', Fri:'Arms', Sat:'Full Body', Sun:'Rest' },
     messages: [],
     chatInput: '', typing: false, altOpen: null, coachLive: false, coachNote: '', orderNote: '',
-    payModal: null, payStep: 'wait',
+    payModal: null, payStep: 'coupon', couponCode: '', couponQuote: null, couponMsg: '', couponBusy: false,
     nowMins: (() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); })(),
   };
 
@@ -1510,24 +1517,53 @@ class Component extends DCLogic {
     const pi = !kind && this.state.payInfo;
     const { tier, cycle } = pi ? { tier: pi.plan, cycle: pi.cycle } : this._payPlan(k);
     const pr = this._price(tier, cycle), name = this._tierName(tier);
-    const paise = pi && Number.isFinite(pi.total) ? pi.total : null;
+    const q = !pi && this.state.couponQuote;
+    const paise = pi && Number.isFinite(pi.total) ? pi.total : (q && Number.isFinite(q.total) ? q.total : null);
     const c = { plan: name + ' · ' + (cycle === 'YEARLY' ? 'Yearly' : 'Monthly'), amount: paise === null ? pr.total : this._inr(paise / 100), am: paise === null ? pr.am : (paise / 100).toFixed(2), sub: (cycle === 'YEARLY' ? 'one year' : 'one month') + ' · incl. 18% GST', per: (cycle === 'YEARLY' ? '/ year' : '/ month') + ' · incl. GST' };
     if (k === 'month') return { ...c, title: 'Add another month' };
     if (k === 'renew') return { ...c, title: 'Renew Yearly plan' };
     if (k === 'purchase') return { ...c, title: 'Unlock your plan' };
     return { ...c, title: 'Upgrade to Yearly' };
   }
-  // The server starts a Razorpay subscription (Checkout opens, mode SUBSCRIPTION), or says why it can't.
-  // Until it answers the sheet shows a neutral 'wait' step.
-  openPay = async (kind) => {
+  // The payment sheet opens on the coupon step: the member may type a coupon code (Apply shows the new price), then goes on to pay.
+  openPay = (kind) => {
+    this._payTok = (this._payTok || 0) + 1;
+    this._rzBusy = false;
+    this.setState({ payModal: kind, payInfo: null, payStep: 'coupon', payBusy: '', payErr: '', couponCode: '', couponQuote: null, couponMsg: '', couponBusy: false });
+  };
+  setCouponCode = (e) => this.setState({ couponCode: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 20), couponQuote: null, couponMsg: '', payErr: '' });
+  // What the typed code does to this plan's price, from the server (it changes nothing yet).
+  applyCoupon = async () => {
+    const code = (this.state.couponCode || '').trim();
+    if (!code) { this.setState({ couponQuote: null, couponMsg: 'Type your coupon code first.' }); return; }
+    const { tier, cycle } = this._payPlan();
+    const tok = this._payTok;
+    this.setState({ couponBusy: true, couponMsg: '', payErr: '' });
+    const r = await this._api('coupon', 'POST', { plan: tier, cycle, code });
+    if (tok !== this._payTok || !this.state.payModal) return;
+    this.setState(r.ok ? { couponBusy: false, couponQuote: r.data, couponMsg: '' } : { couponBusy: false, couponQuote: null, couponMsg: r.error });
+  };
+  // 'Continue to payment': the server starts the payment (a Razorpay subscription that renews itself, or one payment at the coupon's
+  // price, or nothing to pay when the coupon makes it free) and Checkout opens, or it says why it can't. Until it answers the sheet shows a neutral 'wait' step.
+  startPay = async () => {
+    if (this.state.payStep !== 'coupon' || this.state.couponBusy) return;
+    const kind = this.state.payModal;
     const { tier, cycle } = this._payPlan(kind);
+    const coupon = (this.state.couponCode || '').trim();
     const tok = this._payTok = (this._payTok || 0) + 1;
     this._rzBusy = false;
-    this.setState({ payModal: kind, payInfo: null, payStep: 'wait', payBusy: '', payErr: '' });
-    const r = await this._api('pay', 'POST', { plan: tier, cycle, kind: kind === 'yearly' ? 'upgrade' : kind });
-    if (!r.ok) { if (tok === this._payTok) this.setState({ payModal: null, planMsg: r.error }); return; }
+    this.setState({ payInfo: null, payStep: 'wait', payBusy: '', payErr: '' });
+    const r = await this._api('pay', 'POST', { plan: tier, cycle, kind: kind === 'yearly' ? 'upgrade' : kind, ...(coupon ? { coupon } : {}) });
     if (tok !== this._payTok || !this.state.payModal) return; // closed (or restarted) while the server was answering
-    if (r.data.mode === 'SUBSCRIPTION') { this.setState({ payInfo: r.data, payStep: 'checkout' }, () => this.openCheckout()); return; }
+    if (!r.ok) { this.setState({ payStep: 'coupon', payErr: r.error }); return; } // stay on the sheet so the coupon can be fixed
+    const d = r.data;
+    if (d.mode === 'FREE') {
+      // a 100% coupon: nothing to pay, the plan is already on
+      if (d.member) this._applyMember(d.member);
+      this.setState({ payModal: null, payInfo: null, payBusy: '', payErr: '', subMode: 'manage', planMsg: 'Coupon applied — your plan is active' + (d.member && d.member.paidUntil ? ' until ' + this._fmtDate(d.member.paidUntil) : '') + '.' });
+      return;
+    }
+    if (d.mode === 'SUBSCRIPTION' || d.mode === 'LIVE') { this.setState({ payInfo: d, payStep: 'checkout' }, () => this.openCheckout()); return; }
     this.setState({ payModal: null, payInfo: null, planMsg: "Payments aren't available right now. Please try again later." });
   };
   closePay = () => { this._rzBusy = false; this.setState({ payModal: null, payBusy: '', payErr: '' }); };
@@ -1548,7 +1584,7 @@ class Component extends DCLogic {
   }
   openCheckout = async () => {
     const info = this.state.payInfo;
-    if (!info || info.mode !== 'SUBSCRIPTION' || this._rzBusy) return;
+    if (!info || (info.mode !== 'SUBSCRIPTION' && info.mode !== 'LIVE') || this._rzBusy) return;
     this._rzBusy = true; this._rzDone = false;
     this.setState({ payBusy: 'opening', payErr: '' });
     try { await this._loadRazorpay(); } catch (e) {
@@ -1559,7 +1595,7 @@ class Component extends DCLogic {
     if (!this.state.payModal || this.state.payInfo !== info) { this._rzBusy = false; return; } // closed while it loaded
     try {
       const rz = new window.Razorpay({
-        key: info.keyId, subscription_id: info.subscriptionId, name: info.name, description: info.description, prefill: info.prefill,
+        key: info.keyId, ...(info.mode === 'LIVE' ? { order_id: info.orderId, amount: info.total, currency: 'INR' } : { subscription_id: info.subscriptionId }), name: info.name, description: info.description, prefill: info.prefill,
         theme: { color: '#c9a227' },
         handler: (resp) => { this._rzDone = true; this._confirmCheckout(info, resp); },
         modal: { ondismiss: () => { if (this._rzDone) return; this._rzBusy = false; this.setState({ payBusy: '' }); } },
@@ -1576,7 +1612,7 @@ class Component extends DCLogic {
   _confirmCheckout = async (info, resp) => {
     this.setState({ payBusy: 'confirming', payErr: '' });
     const r = await this._api('pay/' + info.id + '/confirm', 'POST', {
-      razorpay_payment_id: resp && resp.razorpay_payment_id, razorpay_subscription_id: resp && resp.razorpay_subscription_id, razorpay_signature: resp && resp.razorpay_signature });
+      razorpay_payment_id: resp && resp.razorpay_payment_id, razorpay_subscription_id: resp && resp.razorpay_subscription_id, razorpay_order_id: resp && resp.razorpay_order_id, razorpay_signature: resp && resp.razorpay_signature });
     this._rzBusy = false;
     if (!r.ok) {
       // the money may already have left the account, so say so and look again shortly
@@ -2364,13 +2400,24 @@ class Component extends DCLogic {
       closePay: this.closePay, stop: (e) => e.stopPropagation(), payOpen: !!st.payModal,
       payTitle: this.payCfg().title, payAmount: this.payCfg().amount, paySub: this.payCfg().sub,
       payPlanCaps: this.payCfg().plan.toUpperCase(), payPer: this.payCfg().per, payPlanName: this.payCfg().plan,
-      payShowGate: st.payStep === 'wait' || st.payStep === 'checkout',
+      payShowGate: st.payStep === 'coupon' || st.payStep === 'wait' || st.payStep === 'checkout',
+      payShowCoupon: st.payStep === 'coupon',
+      couponCode: st.couponCode || '', setCouponCode: this.setCouponCode, couponKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.applyCoupon(); } }, applyCoupon: this.applyCoupon,
+      couponBtn: st.couponBusy ? 'Checking…' : 'Apply',
+      couponHasMsg: !!(st.couponMsg || st.couponQuote),
+      couponMsgColor: st.couponQuote ? '#7fd3b0' : '#e0a5a5',
+      couponMsg: st.couponQuote ? 'Coupon ' + st.couponQuote.code + ' applied: ' + st.couponQuote.percentOff + '% off. ' + (st.couponQuote.total === 0 ? 'Nothing to pay.' : 'You pay ' + this._inr(st.couponQuote.total / 100) + ' instead of ' + this._inr(st.couponQuote.listTotal / 100) + '.') : (st.couponMsg || ''),
       payKicker: 'Secure payment · FITRON',
       payHeading: 'Complete Your Payment',
       payFootNote: 'Payments are processed securely' + (st.payStep === 'checkout' ? ' by Razorpay' : '') + '. Fitron never sees your card or bank details.',
-      payGateNote: st.payStep === 'checkout' ? 'Renews automatically each ' + ((st.payInfo && st.payInfo.cycle) === 'YEARLY' ? 'year' : 'month') + ' until you stop it under Manage subscription. GST included.' : 'Pay securely online. GST included.',
-      payGateBtn: st.payStep !== 'checkout' ? 'Getting your payment ready…' : st.payBusy === 'confirming' ? 'Confirming your payment…' : st.payBusy === 'opening' ? 'Opening secure payment…' : 'Pay & subscribe',
-      payGateOpacity: st.payStep === 'checkout' && !st.payBusy ? 1 : .6, payGateGo: () => this.openCheckout(),
+      payGateNote: (() => {
+        const q = st.couponQuote, per = (((st.payInfo && st.payInfo.cycle) || this._payPlan().cycle) === 'YEARLY') ? 'year' : 'month';
+        if (st.payStep === 'checkout') return st.payInfo && st.payInfo.mode === 'LIVE' ? 'One payment at the coupon price. It does not renew by itself, so pay again before your plan ends to keep going. GST included.' : 'Renews automatically each ' + per + ' until you stop it under Manage subscription. GST included.';
+        if (st.payStep === 'coupon') return q ? (q.total === 0 ? 'This coupon makes your plan free. No payment needed.' : 'With the coupon this is one payment at the lower price. It does not renew by itself. GST included.') : 'Have a coupon code? Type it above and tap Apply. Otherwise it renews automatically each ' + per + ' until you stop it under Manage subscription. GST included.';
+        return 'Pay securely online. GST included.';
+      })(),
+      payGateBtn: st.payStep === 'coupon' ? (st.couponBusy ? 'Checking your coupon…' : st.couponQuote && st.couponQuote.total === 0 ? 'Get it free' : 'Continue to payment') : st.payStep !== 'checkout' ? 'Getting your payment ready…' : st.payBusy === 'confirming' ? 'Confirming your payment…' : st.payBusy === 'opening' ? 'Opening secure payment…' : 'Pay & subscribe',
+      payGateOpacity: (st.payStep === 'coupon' && !st.couponBusy) || (st.payStep === 'checkout' && !st.payBusy) ? 1 : .6, payGateGo: () => (this.state.payStep === 'coupon' ? this.startPay() : this.openCheckout()),
       payGateErr: st.payErr || '', payGateHasErr: !!st.payErr,
 
       toggleFocus: this.toggleFocus, focusOn: !!st.focusMode,

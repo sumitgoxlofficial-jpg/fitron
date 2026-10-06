@@ -6,12 +6,14 @@ import { addDays } from "@/lib/domain/dates";
 import { COACH_DAILY_LIMIT, isCycle, isTrainerPaymentKind, isTrainerPlan, plannedSessions, progress, reviewInsight, trainerAccess, trainerPrice, TRAINER_TRIAL_DAYS, validEmail, type DayLog, type SetLog, type TrainerPlan } from "@/lib/domain/trainer";
 import type { Cycle } from "@/lib/domain/pricing";
 import { razorpayPlan } from "@/lib/domain/razorpay-plans";
+import { gstInside } from "@/lib/domain/saas";
 import { emailReady, sendEmail } from "@/lib/integrations/email";
-import { fitronKeyId } from "@/lib/integrations/razorpay";
+import { createOrder, fitronKeyId } from "@/lib/integrations/razorpay";
 import { appUrl } from "./accounts";
+import { quoteCoupon, reserveCoupon } from "./coupons";
 import { isUniqueViolation, UserError } from "./errors";
 import { createSubscription, renewingSubscriptions, stopSubscription } from "./subscriptions";
-import { trainerRenewal } from "./trainer-billing";
+import { completeTrainerPayment, trainerRenewal } from "./trainer-billing";
 import { gymView } from "./trainer-gym";
 import { sha256 } from "./trainer-session";
 import { fromIso, toIso, todayIso } from "./time";
@@ -303,28 +305,66 @@ function paymentView(p: { id: string; plan: string; cycle: string; kind: string;
   return { id: p.id, ref: trainerPaymentRef(p.id), plan: p.plan, cycle: p.cycle, kind: p.kind, total: p.total, status: p.status, periodEnd: p.periodEnd ? toIso(p.periodEnd) : null, createdAt: p.createdAt.toISOString() };
 }
 
+/** The plan, cycle and kind of a payment as the app sent them, or the reason they are refused. */
+function paymentArgs(a: { plan: string; cycle: string; kind: string }) {
+  if (!isTrainerPlan(a.plan)) throw new UserError("Pick AI Pro or AI Premium.");
+  if (!isCycle(a.cycle)) throw new UserError("Pick a monthly or yearly plan.");
+  if (!isTrainerPaymentKind(a.kind)) throw new UserError("Couldn't tell what this payment is for. Close this and start again.");
+  return { plan: a.plan, cycle: a.cycle as Cycle, kind: a.kind, name: a.plan === "ai-premium" ? "AI Premium" : "AI Pro", period: a.cycle === "YEARLY" ? "1 year" : "1 month" };
+}
+
+/** What a coupon would do to this plan's price, for the coupon box before paying. Changes nothing. */
+export async function quoteTrainerCoupon(memberId: string, a: { plan: string; cycle: string; code: string }) {
+  const { plan, cycle } = paymentArgs({ ...a, kind: "purchase" });
+  const q = await quoteCoupon(a.code, "TRAINER", { memberId }, trainerPrice(plan, cycle).total);
+  return { code: q.code, percentOff: q.percentOff, listTotal: q.listTotal, discount: q.discount, total: q.total };
+}
+
 /**
  * Starts a payment to FITRON for a plan period: a Razorpay subscription that renews itself, and Checkout opens for it.
  * The listed price has the GST inside it. Without Fitron's Razorpay keys nothing can be paid, here or in production.
  */
 export async function startTrainerPayment(memberId: string, a: { plan: string; cycle: string; kind: string }) {
-  if (!isTrainerPlan(a.plan)) throw new UserError("Pick AI Pro or AI Premium.");
-  if (!isCycle(a.cycle)) throw new UserError("Pick a monthly or yearly plan.");
-  if (!isTrainerPaymentKind(a.kind)) throw new UserError("Couldn't tell what this payment is for. Close this and start again.");
-  const cycle: Cycle = a.cycle;
-  const kind = a.kind;
-  const price = trainerPrice(a.plan, cycle);
-  const name = a.plan === "ai-premium" ? "AI Premium" : "AI Pro";
-  const period = cycle === "YEARLY" ? "1 year" : "1 month";
+  const { plan, cycle, kind, name, period } = paymentArgs(a);
+  const price = trainerPrice(plan, cycle);
   const keyId = fitronKeyId();
   if (!keyId) throw new UserError("Payments aren't switched on yet. Start the free trial for now, or write to hello@fitron.in.");
-  if (!razorpayPlan(a.plan, cycle)) throw new UserError("This plan can't be paid online yet. Write to hello@fitron.in.");
+  if (!razorpayPlan(plan, cycle)) throw new UserError("This plan can't be paid online yet. Write to hello@fitron.in.");
   const m = await db.trainerMember.findUniqueOrThrow({ where: { id: memberId } });
   // Already renewing this plan and cycle: a second subscription would charge twice.
-  if ((await renewingSubscriptions({ memberId, kind: "TRAINER" })).some((s) => s.plan === a.plan && s.cycle === cycle)) throw new UserError(`Your ${name} plan already renews automatically. To change it, pick another plan, or stop the renewal in Settings › Subscription first.`);
-  const rz = await createSubscription({ kind: "TRAINER", plan: a.plan, cycle, expectedTotal: price.total, memberId });
-  const p = await db.trainerPayment.create({ data: { memberId, plan: a.plan, cycle, kind, ...price, gstIncluded: true, mode: "SUBSCRIPTION", razorpaySubscriptionId: rz.id } });
-  return { id: p.id, ref: trainerPaymentRef(p.id), plan: a.plan, cycle, kind, ...price, mode: "SUBSCRIPTION" as const, keyId, subscriptionId: rz.id, name: "FITRON", description: `${name}, ${period} (GST included)`, prefill: { name: m.name, email: m.email } };
+  if ((await renewingSubscriptions({ memberId, kind: "TRAINER" })).some((s) => s.plan === plan && s.cycle === cycle)) throw new UserError(`Your ${name} plan already renews automatically. To change it, pick another plan, or stop the renewal in Settings › Subscription first.`);
+  const rz = await createSubscription({ kind: "TRAINER", plan, cycle, expectedTotal: price.total, memberId });
+  const p = await db.trainerPayment.create({ data: { memberId, plan, cycle, kind, ...price, gstIncluded: true, mode: "SUBSCRIPTION", razorpaySubscriptionId: rz.id } });
+  return { id: p.id, ref: trainerPaymentRef(p.id), plan, cycle, kind, ...price, mode: "SUBSCRIPTION" as const, keyId, subscriptionId: rz.id, name: "FITRON", description: `${name}, ${period} (GST included)`, prefill: { name: m.name, email: m.email } };
+}
+
+/**
+ * Starts a payment to FITRON for a plan period with a coupon. The member pays the reduced price once: one Razorpay payment
+ * (mode LIVE) that does not renew by itself, because a Razorpay plan has a fixed amount and a subscription cannot start at a
+ * lower one. A 100% coupon has nothing to pay: the plan is on at once (mode FREE, needs no Razorpay).
+ */
+export async function startTrainerCouponPayment(memberId: string, a: { plan: string; cycle: string; kind: string }, code: string) {
+  const { plan, cycle, kind, name, period } = paymentArgs(a);
+  const quote = await quoteCoupon(code, "TRAINER", { memberId }, trainerPrice(plan, cycle).total);
+  const price = gstInside(quote.total);
+  const free = quote.total === 0;
+  const keyId = fitronKeyId();
+  if (!keyId && !free) throw new UserError("Payments aren't switched on yet. Start the free trial for now, or write to hello@fitron.in.");
+  const m = await db.trainerMember.findUniqueOrThrow({ where: { id: memberId } });
+  const p = await db.$transaction(async (tx) => {
+    const row = await tx.trainerPayment.create({ data: { memberId, plan, cycle, kind, ...price, gstIncluded: true, mode: free ? "COUPON" : "LIVE", couponCode: quote.code, discount: quote.discount } });
+    await reserveCoupon(tx, quote, "TRAINER", { memberId }, row.id);
+    return row;
+  });
+  const out = { id: p.id, ref: trainerPaymentRef(p.id), plan, cycle, kind, ...price, couponCode: quote.code, discount: quote.discount, name: "FITRON", prefill: { name: m.name, email: m.email } };
+  // Nothing to pay: the coupon is the payment.
+  if (free) {
+    await completeTrainerPayment({ id: p.id }, null);
+    return { ...out, mode: "FREE" as const, description: `${name}, ${period}` };
+  }
+  const order = await createOrder({ amount: price.total, receipt: p.id, notes: { trainerPayment: p.id, member: memberId, cycle } });
+  await db.trainerPayment.update({ where: { id: p.id }, data: { razorpayOrderId: order.id } });
+  return { ...out, mode: "LIVE" as const, keyId: keyId!, orderId: order.id, description: `${name}, ${period} (GST included, coupon ${quote.code} ${quote.percentOff}% off)` };
 }
 
 // ── AI Coach limits ─────────────────────────────────────────────────────────

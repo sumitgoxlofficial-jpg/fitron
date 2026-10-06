@@ -79,6 +79,14 @@ export default async function FitronInvoicePage({ params }: PageProps<"/settings
                     <span className="text-muted">
                       {fmtDate(sub.periodStart)} to {fmtDate(sub.periodEnd)}
                     </span>
+                    {sub.couponCode && (
+                      <>
+                        <br />
+                        <span className="text-muted">
+                          Coupon {sub.couponCode}: {formatInr(sub.discount)} off the listed price (GST included)
+                        </span>
+                      </>
+                    )}
                   </td>
                   <td className="py-2">997331</td>
                   <td className="py-2 text-right tabular-nums">{formatInr(sub.base)}</td>

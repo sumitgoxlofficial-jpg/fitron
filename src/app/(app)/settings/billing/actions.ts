@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import * as z from "zod";
 import "@/lib/zod-config";
 import { requirePermission } from "@/lib/auth/current";
-import { cancelAutoRenewal, confirmCheckout, confirmDemoPayment, confirmSubscription, startPayment, type Checkout } from "@/lib/services/saas";
+import { cancelAutoRenewal, confirmCheckout, confirmDemoPayment, confirmSubscription, quoteGymCoupon, startPayment, type Checkout } from "@/lib/services/saas";
 import { saveBillingDetails as saveDetails, saveRenewalReminders as saveReminders } from "@/lib/services/subscription";
 import { billingDetailsInput, renewalInput } from "@/lib/validation/settings";
 import { UserError } from "@/lib/services/errors";
@@ -29,14 +29,27 @@ const For = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("SERVICE"), service: z.string().min(1), amount: z.number().int().positive().optional() }),
 ]);
 
-/** `cycle` is MONTHLY or YEARLY for a plan or branch, and ONCE for a one-time add-on. */
-export async function startPaymentAction(what: unknown, cycle: string): Promise<Result<Checkout>> {
+/** `cycle` is MONTHLY or YEARLY for a plan or branch, and ONCE for a one-time add-on. `coupon` is the code typed in the coupon box, if any. */
+export async function startPaymentAction(what: unknown, cycle: string, coupon?: string): Promise<Result<Checkout>> {
   const u = await requirePermission("settings.manage", { allowBlocked: true });
   const c = z.enum(["MONTHLY", "YEARLY", "ONCE"]).safeParse(cycle);
   if (!c.success) return { ok: false, error: "Pick monthly or yearly." };
   const w = For.safeParse(what);
   if (!w.success) return { ok: false, error: "Pick what to pay for." };
-  return wrap(() => startPayment(u, w.data, c.data));
+  const r = await wrap(() => startPayment(u, w.data, c.data, typeof coupon === "string" ? coupon : undefined));
+  // A coupon that makes the payment free is already paid: the plan has changed.
+  if (r.ok && r.data.mode === "FREE") revalidatePath("/", "layout");
+  return r;
+}
+
+/** The coupon box before paying: what the typed code does to this payment's price, or why it can't be used. Changes nothing. */
+export async function previewCouponAction(what: unknown, cycle: string, code: string) {
+  const u = await requirePermission("settings.manage", { allowBlocked: true });
+  const c = z.enum(["MONTHLY", "YEARLY", "ONCE"]).safeParse(cycle);
+  if (!c.success) return { ok: false, error: "Pick monthly or yearly." } as const;
+  const w = For.safeParse(what);
+  if (!w.success) return { ok: false, error: "Pick what to pay for." } as const;
+  return wrap(() => quoteGymCoupon(u, w.data, c.data, String(code)));
 }
 
 export async function confirmDemoAction(id: string): Promise<Result> {
