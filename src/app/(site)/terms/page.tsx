@@ -1,12 +1,25 @@
 import { LegalPage } from "../legal";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata({ title: "Terms & Conditions · FITRON", description: "The terms for using FITRON AI Trainer, Gym Accounting and the Gym Partnership.", path: "/terms" });
+export const metadata = pageMetadata({ title: "Terms & Conditions | FITRON", description: "Read FITRON's Terms & Conditions for AI Trainer, Gym Accounting, subscriptions, payments, partnerships and acceptable use.", path: "/terms" });
+
+const TOC = [
+  ["accounts", "Accounts"],
+  ["trials", "Free trials, plans and payment"],
+  ["ai", "AI Trainer: health notice"],
+  ["gym", "Gym Accounting responsibilities"],
+  ["partners", "Gym Partner & Customer Policy"],
+  ["use", "Acceptable use"],
+  ["availability", "Availability and liability"],
+  ["ending", "Ending your account"],
+  ["law", "Law and disputes"],
+] as const;
 
 export default function TermsPage() {
   return (
     <LegalPage
       title="Terms & Conditions"
+      toc={TOC}
       updated="5 October 2026"
       intro={<p>These terms apply when you use fitron.in, the FITRON AI Trainer, FITRON Gym Accounting or a FITRON Gym Partnership. By creating an account or starting a trial you agree to them.</p>}
     >

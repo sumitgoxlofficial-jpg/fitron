@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { analyticsId } from "@/lib/analytics";
 import { THEME_SCRIPT } from "@/lib/theme-script";
 
 // The Content-Security-Policy sent with every page (src/proxy.ts): what the browser may load and run on it, so that a
@@ -34,7 +35,12 @@ const RAZORPAY = "https://*.razorpay.com"; // checkout.js, its frame, and its ow
 const YOUTUBE = ["https://www.youtube-nocookie.com", "https://www.youtube.com"]; // exercise videos in the AI Trainer
 const GOOGLE = "https://accounts.google.com"; // "Continue with Google" is a redirect that a form can start
 
-export function buildCsp({ tier, nonce, dev = false }: { tier: CspTier; nonce?: string; dev?: boolean }): string {
+// Google Analytics (only when GA_MEASUREMENT_ID is set, and only for the public website: the console and the AI Trainer
+// load no analytics). Its script comes from googletagmanager.com and it reports to google-analytics.com.
+const GA_SCRIPT = "https://www.googletagmanager.com";
+const GA_CONNECT = ["https://www.googletagmanager.com", "https://*.google-analytics.com", "https://*.analytics.google.com"];
+
+export function buildCsp({ tier, nonce, dev = false, analytics = analyticsId() !== null }: { tier: CspTier; nonce?: string; dev?: boolean; analytics?: boolean }): string {
   const d: Record<string, string[]> = {
     "default-src": ["'self'"],
     "object-src": ["'none'"],
@@ -56,11 +62,12 @@ export function buildCsp({ tier, nonce, dev = false }: { tier: CspTier; nonce?: 
     d["frame-src"] = [RAZORPAY];
     d["media-src"] = ["'self'", "blob:"];
   } else {
-    d["script-src"] = ["'self'", "'unsafe-inline'", ...(tier === "trainer" ? ["'unsafe-eval'", "https://checkout.razorpay.com"] : []), ...(dev ? ["'unsafe-eval'"] : [])];
+    const ga = analytics && tier === "site";
+    d["script-src"] = ["'self'", "'unsafe-inline'", ...(tier === "trainer" ? ["'unsafe-eval'", "https://checkout.razorpay.com"] : []), ...(ga ? [GA_SCRIPT] : []), ...(dev ? ["'unsafe-eval'"] : [])];
     d["style-src"] = ["'self'", "'unsafe-inline'", ...(tier === "trainer" ? ["https://fonts.googleapis.com"] : [])];
     d["img-src"] = ["'self'", "data:", "blob:", "https:"];
     d["font-src"] = ["'self'", "data:", ...(tier === "trainer" ? ["https://fonts.gstatic.com"] : [])];
-    d["connect-src"] = ["'self'", ...(tier === "trainer" ? [RAZORPAY] : []), ...(dev ? ["ws:", "wss:"] : [])];
+    d["connect-src"] = ["'self'", ...(tier === "trainer" ? [RAZORPAY] : []), ...(ga ? GA_CONNECT : []), ...(dev ? ["ws:", "wss:"] : [])];
     // The trainer's page has an iframe whose address is a {{placeholder}} until its template fills it in, which the browser
     // first tries as a same-origin address (our own X-Frame-Options refuses it); 'self' keeps that out of the reports.
     // The website shows the Gym Accounting live demo (public/site/gym-demo.html) in a frame on the home page.

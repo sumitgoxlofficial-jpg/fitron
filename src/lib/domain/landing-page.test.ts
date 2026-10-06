@@ -10,7 +10,7 @@ import { isPublicPath } from "@/lib/public-paths";
 import { ASSISTANT_NAME, ASSISTANT_PATH, FACTS, SUGGESTED_QUESTIONS } from "./assistant";
 import { PLANS } from "./pricing";
 import { COACH_DAILY_LIMIT } from "./trainer";
-import { PRIORITY_SUPPORT_PLANS } from "./features";
+import { PLAN_FEATURES, PRIORITY_SUPPORT_PLANS, type Feature } from "./features";
 
 const root = path.join(__dirname, "../../..");
 const html = readFileSync(path.join(root, "public/site/index.html"), "utf8");
@@ -38,7 +38,7 @@ describe("what the home page promises matches the product", () => {
     expect((new RegExp(`\\b${sections} Gym modules`)).test(text), "text should match " + String(new RegExp(`\\b${sections} Gym modules`))).toBe(true);
     // Every place the page counts them says the same number (the product card and the partner perks said 22 once).
     const counts = [...text.matchAll(/\b(\d+) (?:Gym )?modules\b/gi)].map((m) => Number(m[1]));
-    expect(counts.length).toBeGreaterThanOrEqual(3);
+    expect(counts.length).toBeGreaterThanOrEqual(2);
     expect(counts.filter((n) => n !== sections)).toEqual([]);
   });
 });
@@ -90,6 +90,116 @@ describe("exports and support promised on the plan cards", () => {
     const keys = PLANS.filter((p) => withPriority.includes(p.name)).map((p) => p.key);
     expect(withPriority.length).toBeGreaterThan(0);
     expect(keys.sort()).toEqual([...PRIORITY_SUPPORT_PLANS].sort());
+  });
+});
+
+describe("the redesigned home page", () => {
+  const section = (id: string) => {
+    const i = html.indexOf(`id="${id}"`);
+    expect(i, id).toBeGreaterThan(0);
+    return html.slice(i, html.indexOf("</section>", i));
+  };
+
+  it("keeps the anchors other pages and the footer link to", () => {
+    for (const id of ["top", "products", "together", "partnership", "pricing", "faq"]) expect(html.includes(`id="${id}"`), `#${id}`).toBe(true);
+  });
+
+  it("has one h1, with the headline of the brief", () => {
+    expect([...html.matchAll(/<h1[\s>]/g)]).toHaveLength(1);
+    expect(text.includes("Your AI trainer. Your gym's accounts.")).toBe(true);
+  });
+
+  it("links the header to the product pages and offers Sign In and Get Started, on phones too", () => {
+    const header = html.slice(html.indexOf('<header class="nav"'), html.indexOf("</header>"));
+    for (const href of ["/ai-personal-trainer", "/gym-accounting", "#together", "#partnership", "#pricing", "#faq", "/signin"]) expect(header.includes(`href="${href}"`), href).toBe(true);
+    expect(header).toContain(">Get Started<");
+    const menu = html.slice(html.indexOf('<nav class="mobile-menu"'), html.indexOf("</nav>", html.indexOf('<nav class="mobile-menu"')));
+    for (const label of ["AI Trainer", "Gym Accounting", "Better Together", "Partner With Us", "Pricing", "FAQ", "Contact", "Sign In", "Get Started"]) expect(menu.includes(label), label).toBe(true);
+  });
+
+  it("opens with the two buttons and the trust bar of the brief", () => {
+    const hero = section("hero-title");
+    for (const label of ["Start Free Trial", "Explore Gym Accounting", "Partner With FITRON"]) expect(hero.includes(label), label).toBe(true);
+    const bar = html.slice(html.indexOf('<section class="trustbar"'), html.indexOf("</section>", html.indexOf('<section class="trustbar"')));
+    const items = [...bar.matchAll(/<li>(.*?)<\/li>/g)].map((m) => m[1]!.replace(/<[^>]+>/g, ""));
+    expect(items).toEqual(["7-day free trial", "No card needed", "Pay by UPI or card", "GST-ready", "Excel export", "DPDP-compliant"]);
+  });
+
+  it("shows both products in the hero, from the real screenshots, with alt text", () => {
+    const hero = html.slice(html.indexOf('id="heroVisual"'), html.indexOf("</section>", html.indexOf('id="heroVisual"')));
+    expect(hero).toContain("/site/app-dashboard.webp");
+    expect(hero).toContain("/site/console-dashboard.webp");
+    for (const alt of [...hero.matchAll(/<img[^>]*alt="([^"]*)"/g)].map((m) => m[1]!).filter(Boolean)) expect(alt.length).toBeGreaterThan(30);
+  });
+
+  it("says AI answers are general guidance, not medical advice, where the coach is shown", () => {
+    expect((/not medical advice/i).test(section("coach"))).toBe(true);
+    expect((/not medical/i).test(section("nutrition"))).toBe(true);
+  });
+
+  it("labels the sample screens as examples and makes no promise of results", () => {
+    for (const id of ["ai-trainer", "nutrition", "workouts", "coach", "progress"]) expect((/sample|example/i).test(section(id)), id).toBe(true);
+    // "Not guaranteed" disclaimers are the opposite of a promise; a guaranteed result or a number of kilos is one.
+    expect((/guarantee[ds]? (results|weight|fat|muscle)|lose \d+ ?kg|results in \d+/i).test(text)).toBe(false);
+  });
+
+  it("calls the revenue share conditional wherever it is promised", () => {
+    const part = section("partnership");
+    expect(part.includes("70%")).toBe(true);
+    expect((/subject to eligibility, applicable deductions, refunds, chargebacks, verification and the signed partnership agreement/).test(part)).toBe(true);
+    expect((/not guaranteed income/).test(part)).toBe(true);
+    for (const model of ["Referral Partner", "Software Partner", "Enterprise Partner"]) expect(part.includes(model), model).toBe(true);
+    expect(section("together").includes("never shown to gym staff")).toBe(true);
+  });
+
+  it("shows a Gym Accounting comparison table whose ticks are what each plan opens in the console", () => {
+    const table = html.slice(html.indexOf('data-cmp="gym"'), html.indexOf("</table>", html.indexOf('data-cmp="gym"')));
+    const plans = ["starter", "professional", "enterprise"] as const;
+    const rows = [...table.matchAll(/<tr data-feature="([a-z]+)">(.*?)<\/tr>/g)];
+    expect(rows.length).toBeGreaterThanOrEqual(10);
+    for (const [, feature, cells] of rows) {
+      const marks = [...cells!.matchAll(/<td class="([yn])">/g)].map((m) => m[1] === "y");
+      expect(marks, feature).toEqual(plans.map((k) => PLAN_FEATURES[k]!.includes(feature as Feature)));
+    }
+    for (const p of PLANS.filter((x) => x.product === "GYM_ACCOUNTING")) expect(table.includes(`<td>₹${(p.price.MONTHLY / 100).toLocaleString("en-IN")}</td>`) || (p.card?.limit ?? "").length > 0, p.name).toBe(true);
+  });
+
+  it("shows the AI Coach limits of the AI plans table, the numbers the server enforces", () => {
+    const table = html.slice(html.indexOf('data-cmp="ai"'), html.indexOf("</table>", html.indexOf('data-cmp="ai"')));
+    expect(table).toContain(`data-coach="ai-pro">${COACH_DAILY_LIMIT["ai-pro"]} a day`);
+    expect(table).toContain(`data-coach="ai-premium">${COACH_DAILY_LIMIT["ai-premium"]} a day`);
+  });
+
+  it("groups the FAQ by category and answers the questions of the brief", () => {
+    for (const q of ["Is FITRON available in India?", "Do I need a gym to use the AI trainer?", "How long is the free trial?", "How does Gym Accounting work?", "support GST invoices", "export my data to Excel", "more than one branch", "How does the gym partnership work?", "How does the 70% revenue share work?", "How do I cancel?", "What happens to my data?", "medical advice"]) expect(text.includes(q.replace("support GST invoices", "handle GST")) || text.toLowerCase().includes(q.toLowerCase()), q).toBe(true);
+    expect([...html.matchAll(/class="faq-cat[^"]*" id="faq-/g)].length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("has a five-column footer with every legal page and the cookie settings", () => {
+    const footer = html.slice(html.indexOf('<footer id="siteEnd"'), html.indexOf("</footer>"));
+    for (const h of ["Products", "Business", "Company", "Legal"]) expect(footer.includes(`>${h}</p>`), h).toBe(true);
+    for (const href of ["/privacy", "/terms", "/refund", "/privacy#cookies", "/privacy#rights", "/privacy#grievance", "/terms#partners", "/contact#company", "/guides"]) expect(footer.includes(`href="${href}"`), href).toBe(true);
+    expect(footer).toContain("data-cookie-settings");
+    expect(footer.includes("© 2026 FITRON")).toBe(true);
+  });
+
+  it("lets visitors accept all, choose essential only or manage settings, and uses no advertising cookies", () => {
+    const banner = html.slice(html.indexOf('id="consent"'), html.indexOf("</div>\n</div>", html.indexOf('id="consent"')));
+    for (const needle of ['data-consent="all"', 'data-consent="essential"', "data-consent-manage", 'id="consentAnalytics"', 'id="consentPrefs"', "No advertising cookies"]) expect(banner.includes(needle), needle).toBe(true);
+  });
+
+  it("names every tracked event with one the analytics doc lists", () => {
+    const doc = readFileSync(path.join(root, "docs/ANALYTICS.md"), "utf8");
+    const names = new Set([...html.matchAll(/data-track="([a-z_]+)"/g)].map((m) => m[1]!));
+    expect(names.size).toBeGreaterThan(5);
+    for (const n of names) expect(doc.includes(`\`${n}\``), n).toBe(true);
+  });
+
+  it("loads the analytics tracker, which waits for consent", () => {
+    expect(html.includes('<script src="/site/analytics.js" defer></script>')).toBe(true);
+    const js = readFileSync(path.join(root, "public/site/analytics.js"), "utf8");
+    expect(js).toContain("c.analytics");
+    expect(js).toContain("/api/analytics-config");
   });
 });
 
@@ -166,7 +276,7 @@ describe("home page structured data", () => {
     const shown = [...html.matchAll(/<details><summary>(.*?)<\/summary>/g)].map((m) => m[1]!.replace(/&amp;/g, "&"));
     const asked = ofType("FAQPage")[0]!.mainEntity!;
     expect(asked.map((q) => q.name)).toEqual(shown);
-    expect(shown).toHaveLength(8);
+    expect(shown.length).toBeGreaterThanOrEqual(12);
     for (const q of asked) expect(text.includes(q.acceptedAnswer.text.slice(0, 60)), q.name).toBe(true);
   });
 });

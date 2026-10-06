@@ -7,9 +7,8 @@ import { absoluteUrl, breadcrumbJsonLd, faqJsonLd, jsonLdScript, pageMetadata, S
 // The public page about the FITRON AI Trainer (content in src/lib/domain/trainer-page.ts). It looks like the pages about
 // Gym Accounting (../gym-page.tsx), with the trainer's own plans and a link into the member app.
 
-const btn = "inline-flex items-center justify-center rounded-md px-5 py-3 text-sm leading-[1.2] font-semibold transition-colors";
-const primary = `${btn} border border-transparent bg-accent text-accent-ink hover:bg-accent-hover`;
-const secondary = `${btn} border border-line text-fg hover:bg-fg/7`;
+const primary = "s-btn s-btn-primary";
+const secondary = "s-btn s-btn-ghost";
 
 export const metadata = pageMetadata({ title: page.title, description: page.description, path: page.path });
 
@@ -58,7 +57,7 @@ export default function Page() {
         <h1 className="mt-3 text-4xl leading-tight font-semibold sm:text-5xl">{page.h1}</h1>
         <p className="mt-5 text-lg text-muted">{page.intro}</p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <a href={trainerHref("ai-pro")} className={primary}>
+          <a href={trainerHref("ai-pro")} className={primary} data-track="start_ai_trial" data-track-from="ai-trainer-page">
             Start your {TRIAL_DAYS}-day free trial
           </a>
           <a href="/#pricing" className={secondary}>
@@ -70,7 +69,7 @@ export default function Page() {
 
       <div className="mt-12 flex flex-col gap-10 leading-relaxed">
         {page.blocks.map((b) => (
-          <section key={b.id} id={b.id} className="scroll-mt-6">
+          <section key={b.id} id={b.id} className="scroll-mt-28">
             <h2 className="text-2xl font-semibold">{b.heading}</h2>
             <p className="mt-3 text-muted">{b.body}</p>
             {"points" in b && b.points && (
@@ -92,7 +91,7 @@ export default function Page() {
           </section>
         ))}
 
-        <section id="plans" className="scroll-mt-6">
+        <section id="plans" className="scroll-mt-28">
           <h2 className="text-2xl font-semibold">Plans and pricing</h2>
           <p className="mt-3 text-muted">Both plans start with a {TRIAL_DAYS}-day free trial. Prices include GST; yearly plans are billed upfront.</p>
           <ul className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -110,7 +109,7 @@ export default function Page() {
           </ul>
         </section>
 
-        <section id="faq" className="scroll-mt-6">
+        <section id="faq" className="scroll-mt-28">
           <h2 className="text-2xl font-semibold">Questions</h2>
           <div className="mt-4 flex flex-col divide-y divide-line border-y border-line">
             {page.faq.map((f) => (
@@ -122,8 +121,19 @@ export default function Page() {
           </div>
         </section>
 
-        <section id="more" className="scroll-mt-6">
+        <section id="more" className="scroll-mt-28">
           <h2 className="text-2xl font-semibold">Run a gym?</h2>
+          <p className="mt-3 text-muted">
+            Give the AI Trainer to your members and earn 70% of every eligible subscription, subject to the partnership terms.{" "}
+            <a href="/#partnership" className="font-semibold text-accent underline">
+              See the gym partnership
+            </a>{" "}
+            or{" "}
+            <a href="/#pricing" className="font-semibold text-accent underline">
+              compare all plans
+            </a>
+            .
+          </p>
           <ul className="mt-3 list-disc pl-6">
             {GYM_PAGES.map((p) => (
               <li key={p.path} className="mt-1.5">
@@ -135,11 +145,11 @@ export default function Page() {
           </ul>
         </section>
 
-        <section className="rounded-lg border border-line p-6">
-          <h2 className="text-2xl font-semibold">Start training today</h2>
+        <section className="s-card p-6">
+          <h2 className="text-2xl font-semibold">Start your {TRIAL_DAYS}-day free trial.</h2>
           <p className="mt-2 text-muted">Tell FITRON your goal and the equipment you have, and your plan is built around it. The trial needs no card, and a paid plan starts only when you choose it.</p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <a href={trainerHref("ai-pro")} className={primary}>
+            <a href={trainerHref("ai-pro")} className={primary} data-track="start_ai_trial" data-track-from="ai-trainer-page">
               Start your {TRIAL_DAYS}-day free trial
             </a>
           </div>

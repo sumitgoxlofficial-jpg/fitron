@@ -1,17 +1,29 @@
-import { LinkButton } from "@/components/ui";
+import { Logo } from "@/components/logo";
+import "./(site)/site.css";
 
 // An address that doesn't exist on fitron.in (and what notFound() shows outside the console).
 export default function NotFound() {
   return (
-    <div className="mx-auto flex max-w-xl flex-col items-start gap-4 px-4 py-24">
-      <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">Page not found</p>
-      <h1 className="text-3xl font-semibold sm:text-4xl">We couldn&apos;t find that page</h1>
-      <p className="text-lg text-muted">The address may have changed, or it was typed wrong.</p>
+    <div className="site-ui mx-auto flex min-h-screen max-w-2xl flex-col items-start justify-center gap-5 px-4 py-16">
+      <a href="/" aria-label="FITRON home">
+        <Logo size={36} />
+      </a>
+      <p className="s-eyebrow">Error 404</p>
+      <h1 className="text-4xl sm:text-5xl">Looks like you took a wrong turn.</h1>
+      <p className="text-lg text-muted">The page you&apos;re looking for doesn&apos;t exist or may have moved.</p>
       <div className="flex flex-wrap gap-3">
-        <LinkButton href="/" variant="primary">
-          Back to fitron.in
-        </LinkButton>
-        <LinkButton href="/signin">Sign in</LinkButton>
+        <a href="/" className="s-btn s-btn-primary">
+          Back to FITRON
+        </a>
+        <a href="/ai-personal-trainer" className="s-btn s-btn-ghost">
+          Explore AI Trainer
+        </a>
+        <a href="/gym-accounting" className="s-btn s-btn-ghost">
+          Explore Gym Accounting
+        </a>
+        <a href="/contact" className="s-btn s-btn-ghost">
+          Contact us
+        </a>
       </div>
     </div>
   );

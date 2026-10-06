@@ -40,7 +40,6 @@ def add(page, anchor, addition, marker, why, before=False):
 # What Gym Accounting really exports is Excel and CSV (reports, ledgers, member and payment lists).
 # It has no Tally import file, so the page must not promise one.
 TEXT = [
-    ("GST-ready · Tally export", "GST-ready · Excel export", "hero chip"),
     ("Numbered invoices, month exported to Tally for your accountant", "Numbered invoices, month exported to Excel for your accountant", "stats band"),
     ("Tally export, month lock, audit log", "Excel and CSV export, month lock, audit log", "Gym Accounting card"),
     ("Does Gym Accounting work with Tally and GST?", "Does Gym Accounting handle GST and my accountant's books?", "FAQ question"),
@@ -105,7 +104,6 @@ TEXT = [
     # net-banking mandate and can be cancelled any time, and the listed prices include GST (the customer pays exactly the
     # listed price). The design said nothing auto-debits and that prices are exclusive of GST. The Terms and Refund pages
     # (src/app/(site)/terms, refund) say the same.
-    ("<li>Pay by UPI, cancel anytime</li>", "<li>Pay by UPI or card, cancel anytime</li>", "hero point: payment"),
     (
         "Prices in rupees, exclusive of GST. Pay by UPI.</p>",
         "Prices in rupees, inclusive of GST. Pay by UPI or card; plans renew automatically and you can cancel any time.</p>",
@@ -158,6 +156,54 @@ TEXT = [
         '<ul class="foot-links"><li><a href="/ai-personal-trainer">AI personal trainer</a></li>',
         "footer: AI Trainer link",
     ),
+    # Redesign: the title, description and link preview use the wording of the brief (about 55 and 150 characters).
+    ("<title>Gym Accounting Software &amp; AI Personal Trainer | FITRON</title>", "<title>FITRON — AI Personal Trainer &amp; Gym Accounting Software</title>", "page title: redesign"),
+    (
+        '<meta name="description" content="Gym accounting software with GST invoices, fees, WhatsApp reminders and P&amp;L from ₹999 a month, plus an AI personal trainer for ₹299 a month. 7-day free trial.">',
+        '<meta name="description" content="FITRON combines an AI personal trainer for individuals with gym accounting and management software for Indian gyms. Start your 7-day free trial.">',
+        "meta description: redesign",
+    ),
+    ('<meta property="og:title" content="FITRON: gym accounting software and an AI personal trainer">', '<meta property="og:title" content="FITRON — AI Personal Trainer &amp; Gym Accounting Software">', "link preview title: redesign"),
+    (
+        '<meta property="og:description" content="An AI personal trainer for ₹299 a month. Gym accounting software from ₹999 a month. 7-day free trial on both.">',
+        '<meta property="og:description" content="An AI personal trainer from ₹299 a month and gym accounting software from ₹999 a month, in one platform. 7-day free trial.">',
+        "link preview description: redesign",
+    ),
+    # Products section: the heading of the brief, ten features on each card, and each card's two buttons.
+    (
+        '<h2 id="products-title" class="reveal-3d">Pick your side. Or take both.</h2>\n      <p class="lead reveal">One for the person training. One for the gym they train in. Each works on its own; together they share one brain.</p>',
+        '<h2 id="products-title" class="reveal-3d">Two products. One FITRON.</h2>\n      <p class="lead reveal">One for the person training. One for the gym they train in.</p>',
+        "products heading: redesign",
+    ),
+    (
+        "<p>An AI coach that builds your workouts, plans Indian meals around your budget, tracks your progress and talks to you every day. At home or in the gym.</p>",
+        "<p>An AI coach that builds workouts, plans Indian meals around your goals and budget, tracks progress and supports you every day.</p>",
+        "AI Trainer card: description",
+    ),
+    (
+        "<p>Members, fees, GST invoices, WhatsApp reminders, attendance, payroll and P&amp;L in one console. For one gym or every branch you run.</p>",
+        "<p>Manage members, fees, GST invoices, expenses, payroll, payments, reminders and profit &amp; loss in one console.</p>",
+        "Gym Accounting card: description",
+    ),
+    (
+        '<a class="btn btn-gold" href="/signup?plan=ai-pro">Start free trial <svg class="icon"><use href="#i-arrow"></use></svg></a><a class="btn btn-ghost" href="/ai-personal-trainer">Full details</a>',
+        '<a class="btn btn-gold" href="/signup?plan=ai-pro" data-track="start_ai_trial" data-track-from="products">Start AI Trainer Trial <svg class="icon"><use href="#i-arrow"></use></svg></a><a class="btn btn-ghost" href="/ai-personal-trainer">Explore AI Trainer</a>',
+        "AI Trainer card: buttons",
+    ),
+    (
+        '<a class="btn btn-gold" href="/signup?plan=professional">Start free trial <svg class="icon"><use href="#i-arrow"></use></svg></a><a class="btn btn-ghost" href="/site/gym-demo.html" target="_blank" rel="noopener" data-ld-open>Demo product <svg class="icon"><use href="#i-play"></use></svg></a>',
+        '<a class="btn btn-gold" href="/signup?plan=professional" data-track="start_gym_trial" data-track-from="products">Start Gym Accounting Trial <svg class="icon"><use href="#i-arrow"></use></svg></a><a class="btn btn-ghost" href="/gym-accounting">Explore Gym Accounting</a><a class="hero-partner" href="/site/gym-demo.html" target="_blank" rel="noopener" data-ld-open data-track="demo_request" data-track-from="products">Try the live demo</a>',
+        "Gym Accounting card: buttons",
+    ),
+    # Partnership: the buttons of the brief (the WhatsApp link stays as a third way to reach us), and the step names.
+    (
+        '<a class="btn btn-gold" href="https://wa.me/916207774673?text=Hi%20FITRON%2C%20I%20run%20a%20gym%20and%20want%20to%20talk%20about%20a%20partnership." target="_blank" rel="noopener">Partner with us on WhatsApp <svg class="icon"><use href="#i-arrow"></use></svg></a>\n          <a class="btn btn-ghost" href="mailto:hello@fitron.in?subject=FITRON%20Gym%20Partnership">Email hello@fitron.in</a>',
+        '<a class="btn btn-gold" href="#pricing" data-pricing-tab="par" data-track="partner_lead" data-track-from="partnership">Become a FITRON Partner <svg class="icon"><use href="#i-arrow"></use></svg></a>\n          <a class="btn btn-ghost" href="/contact?topic=partner" data-track="partner_lead" data-track-from="partnership-sales">Talk to Sales</a>\n          <a class="hero-partner" href="https://wa.me/916207774673?text=Hi%20FITRON%2C%20I%20run%20a%20gym%20and%20want%20to%20talk%20about%20a%20partnership." target="_blank" rel="noopener">WhatsApp us</a>',
+        "partnership: buttons",
+    ),
+    ("<h3>We brand the app</h3>", "<h3>We brand the experience</h3>", "partnership step 2"),
+    ("<h3>Members join in a day</h3>", "<h3>Members join</h3>", "partnership step 3"),
+    ("<h3>You get paid monthly</h3>", "<h3>You receive monthly settlement</h3>", "partnership step 4"),
 ]
 
 # The live Gym Accounting demo in the product card. The dashboard picture gets a "Try the live demo" button that loads the
@@ -410,8 +456,81 @@ def structured_data(page):
     return f'<script type="application/ld+json">{body}</script>\n'
 
 
+# Old swaps whose text lives in a region that the redesign replaces as a whole (see REDESIGN below).
+REPLACED = {
+    **{w: "faq" for w in ["FAQ question", "FAQ answer", "FAQ answer: GST is optional", "FAQ: GST link", "FAQ: branches link", "FAQ: available now, how to pay",
+                          "FAQ: free trial, how to pay", "FAQ: cancelling", "FAQ: data", "FAQ: AI trainer link"]},
+    "Gym Accounting card": "gym-checks",
+    "Gym Accounting card: module count": "gym-checks",
+    **{w: "footer" for w in ["footer links to the Gym Accounting pages", "footer: AI Trainer link"]},
+}
+
+SUPERSEDED = {"page title", "meta description", "link preview title", "AI Trainer card: details link", "Gym Accounting card: Demo product (opens the live demo full screen; the link is the no-script fallback)"}
+
 CHECK_ITEM = '<li><svg class="icon"><use href="#i-check"></use></svg><span>{}</span></li>'
 PREMIUM_LIST = re.compile(r'(<li class="pc-inc">Everything in AI Pro, plus</li>)(?:<li><svg class="icon"><use href="#i-check"></use></svg><span>[^<]*</span></li>)+(</ul>)')
+
+
+# ---- Redesign: the sections, header, footer and consent panel of the brief. -------------------------------------------------
+# Their markup, styles and script are real files in scripts/site/ (hero.html, showcase.html, nav.html ...). Each is put
+# between <!--fitron:name--> markers: the first run replaces the design's own markup, later runs refresh what is between the
+# markers, so editing a file there and running this script again is all it takes.
+SITE_DIR = os.path.join(HERE, "site")
+
+
+def site_src(name):
+    with open(os.path.join(SITE_DIR, name), encoding="utf-8") as f:
+        return f.read()
+
+
+def region(page, original, block, name, why):
+    """Replace the design's `original` markup (a regex) by `block` between markers; refresh the block if the markers are there."""
+    start, end = f"<!--fitron:{name}-->", f"<!--/fitron:{name}-->"
+    found = re.compile(re.escape(start) + r"[\s\S]*?" + re.escape(end))
+    if found.search(page):
+        return found.sub(lambda _: start + block + end, page, count=1)
+    page, n = re.subn(original, lambda _: start + block + end, page, count=1, flags=re.S)
+    assert n == 1, f"{why}: the markup to replace was not found"
+    return page
+
+
+def squash_css(css):
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    return "".join(line.strip() for line in css.splitlines())
+
+
+AI_FEATURES = ["Personalized 4-week workout plans", "Home or gym workouts", "Indian meal plans", "Diet preferences", "Budget-aware meals",
+               "24/7 AI coach", "Habit tracking", "Water tracking", "Progress tracking", "Weekly review"]
+GYM_FEATURES = ["Member management", "Membership plans", "Fee collection", "GST invoices", "Expenses", "Profit &amp; loss",
+                "WhatsApp reminders", "Staff management", "Excel/CSV export", "Multi-branch support"]
+
+
+def checks(items):
+    return '<ul class="checks two">' + "".join(CHECK_ITEM.format(i) for i in items) + "</ul>"
+
+
+def redesign(page):
+    page = region(page, r'<header class="nav" id="nav">.*?</header>\s*<nav class="mobile-menu".*?</nav>\n', site_src("nav.html"), "nav", "header and phone menu")
+    page = region(page, r'<div class="hero-wrap" id="top">.*?(?=\s*<section class="band")', site_src("hero.html"), "hero", "hero")
+    page = put(page, '<section class="section" id="together"', site_src("showcase.html") + "\n  ", "<!--fitron:showcase-->", "<!--/fitron:showcase-->", "showcase sections")
+    page = region(page, r'<div class="together reveal">.*?(?=\s*<div class="result reveal")', site_src("together.html"), "together", "Better together flow")
+    page = put(page, '</section>\n\n  <section class="section" id="pricing"', site_src("partner-extras.html"), "<!--fitron:partner-models-->", "<!--/fitron:partner-models-->", "partner models")
+    page = put(page, '      </div>\n      <div class="p-panel p-acc" id="pricing-accounting">', site_src("compare-ai.html"), "<!--fitron:compare-ai-->", "<!--/fitron:compare-ai-->", "AI plan table")
+    page = put(page, '<p class="p-fine">*WhatsApp messaging', site_src("compare-gym.html"), "<!--fitron:compare-gym-->", "<!--/fitron:compare-gym-->", "gym plan table")
+    page = region(page, r'<div class="faq reveal">.*?</div>(?=\s*</section>)', site_src("faq.html"), "faq", "FAQ")
+    page = region(page, r"<footer id=\"siteEnd\">.*?</footer>", site_src("footer.html"), "footer", "footer")
+    page = region(page, r'<div class="consent" id="consent".*?</div>\n</div>', site_src("consent.html"), "consent", "cookie banner")
+    page = region(page, r'<ul class="checks">.*?</ul>', checks(AI_FEATURES), "ai-checks", "AI Trainer card features")
+    page = region(page, r'<ul class="checks">.*?</ul>', checks(GYM_FEATURES) + '<p class="sc-fine" style="text-align:left;margin-top:12px">Some features need the Professional or Enterprise plan. <a href="#pricing">Compare plans</a>.</p>', "gym-checks", "Gym Accounting card features")
+    page = put(page, "</head>", "<style>" + squash_css(site_src("redesign.css")) + "</style>", "<!--fitron:redesign-css-->", "<!--/fitron:redesign-css-->", "redesign styles")
+    page = put(page, "</body>", "<script>\n" + site_src("extras.js") + "</script>\n", "<!--fitron:extras-->", "<!--/fitron:extras-->", "redesign script")
+    page = add(page, "</body>", '<script src="/site/analytics.js" defer></script>\n', 'src="/site/analytics.js"', "analytics loader (consent-gated, see public/site/analytics.js)", before=True)
+    page = add(
+        page, '<meta name="twitter:card" content="summary_large_image">',
+        '\n<meta name="twitter:title" content="FITRON — AI Personal Trainer &amp; Gym Accounting Software">\n<meta name="twitter:description" content="An AI personal trainer from ₹299 a month and gym accounting software from ₹999 a month, in one platform. 7-day free trial.">\n<meta name="twitter:image" content="https://fitron.in/site/og.png">',
+        'name="twitter:title"', "twitter card details",
+    )
+    return page
 
 
 def apply(page):
@@ -419,6 +538,12 @@ def apply(page):
     # taken out first: a swap below must find the text once, not once in the page and once in the structured data.
     page = re.sub(r'<script type="application/ld\+json">.*?</script>\n', "", page, flags=re.S)
     for old, new, why in TEXT:
+        # Text inside a region the redesign replaces (the FAQ, the footer) is not looked for once that region is in place.
+        if why in REPLACED and f"<!--fitron:{REPLACED[why]}-->" in page:
+            continue
+        # Steps the redesign continues from (title, card buttons) are only the first half of a chain: once it is in, skip them.
+        if why in SUPERSEDED and "<!--fitron:hero-->" in page:
+            continue
         page = swap(page, old, new, why)
     # Premium lists only what the app really gates by tier. Applying this again gives the same list.
     page, n = PREMIUM_LIST.subn(lambda m: m.group(1) + CHECK_ITEM.format("AI Coach: 100 messages a day") + m.group(2), page)
@@ -443,9 +568,12 @@ def apply(page):
     page = put(page, "</style>", ASSISTANT_CSS, "/*fitron:assistant*/", "/*fitron:assistant-end*/", "Fitron Assistant styles")
     page = put(page, "</body>", ASSISTANT_HTML + ASSISTANT_JS, "<!--fitron:assistant-->", "<!--/fitron:assistant-->", "Fitron Assistant chat")
     # The guides for gym owners (src/lib/domain/guides.ts), at the end of the footer links.
-    page = swap(page, '<li><a href="#faq">FAQ</a></li></ul>', '<li><a href="#faq">FAQ</a></li><li><a href="/guides">Guides for gym owners</a></li></ul>', "footer: guides link")
+    if "<!--fitron:footer-->" not in page:
+        page = swap(page, '<li><a href="#faq">FAQ</a></li></ul>', '<li><a href="#faq">FAQ</a></li><li><a href="/guides">Guides for gym owners</a></li></ul>', "footer: guides link")
     page = add(page, '<link rel="apple-touch-icon" href="/fitron-mark.png">', '\n<link rel="manifest" href="/manifest.webmanifest">', 'rel="manifest"', "web app manifest (src/app/manifest.ts)")
-    page = add(page, '<li><a href="/contact">Contact us</a></li>', '\n      <li><a href="/contact#company">Company details</a></li>', "/contact#company", "footer company link")
+    if "<!--fitron:footer-->" not in page:
+        page = add(page, '<li><a href="/contact">Contact us</a></li>', '\n      <li><a href="/contact#company">Company details</a></li>', "/contact#company", "footer company link")
+    page = redesign(page)
     # Rebuilt each time, so a changed FAQ or price list reaches the structured data.
     page = re.sub(r'<script type="application/ld\+json">.*?</script>\n', "", page, flags=re.S)
     page = add(page, "</head>", structured_data(page), "@@never@@", "structured data", before=True)

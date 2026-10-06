@@ -8,9 +8,8 @@ import { LiveDemo } from "./live-demo";
 // One of the public pages about Gym Accounting (content in src/lib/domain/gym-pages.ts). Plain <a> links, like the rest of
 // the public pages: the home page they point to is a static file, not a route.
 
-const btn = "inline-flex items-center justify-center rounded-md px-5 py-3 text-sm leading-[1.2] font-semibold transition-colors";
-const primary = `${btn} border border-transparent bg-accent text-accent-ink hover:bg-accent-hover`;
-const secondary = `${btn} border border-line text-fg hover:bg-fg/7`;
+const primary = "s-btn s-btn-primary";
+const secondary = "s-btn s-btn-ghost";
 
 export const gymPageMetadata = (p: GymPage) => pageMetadata({ title: p.title, description: p.description, path: p.path });
 
@@ -64,14 +63,20 @@ export function GymPageView({ page }: { page: GymPage }) {
         <h1 className="mt-3 text-4xl leading-tight font-semibold sm:text-5xl">{page.h1}</h1>
         <p className="mt-5 text-lg text-muted">{page.intro}</p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <a href={gymSignupHref({ plan: "professional" })} className={primary}>
-            Start your {TRIAL_DAYS}-day free trial
+          <a href={gymSignupHref({ plan: "professional" })} className={primary} data-track="start_gym_trial" data-track-from="gym-page-hero">
+            Start {TRIAL_DAYS}-Day Free Trial
           </a>
-          <a href="/#pricing" className={secondary}>
-            See pricing
+          <a href="/contact?topic=demo" className={secondary} data-track="demo_request" data-track-from="gym-page-hero">
+            Book a Demo
           </a>
         </div>
-        <p className="mt-3 text-sm text-muted">No card needed. Or ask us for a demo on WhatsApp +91 62077 74673.</p>
+        <p className="mt-3 text-sm text-muted">
+          No card needed. See the{" "}
+          <a href="/#pricing" className="underline">
+            plans and pricing
+          </a>
+          , or WhatsApp us on +91 62077 74673.
+        </p>
         {page.path === GYM_ACCOUNTING.path && (
           <figure className="mt-10 overflow-hidden rounded-lg border border-line">
             <LiveDemo
@@ -85,9 +90,27 @@ export function GymPageView({ page }: { page: GymPage }) {
         )}
       </header>
 
+      <nav aria-label="On this page" className="mt-10">
+        <p className="s-eyebrow">What this page covers</p>
+        <ul className="mt-3 flex flex-wrap gap-2">
+          {page.blocks.map((b) => (
+            <li key={b.id}>
+              <a href={`#${b.id}`} className="inline-block rounded-full border border-line px-3 py-1 text-sm text-muted no-underline hover:border-accent hover:text-fg">
+                {b.heading}
+              </a>
+            </li>
+          ))}
+          <li>
+            <a href="#plans" className="inline-block rounded-full border border-line px-3 py-1 text-sm text-muted no-underline hover:border-accent hover:text-fg">
+              Plans and pricing
+            </a>
+          </li>
+        </ul>
+      </nav>
+
       <div className="mt-12 flex flex-col gap-10 leading-relaxed">
         {page.blocks.map((b) => (
-          <section key={b.id} id={b.id} className="scroll-mt-6">
+          <section key={b.id} id={b.id} className="scroll-mt-28">
             <h2 className="text-2xl font-semibold">{b.heading}</h2>
             {b.feature && <p className="mt-2 inline-block rounded-full border border-line px-3 py-0.5 text-xs font-semibold text-muted">{planNote(b.feature)}</p>}
             <p className="mt-3 text-muted">{b.body}</p>
@@ -110,13 +133,16 @@ export function GymPageView({ page }: { page: GymPage }) {
           </section>
         ))}
 
-        <section id="plans" className="scroll-mt-6">
+        <section id="plans" className="scroll-mt-28">
           <h2 className="text-2xl font-semibold">Plans and pricing</h2>
           <p className="mt-3 text-muted">Every plan starts with a {TRIAL_DAYS}-day free trial. Prices are per month, GST included; yearly plans are billed upfront.</p>
           <ul className="mt-5 grid gap-4 sm:grid-cols-3">
             {gymPlans.map((p) => (
-              <li key={p.key} className="rounded-lg border border-line p-4">
-                <h3 className="font-semibold">{p.name}</h3>
+              <li key={p.key} className={`rounded-lg border p-4 ${p.key === "professional" ? "border-accent" : "border-line"}`}>
+                <h3 className="font-semibold">
+                  {p.name}
+                  {p.key === "professional" && <span className="ml-2 rounded-full bg-accent px-2 py-0.5 align-middle text-xs font-bold text-accent-ink">Recommended</span>}
+                </h3>
                 <p className="mt-1 text-2xl font-semibold">
                   {rupeesLabel(p.price.MONTHLY)}
                   <span className="text-sm font-normal text-muted"> / month</span>
@@ -133,7 +159,7 @@ export function GymPageView({ page }: { page: GymPage }) {
           </p>
         </section>
 
-        <section id="faq" className="scroll-mt-6">
+        <section id="faq" className="scroll-mt-28">
           <h2 className="text-2xl font-semibold">Questions</h2>
           <div className="mt-4 flex flex-col divide-y divide-line border-y border-line">
             {page.faq.map((f) => (
@@ -145,7 +171,7 @@ export function GymPageView({ page }: { page: GymPage }) {
           </div>
         </section>
 
-        <section id="more" className="scroll-mt-6">
+        <section id="more" className="scroll-mt-28">
           <h2 className="text-2xl font-semibold">Keep reading</h2>
           <ul className="mt-3 list-disc pl-6">
             {others.map((p) => (
@@ -163,22 +189,22 @@ export function GymPageView({ page }: { page: GymPage }) {
               </li>
             ))}
             <li className="mt-1.5">
-              <a href="/#together" className="font-semibold text-accent underline">
+              <a href="/ai-personal-trainer" className="font-semibold text-accent underline">
                 The FITRON AI Trainer, for your members
               </a>
             </li>
           </ul>
         </section>
 
-        <section className="rounded-lg border border-line p-6">
-          <h2 className="text-2xl font-semibold">Try it with your own gym&apos;s numbers</h2>
+        <section className="s-card p-6">
+          <h2 className="text-3xl">Run your gym without the spreadsheet chaos.</h2>
           <p className="mt-2 text-muted">Open an account, add a few members and make one invoice. If it is not for you, nothing is charged: the trial needs no card, and a paid plan starts only when you choose it.</p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <a href={gymSignupHref({ plan: "professional" })} className={primary}>
-              Start your {TRIAL_DAYS}-day free trial
+            <a href={gymSignupHref({ plan: "professional" })} className={primary} data-track="start_gym_trial" data-track-from="gym-page-footer">
+              Start {TRIAL_DAYS}-Day Free Trial
             </a>
-            <a href="/contact?topic=demo" className={secondary}>
-              Ask for a demo
+            <a href="/contact?topic=demo" className={secondary} data-track="demo_request" data-track-from="gym-page-footer">
+              Book a Demo
             </a>
           </div>
         </section>
