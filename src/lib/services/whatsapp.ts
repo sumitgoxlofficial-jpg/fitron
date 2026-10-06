@@ -214,7 +214,7 @@ export async function deliverMessage(id: string) {
     if (render(tpl.body, vars) === msg.body) template = { name: tpl.metaTemplateName, language: tpl.language, params: placeholders(tpl.body).map((k) => vars[k as keyof TemplateVars] ?? "") };
   }
   const result = to
-    ? await sendWhatsApp(settings.mode, { localId: msg.id, to, body: msg.body, template, pdf: pdf ? { bytes: pdf.bytes, filename: pdf.filename } : undefined })
+    ? await sendWhatsApp(settings.mode, { orgId: msg.orgId, localId: msg.id, to, body: msg.body, template, pdf: pdf ? { bytes: pdf.bytes, filename: pdf.filename } : undefined })
     : { status: "Failed" as const, error: FAILED_NUMBER };
   const saved = await db.whatsAppMessage.update({
     where: { id: msg.id },
@@ -257,7 +257,7 @@ export async function sendTest(u: CurrentUser) {
   if (!to) throw new UserError("Add the gym phone in Gym profile first.");
   const settings = await getWaSettings(u.orgId);
   const msg = await db.whatsAppMessage.create({ data: { orgId: u.orgId, memberId: null, templateKey: "test", toNumber: to, body: TEST_BODY, provider: settings.mode, status: "Queued", sentById: u.id } });
-  const result = await sendWhatsApp(settings.mode, { localId: msg.id, to, body: TEST_BODY });
+  const result = await sendWhatsApp(settings.mode, { orgId: u.orgId, localId: msg.id, to, body: TEST_BODY });
   return db.$transaction(async (tx) => {
     const saved = await tx.whatsAppMessage.update({ where: { id: msg.id }, data: { status: result.status, providerMessageId: result.providerMessageId ?? null, error: result.error ?? null } });
     await audit(tx, { orgId: u.orgId, userId: u.id, action: "whatsapp.test", entity: "WhatsAppMessage", entityId: msg.id, after: { status: saved.status, error: saved.error } });
@@ -273,7 +273,7 @@ export async function sendTest(u: CurrentUser) {
 export async function sendGymWhatsApp(o: { orgId: string; key: string; to: string; body: string }) {
   const mode = (await getSetting<{ mode?: WaMode }>(o.orgId, "whatsapp"))?.mode ?? "demo";
   const msg = await db.whatsAppMessage.create({ data: { orgId: o.orgId, memberId: null, templateKey: o.key, toNumber: o.to, body: o.body, provider: mode, status: "Queued", sentById: null } });
-  const result = await sendWhatsApp(mode, { localId: msg.id, to: o.to, body: o.body });
+  const result = await sendWhatsApp(mode, { orgId: o.orgId, localId: msg.id, to: o.to, body: o.body });
   const saved = await db.whatsAppMessage.update({ where: { id: msg.id }, data: { status: result.status, providerMessageId: result.providerMessageId ?? null, error: result.error ?? null } });
   if (result.status === "Failed") {
     await db.$transaction((tx) => notify(tx, { orgId: o.orgId, type: "WA_FAILED", text: `WhatsApp renewal reminder to ${o.to} failed: ${result.error}`, link: "/whatsapp?status=Failed" }));
@@ -340,7 +340,7 @@ const QUEUE_GIVE_UP_MS = 6 * 3_600_000;
 export async function refreshQueued(orgId: string) {
   const since = new Date(Date.now() - 3 * 86_400_000);
   const open = await db.whatsAppMessage.findMany({ where: { orgId, provider: "connector", status: { in: ["Queued", "Sent", "Delivered"] }, sentAt: { gte: since } }, select: { id: true, status: true, sentAt: true, deliveredAt: true } });
-  const res = await connectorResults(open.map((q) => q.id));
+  const res = await connectorResults(orgId, open.map((q) => q.id));
   if (!res) return 0;
   const rank: Record<string, number> = { Queued: 1, Sent: 2, Delivered: 3, Read: 4, Failed: 5 };
   let n = 0;

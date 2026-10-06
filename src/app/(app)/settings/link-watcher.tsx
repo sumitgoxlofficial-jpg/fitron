@@ -45,19 +45,16 @@ export function LinkWatcher({ envMessage, address, hosted }: { envMessage: strin
       <div className="flex items-start gap-3.5">
         <PlugsIcon size={30} weight="duotone" className="flex-none text-accent" />
         <div className="flex flex-col gap-1.5 text-sm leading-relaxed">
-          <strong>One-time setup: host the WhatsApp connector</strong>
-          <span>Fitron runs online, so it cannot reach a connector on the gym PC. Run the connector on a small always-on server, then the QR code appears here.</span>
+          <strong>One-time setup (Fitron team): run the WhatsApp connector</strong>
+          <span>Fitron runs online, so it needs the connector running on an always-on server. One connector serves every gym; each gym owner then links her own WhatsApp here by scanning a QR code.</span>
           <ol className="m-0 list-decimal pl-[18px]">
             <li>
-              On render.com create a Web Service from this repository with Root Directory <code>prototype/connector</code>, Docker runtime, a Starter instance and a 1 GB disk mounted at <code>/app/session</code>.
+              Run the <code>prototype/connector</code> folder (Docker or Node) on any always-on server, with <code>FITRON_KEY</code> set to a long secret and a persistent folder for <code>session</code>.
             </li>
             <li>
-              Give it an environment variable <code>FITRON_KEY</code> with a long secret you make up.
+              In Vercel › Environment Variables set <code>WA_CONNECTOR_URL</code> (the server&apos;s https address) and <code>WA_CONNECTOR_KEY</code> (the same secret), then redeploy.
             </li>
-            <li>
-              In Vercel › Environment Variables set <code>WA_CONNECTOR_URL</code> (the Render address) and <code>WA_CONNECTOR_KEY</code> (the same secret), then redeploy.
-            </li>
-            <li>Open this dialog again and scan the QR from WhatsApp › Linked devices.</li>
+            <li>Open this dialog again and scan the QR from WhatsApp › Linked devices on the gym phone.</li>
           </ol>
         </div>
       </div>
