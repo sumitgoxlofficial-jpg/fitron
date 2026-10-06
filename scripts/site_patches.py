@@ -83,11 +83,12 @@ TEXT = [
         '<meta property="og:title" content="FITRON: gym accounting software and an AI personal trainer">',
         "link preview title",
     ),
-    # Links to the pages about Gym Accounting (src/lib/domain/gym-pages.ts): the product card, the footer and two FAQ answers.
+    # Links to the pages about Gym Accounting (src/lib/domain/gym-pages.ts): the footer and two FAQ answers. The product
+    # card's second button opens the live demo instead (LIVE_DEMO below).
     (
         '<a class="btn btn-gold" href="/signup?plan=professional">Start free trial <svg class="icon"><use href="#i-arrow"></use></svg></a><a class="btn btn-ghost" href="#products">Full details</a>',
-        '<a class="btn btn-gold" href="/signup?plan=professional">Start free trial <svg class="icon"><use href="#i-arrow"></use></svg></a><a class="btn btn-ghost" href="/gym-accounting">Full details</a>',
-        "Gym Accounting card: full details",
+        '<a class="btn btn-gold" href="/signup?plan=professional">Start free trial <svg class="icon"><use href="#i-arrow"></use></svg></a><a class="btn btn-ghost" href="/site/gym-demo.html" target="_blank" rel="noopener" data-ld-open>Demo product <svg class="icon"><use href="#i-play"></use></svg></a>',
+        "Gym Accounting card: Demo product (opens the live demo full screen; the link is the no-script fallback)",
     ),
     (
         '<li><a href="#products">Gym Accounting</a></li><li><a href="#together">Better together</a></li>',
@@ -158,6 +159,115 @@ TEXT = [
         "footer: AI Trainer link",
     ),
 ]
+
+# The live Gym Accounting demo in the product card. The dashboard picture gets a "Try the live demo" button that loads the
+# prototype (public/site/gym-demo.html, self-contained) into the card, drawn at desktop size and scaled to fit, and a "Full
+# screen" button; the card's "Demo product" button opens it full screen too. next.config.ts lets only our own pages frame it.
+LIVE_DEMO_OLD = '<div class="media"><div class="mini-console lift-sm" style="padding:0;overflow:hidden;aspect-ratio:16/10.4"><img src="/site/console-dashboard.webp" alt="FITRON Gym Accounting dashboard: active members, revenue, outstanding and renewals for Power Haus Gym" style="display:block;width:100%;height:100%;object-fit:cover;object-position:0 0"></div></div>'
+LIVE_DEMO_NEW = '<div class="media"><div class="mini-console lift-sm live-demo" id="liveDemo" data-src="/site/gym-demo.html" style="padding:0;overflow:hidden;aspect-ratio:16/10.4"><img class="ld-poster" src="/site/console-dashboard.webp" alt="FITRON Gym Accounting dashboard: active members, revenue, outstanding and renewals for Power Haus Gym" style="display:block;width:100%;height:100%;object-fit:cover;object-position:0 0"><button type="button" class="ld-play" data-ld-play><span class="ld-play-ring"><svg class="icon"><use href="#i-play"></use></svg></span><span class="ld-play-text">Try the live demo<small>Click around a working console with demo data</small></span></button><div class="ld-tools"><button type="button" class="ld-btn" data-ld-full aria-label="Open the live demo full screen"><svg class="icon"><use href="#i-expand"></use></svg><span>Full screen</span></button><a class="ld-btn" href="/site/gym-demo.html" target="_blank" rel="noopener" aria-label="Open the live demo in a new tab"><svg class="icon"><use href="#i-external"></use></svg></a></div></div></div>'
+LIVE_DEMO_ICONS = '  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"></path></symbol>\n  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></symbol>\n  <symbol id="i-shrink" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"></path></symbol>\n  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></symbol>\n'
+LIVE_DEMO_CSS = (
+    '/*fitron:live-demo*/.live-demo{position:relative;isolation:isolate}'
+    '.live-demo .ld-poster{transition:opacity .5s,filter .4s}'
+    '.live-demo:not(.running):hover .ld-poster{filter:brightness(.72)}'
+    '.ld-frame{position:absolute;top:0;left:0;width:1280px;height:832px;border:0;background:#0e0d0a;transform:scale(var(--ld-scale,.4));transform-origin:0 0;opacity:0;transition:opacity .5s}'
+    '.live-demo.ready .ld-frame{opacity:1}'
+    '.live-demo.ready .ld-poster{opacity:0}'
+    '.ld-play{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;border:0;background:radial-gradient(circle at 50% 50%,rgba(14,13,10,.55),rgba(14,13,10,.15) 70%);color:var(--text);font:600 1rem/1.25 var(--font-body);cursor:pointer;text-align:center}'
+    '.ld-play-ring{display:grid;place-items:center;width:68px;height:68px;border-radius:50%;background:var(--gold-grad);color:#17140d;box-shadow:0 1px 0 #8f6a1c,0 3px 0 #634812,0 18px 34px -10px rgba(0,0,0,.8);transition:transform .3s var(--ease)}'
+    '.ld-play-ring .icon{width:28px;height:28px;fill:currentColor;stroke-width:1.4;margin-left:3px}'
+    '.ld-play:hover .ld-play-ring,.ld-play:focus-visible .ld-play-ring{transform:scale(1.08)}'
+    '.ld-play-text{display:grid;gap:4px;padding:8px 14px;border-radius:12px;background:rgba(14,13,10,.72);border:1px solid var(--line-2)}'
+    '.ld-play-text small{font-size:.74rem;font-weight:500;color:var(--muted)}'
+    '.live-demo.running .ld-play{display:none}'
+    '.ld-loading{position:absolute;inset:0;z-index:2;display:grid;place-items:center;font:600 .9rem var(--font-body);color:var(--gold-2);background:rgba(14,13,10,.55)}'
+    '.ld-loading::after{content:"";position:absolute;left:50%;top:calc(50% + 22px);width:110px;height:3px;margin-left:-55px;border-radius:2px;background:linear-gradient(90deg,var(--gold-deep),var(--gold-2));animation:demoLoad 1.6s ease-in-out infinite}'
+    '.live-demo.ready .ld-loading{display:none}'
+    '.ld-tools{position:absolute;right:10px;bottom:10px;z-index:3;display:flex;gap:6px}'
+    '.ld-btn{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 11px;border-radius:999px;border:1px solid var(--line-2);background:rgba(14,13,10,.82);color:var(--gold-2);font:600 .76rem/1 var(--font-body);text-decoration:none;cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .2s,border-color .2s}'
+    '.ld-btn:hover,.ld-btn:focus-visible{background:rgba(38,34,24,.95);border-color:var(--gold)}'
+    '.ld-btn .icon{width:16px;height:16px;stroke-width:2}'
+    '.live-demo:fullscreen{width:100%;height:100%;max-width:none;aspect-ratio:auto!important;border:0;border-radius:0;transform:none;background:#0e0d0a}'
+    '.live-demo:fullscreen .ld-frame{width:100%;height:100%;transform:none}'
+    '.live-demo:fullscreen .ld-poster{display:none}'
+    '.live-demo:fullscreen .ld-tools{right:8px;bottom:auto;top:50%;translate:0 -50%;flex-direction:column;opacity:.6;transition:opacity .2s}'
+    '.live-demo:fullscreen .ld-tools:hover,.live-demo:fullscreen .ld-tools:focus-within{opacity:1}'
+    '.live-demo:fullscreen .ld-btn{width:38px;min-height:38px;padding:0;justify-content:center}'
+    '.live-demo:fullscreen .ld-btn span{display:none}'
+    '@media (max-width:560px){.ld-play{gap:10px;padding:10px 10px 52px}.ld-play-ring{width:54px;height:54px}.ld-play-ring .icon{width:22px;height:22px}.ld-play-text small{display:none}}'
+    '@media (prefers-reduced-motion:reduce){.ld-frame,.live-demo .ld-poster,.ld-play-ring{transition:none}.ld-loading::after{animation:none}}'
+)
+LIVE_DEMO_JS = """<script>/*fitron:live-demo-js*/
+(function () {
+  // The live Gym Accounting demo in the product card (#liveDemo): the prototype in public/site/gym-demo.html, loaded on
+  // demand, drawn at desktop size and scaled to the card; "Full screen" shows it at full size. It keeps its demo data in
+  // this browser's localStorage under its own fitron-*-v1 keys, which nothing else on fitron.in uses.
+  var $ = (s, r) => (r || document).querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
+  const live = $('#liveDemo');
+  if (!live) return;
+  const W = 1280;
+  const fullBtn = $('[data-ld-full]', live), playBtn = $('[data-ld-play]', live);
+  const canFull = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  const isFull = () => (document.fullscreenElement || document.webkitFullscreenElement) === live;
+  const fit = () => live.style.setProperty('--ld-scale', (live.clientWidth / W).toFixed(4));
+  let frame = null;
+  const start = () => {
+    if (frame) return;
+    // Open the demo signed in as the gym's owner, as if they had used the demo login shown on its sign-in page.
+    try {
+      if (!localStorage.getItem('fitron-session-v1')) {
+        const d = new Date(), p2 = (n) => String(n).padStart(2, '0');
+        const at = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+        localStorage.setItem('fitron-session-v1', JSON.stringify({ name: 'Sumit Kumar', email: 'sumit@powerhausgym.in', provider: 'password', role: 'Super Admin', at, photo: '' }));
+      }
+    } catch (e) { /* storage blocked: the demo opens on its sign-in page instead */ }
+    live.classList.add('running');
+    const card = live.closest('[data-tilt]');
+    if (card) { card.removeAttribute('data-tilt'); card.classList.remove('tilting'); card.style.transform = 'none'; }
+    const loading = document.createElement('div');
+    loading.className = 'ld-loading'; loading.textContent = 'Opening the demo console…';
+    live.appendChild(loading);
+    frame = document.createElement('iframe');
+    frame.className = 'ld-frame'; frame.title = 'FITRON Gym Accounting live demo'; frame.src = live.dataset.src;
+    frame.setAttribute('allow', 'fullscreen');
+    live.insertBefore(frame, $('.ld-tools', live));
+    fit();
+    let waited = 0;
+    const poll = setInterval(() => {
+      waited += 300; let ready = false;
+      try { const b = frame.contentDocument && frame.contentDocument.body; ready = !!b && b.innerText.length > 80; } catch (e) { ready = true; }
+      if (ready || waited > 20000) { clearInterval(poll); live.classList.add('ready'); }
+    }, 300);
+  };
+  const setFullUi = () => {
+    const on = isFull();
+    fullBtn.setAttribute('aria-label', on ? 'Exit full screen' : 'Open the live demo full screen');
+    $('use', fullBtn).setAttribute('href', on ? '#i-shrink' : '#i-expand');
+    $('span', fullBtn).textContent = on ? 'Exit full screen' : 'Full screen';
+    fit();
+  };
+  const toggleFull = () => {
+    if (!canFull) { window.open(live.dataset.src, '_blank', 'noopener'); return; }
+    if (isFull()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    // Ask for full screen first, inside the click, then load the demo into it.
+    const req = live.requestFullscreen || live.webkitRequestFullscreen;
+    const r = req.call(live);
+    if (r && r.catch) r.catch(() => window.open(live.dataset.src, '_blank', 'noopener'));
+    start();
+  };
+  playBtn.addEventListener('click', () => {
+    // On a phone the scaled console is too small to use, so it opens at full size straight away.
+    if (innerWidth < 760) toggleFull(); else { start(); frame.focus(); }
+  });
+  fullBtn.addEventListener('click', toggleFull);
+  // "Demo product" under the card opens the same demo full screen (its link to the demo page is the no-script fallback).
+  $$('[data-ld-open]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); if (!isFull()) toggleFull(); }));
+  document.addEventListener('fullscreenchange', setFullUi);
+  document.addEventListener('webkitfullscreenchange', setFullUi);
+  if ('ResizeObserver' in window) new ResizeObserver(fit).observe(live); else addEventListener('resize', fit);
+})();
+</script>
+"""
 
 # On a phone the cookie banner and the WhatsApp button float above the open menu and cover its lower links.
 MENU_CSS = "/*fitron:menu-over-banner*/body.menu-open .consent,body.menu-open .wa-float{opacity:0;visibility:hidden;pointer-events:none}"
@@ -299,6 +409,10 @@ def apply(page):
         assert n == 1, "WhatsApp link not found"
     page = add(page, "</body>", MENU_JS, "fitron:menu-a11y", "menu keyboard focus", before=True)
     page = swap(page, BOOT_OLD, BOOT_NEW, "3D logo loading")
+    page = swap(page, LIVE_DEMO_OLD, LIVE_DEMO_NEW, "Gym Accounting card: live demo")
+    page = add(page, '  <symbol id="i-close"', LIVE_DEMO_ICONS, '<symbol id="i-play"', "live demo icons", before=True)
+    page = add(page, "</style>", LIVE_DEMO_CSS, "fitron:live-demo*/", "live demo styles", before=True)
+    page = add(page, "</body>", LIVE_DEMO_JS, "fitron:live-demo-js", "live demo script", before=True)
     # The guides for gym owners (src/lib/domain/guides.ts), at the end of the footer links.
     page = swap(page, '<li><a href="#faq">FAQ</a></li></ul>', '<li><a href="#faq">FAQ</a></li><li><a href="/guides">Guides for gym owners</a></li></ul>', "footer: guides link")
     page = add(page, '<link rel="apple-touch-icon" href="/fitron-mark.png">', '\n<link rel="manifest" href="/manifest.webmanifest">', 'rel="manifest"', "web app manifest (src/app/manifest.ts)")
