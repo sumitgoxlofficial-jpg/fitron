@@ -22,13 +22,13 @@ export default async function AiPage() {
             <Image src="/fitron-mark.png" alt="" width={60} height={60} className="rounded-full" />
           </span>
           <div>
-            <div className="text-xs tracking-[0.04em] text-muted uppercase">Your operations assistant</div>
+            <div className="text-xs tracking-[0.04em] text-muted uppercase">Your accounting assistant</div>
             <h1 className="mt-1 text-[28px] lg:text-[40px]">Fitron AI</h1>
           </div>
         </div>
         <span className="flex items-center gap-2 rounded-full bg-surface px-3 py-2 text-[13px] text-muted">
           <span className="h-2 w-2 rounded-full bg-[#4ade80] shadow-[0_0_6px_#4ade80]" />
-          Reads live gym data · actions need your OK
+          Reads your live books · saves only after you confirm
         </span>
       </div>
       <AiWorkspace brief={brief} today={longDate(todayIso())} />

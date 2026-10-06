@@ -79,7 +79,7 @@ describe.skipIf(!hasDb)("Fitron AI (database)", () => {
 
     vi.unstubAllGlobals();
     const r = await confirmProposal(admin, proposal.id);
-    expect(r.sent).toBe(1);
+    expect((r as { sent: number }).sent).toBe(1);
     expect(await db.whatsAppMessage.count({ where: { memberId: lapsing, templateKey: "campaign" } })).toBe(1);
     await expect(confirmProposal(admin, proposal.id)).rejects.toThrow(/Already handled/);
     const other = pick(await gym.user("Admin"), gym.a.id);
