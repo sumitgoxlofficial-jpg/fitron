@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { GUIDES, GUIDES_PATH, guidePath } from "@/lib/domain/guides";
 import { absoluteUrl, breadcrumbJsonLd, jsonLdScript, pageMetadata, SITE_NAME } from "@/lib/seo";
 
@@ -43,6 +44,13 @@ export default function Page() {
         <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">FITRON Guides</p>
         <h1 className="mt-3 text-4xl leading-tight font-semibold sm:text-5xl">Guides for gym owners</h1>
         <p className="mt-5 text-lg text-muted">How to keep a gym&apos;s accounts, charge GST, read your profit and loss, and move off the fee register. Written for gyms in India.</p>
+        <p className="mt-3 text-muted">
+          To try the numbers yourself, use the{" "}
+          <Link href="/tools" className="font-semibold text-accent underline">
+            free gym calculators
+          </Link>
+          .
+        </p>
       </header>
       <ul className="mt-10 flex flex-col gap-4">
         {GUIDES.map((g) => (

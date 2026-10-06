@@ -1,3 +1,5 @@
+import Link from "next/link";
+import Image from "next/image";
 import { GUIDES, guidePath } from "@/lib/domain/guides";
 import { GYM_ACCOUNTING, GYM_PAGES, planNote, type GymPage } from "@/lib/domain/gym-pages";
 import { PLANS, TRIAL_DAYS, rupeesLabel } from "@/lib/domain/pricing";
@@ -81,6 +83,7 @@ export function GymPageView({ page }: { page: GymPage }) {
           <figure className="mt-10 overflow-hidden rounded-lg border border-line">
             <LiveDemo
               poster="/site/console-dashboard.webp"
+              srcSet="/site/console-dashboard-700.webp 700w, /site/console-dashboard.webp 1400w"
               width={1400}
               height={658}
               alt="FITRON Gym Accounting dashboard showing active members, revenue, outstanding dues and renewals for a gym"
@@ -108,7 +111,9 @@ export function GymPageView({ page }: { page: GymPage }) {
         </ul>
       </nav>
 
-      <div className="mt-12 flex flex-col gap-10 leading-relaxed">
+      <p className="mt-6 text-sm text-muted">The screenshots on this page are from FITRON&apos;s demo gym, with sample members and numbers.</p>
+
+      <div className="mt-8 flex flex-col gap-10 leading-relaxed">
         {page.blocks.map((b) => (
           <section key={b.id} id={b.id} className="scroll-mt-28">
             <h2 className="text-2xl font-semibold">{b.heading}</h2>
@@ -129,6 +134,15 @@ export function GymPageView({ page }: { page: GymPage }) {
                   {b.link[0]}
                 </a>
               </p>
+            )}
+            {b.shots && (
+              <div className="mt-5 grid gap-4">
+                {b.shots.map((x) => (
+                  <figure key={x.src} className="overflow-hidden rounded-xl border border-line">
+                    <Image src={x.src} alt={x.alt} width={x.width} height={x.height} sizes="(min-width: 768px) 768px, 100vw" loading="lazy" fetchPriority="low" unoptimized className="h-auto w-full" />
+                  </figure>
+                ))}
+              </div>
             )}
           </section>
         ))}
@@ -188,6 +202,11 @@ export function GymPageView({ page }: { page: GymPage }) {
                 </a>
               </li>
             ))}
+            <li className="mt-1.5">
+              <Link href="/tools" className="font-semibold text-accent underline">
+                Free calculators: gym profit, break-even, GST and churn
+              </Link>
+            </li>
             <li className="mt-1.5">
               <a href="/ai-personal-trainer" className="font-semibold text-accent underline">
                 The FITRON AI Trainer, for your members

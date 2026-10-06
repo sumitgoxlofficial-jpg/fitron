@@ -46,7 +46,7 @@ describe(page.path, () => {
   });
 
   it("only links to pages that exist", () => {
-    const known = new Set(["/", "/trainer", "/privacy", ...GYM_PAGES.map((p) => p.path)]);
+    const known = new Set(["/", "/trainer", "/privacy", "/tools/protein-calculator", "/tools/calorie-calculator", ...GYM_PAGES.map((p) => p.path)]);
     const links = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => decode(m[1]!).split(/[?#]/)[0] || "/");
     expect(links.filter((l) => !known.has(l))).toEqual([]);
   });

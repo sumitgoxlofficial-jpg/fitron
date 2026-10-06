@@ -125,6 +125,22 @@ describe("the redesigned home page", () => {
     expect(items).toEqual(["7-day free trial", "No card needed", "Pay by UPI or card", "GST-ready", "Excel export", "DPDP-compliant"]);
   });
 
+  it("asks for the hero screenshot first, and sends small screens a smaller file", () => {
+    expect(html.indexOf('rel="preload" as="image"')).toBeLessThan(html.indexOf("<style>"));
+    const hero = html.slice(html.indexOf('id="heroVisual"'), html.indexOf("</section>", html.indexOf('id="heroVisual"')));
+    expect(hero).toContain("console-dashboard-700.webp 700w");
+    expect(hero).toContain("app-dashboard-300.webp 300w");
+    expect([...hero.matchAll(/ sizes="/g)]).toHaveLength(2);
+  });
+
+  it("fetches nothing below the first screen ahead of it: the product pictures and the hidden assistant's logo are lazy", () => {
+    expect(html.includes('loading="eager"')).toBe(false);
+    expect(html).toMatch(/<img data-gallery-img="" src="\/site\/app-dashboard\.webp"[^>]*loading="lazy"/);
+    expect(html).toMatch(/<img class="ld-poster" loading="lazy"/);
+    const widget = html.slice(html.indexOf("<!--fitron:assistant-->"), html.indexOf("<!--/fitron:assistant-->"));
+    for (const img of widget.match(/<img [^>]*>/g) ?? []) expect(img, img).toContain('loading="lazy"');
+  });
+
   it("shows both products in the hero, from the real screenshots, with alt text", () => {
     const hero = html.slice(html.indexOf('id="heroVisual"'), html.indexOf("</section>", html.indexOf('id="heroVisual"')));
     expect(hero).toContain("/site/app-dashboard.webp");
@@ -221,6 +237,8 @@ describe("home page files", () => {
   it("downloads the 3D logo library only for visitors who haven't asked for less motion or data, and only when idle", () => {
     expect([...html.matchAll(/import\('\/site\/fitron-3d\.js'\)/g)]).toHaveLength(1);
     for (const needle of ["prefers-reduced-motion", "saveData", "requestIdleCallback", "const load3d"]) expect(html.includes(needle), needle).toBe(true);
+    // ... nor where the browser cannot run WebGL (the library would only log an error), and only when the closing section is near.
+    for (const needle of ["const webgl", "WEBGL_lose_context", "getElementById('join')", "rootMargin: '1200px 0px'"]) expect(html.includes(needle), needle).toBe(true);
   });
 
   it("keeps the cookie banner and the WhatsApp button off the open phone menu", () => {

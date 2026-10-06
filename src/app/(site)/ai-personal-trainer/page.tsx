@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { GYM_PAGES } from "@/lib/domain/gym-pages";
 import { rupeesLabel, TRIAL_DAYS } from "@/lib/domain/pricing";
 import { trainerHref } from "@/lib/domain/site-links";
@@ -119,6 +120,21 @@ export default function Page() {
               </details>
             ))}
           </div>
+        </section>
+
+        <section id="tools" className="scroll-mt-28">
+          <h2 className="text-2xl font-semibold">Free calculators</h2>
+          <p className="mt-3 text-muted">
+            Not ready to start? Work out your daily protein with the{" "}
+            <Link href="/tools/protein-calculator" className="font-semibold text-accent underline">
+              protein calculator
+            </Link>{" "}
+            or your calories with the{" "}
+            <Link href="/tools/calorie-calculator" className="font-semibold text-accent underline">
+              calorie calculator
+            </Link>
+            . Both are free and need no sign-up.
+          </p>
         </section>
 
         <section id="more" className="scroll-mt-28">

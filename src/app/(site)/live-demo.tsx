@@ -27,7 +27,7 @@ function seedDemoSession() {
 const toolBtn =
   "inline-flex min-h-9 items-center gap-2 rounded-full border border-line bg-black/80 px-3 text-xs font-semibold text-fg backdrop-blur hover:border-accent focus-visible:border-accent";
 
-export function LiveDemo({ poster, alt, width, height }: { poster: string; alt: string; width: number; height: number }) {
+export function LiveDemo({ poster, srcSet, alt, width, height }: { poster: string; srcSet?: string; alt: string; width: number; height: number }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
   const [started, setStarted] = useState(false);
@@ -105,11 +105,12 @@ export function LiveDemo({ poster, alt, width, height }: { poster: string; alt: 
       {/* eslint-disable-next-line @next/next/no-img-element -- a static file of the home page, already optimised */}
       <img
         src={poster}
+        srcSet={srcSet}
+        sizes={srcSet ? "(min-width: 768px) 768px, 100vw" : undefined}
         width={width}
         height={height}
         alt={alt}
         className={`block h-auto w-full transition-opacity duration-500 ${ready ? "opacity-0" : ""} ${full ? "hidden" : ""}`}
-        fetchPriority="high"
       />
       {started && (
         <iframe

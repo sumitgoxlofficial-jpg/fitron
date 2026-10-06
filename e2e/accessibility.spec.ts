@@ -88,9 +88,12 @@ for (const [device, size] of Object.entries(SIZES)) {
 
 test.describe("the public pages", () => {
   for (const [device, size] of Object.entries(SIZES)) {
-    for (const url of ["/", "/gym-accounting", "/gym-management-software", "/gym-gst-billing", "/contact", "/privacy", "/login", "/login?tab=up&plan=professional&cycle=MONTHLY"]) {
+    for (const url of ["/", "/gym-accounting", "/gym-management-software", "/gym-gst-billing", "/ai-personal-trainer", "/tools", "/tools/gym-profit-calculator", "/tools/calorie-calculator", "/signin", "/terms", "/refund", "/contact", "/privacy", "/login", "/login?tab=up&plan=professional&cycle=MONTHLY"]) {
       test(`${url} on a ${device}`, async ({ page }) => {
         await page.setViewportSize(size);
+        // The home page fades its sections in as they are scrolled to. With reduced motion it shows them at once, so what is
+        // audited is the settled page, not whichever frame of a fade happened to be on screen when the network went quiet.
+        await page.emulateMedia({ reducedMotion: "reduce" });
         await page.goto(url);
         await page.waitForLoadState("networkidle").catch(() => {});
         expect(await audit(page)).toEqual([]);

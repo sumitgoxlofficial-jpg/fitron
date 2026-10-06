@@ -206,6 +206,32 @@ TEXT = [
     ("<h3>You get paid monthly</h3>", "<h3>You receive monthly settlement</h3>", "partnership step 4"),
 ]
 
+BOOT_STEPS = [
+    # The 3D logo shows only with the closing call to action (redesign), so its library is fetched when that section is near, and
+    # not at all where WebGL cannot run (it would only log an error): no 260 KB download and no script work while reading.
+    (
+        "const lite = matchMedia('(prefers-reduced-motion: reduce)').matches || (navigator.connection && navigator.connection.saveData);",
+        "const webgl = (() => { try { const c = document.createElement('canvas'), g = c.getContext('webgl2') || c.getContext('webgl'); if (!g) return false; const x = g.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); return true; } catch (_) { return false; } })();\nconst lite = !webgl || matchMedia('(prefers-reduced-motion: reduce)').matches || (navigator.connection && navigator.connection.saveData);",
+        "3D logo: only where WebGL runs",
+    ),
+    (
+        "if (!lite) { if (document.readyState === 'complete') later(); else addEventListener('load', later); }",
+        "if (!lite) {\n  const join = document.getElementById('join');\n  if (join && 'IntersectionObserver' in window) { const near = new IntersectionObserver((es) => { if (es[0].isIntersecting) { near.disconnect(); later(); } }, { rootMargin: '1200px 0px' }); near.observe(join); }\n  else if (document.readyState === 'complete') later(); else addEventListener('load', later);\n}",
+        "3D logo: loaded when the closing section is near",
+    ),
+]
+
+# Pictures far below the first screen no longer fetch ahead of it. The design marked the product card's two screenshots eager and
+# high-priority, so on a phone they competed with the stylesheet and fonts for the first paint.
+LATE_STEPS = [
+    (
+        'loading="eager" fetchpriority="high" decoding="async" style="display:block;width:100%;height:100%;object-fit:cover;object-position:50% 0"',
+        'loading="lazy" decoding="async" style="display:block;width:100%;height:100%;object-fit:cover;object-position:50% 0"',
+        "AI Trainer card screenshot: lazy",
+    ),
+    ('<img class="ld-poster" src="/site/console-dashboard.webp"', '<img class="ld-poster" loading="lazy" decoding="async" src="/site/console-dashboard.webp"', "Gym Accounting card poster: lazy"),
+]
+
 # The live Gym Accounting demo in the product card. The dashboard picture gets a "Try the live demo" button that loads the
 # prototype (public/site/gym-demo.html, self-contained) into the card, drawn at desktop size and scaled to fit, and a "Full
 # screen" button; the card's "Demo product" button opens it full screen too. next.config.ts lets only our own pages frame it.
@@ -525,6 +551,12 @@ def redesign(page):
     page = put(page, "</head>", "<style>" + squash_css(site_src("redesign.css")) + "</style>", "<!--fitron:redesign-css-->", "<!--/fitron:redesign-css-->", "redesign styles")
     page = put(page, "</body>", "<script>\n" + site_src("extras.js") + "</script>\n", "<!--fitron:extras-->", "<!--/fitron:extras-->", "redesign script")
     page = add(page, "</body>", '<script src="/site/analytics.js" defer></script>\n', 'src="/site/analytics.js"', "analytics loader (consent-gated, see public/site/analytics.js)", before=True)
+    # The hero's biggest picture is asked for at the very top of the page, before the long inline styles, so it is not the last thing to arrive.
+    page = add(
+        page, '<meta charset="utf-8">',
+        '\n<link rel="preload" as="image" href="/site/console-dashboard.webp" imagesrcset="/site/console-dashboard-700.webp 700w, /site/console-dashboard.webp 1400w" imagesizes="(max-width: 900px) 260px, 380px" fetchpriority="high">',
+        'rel="preload" as="image"', "preload of the hero screenshot",
+    )
     page = add(
         page, '<meta name="twitter:card" content="summary_large_image">',
         '\n<meta name="twitter:title" content="FITRON — AI Personal Trainer &amp; Gym Accounting Software">\n<meta name="twitter:description" content="An AI personal trainer from ₹299 a month and gym accounting software from ₹999 a month, in one platform. 7-day free trial.">\n<meta name="twitter:image" content="https://fitron.in/site/og.png">',
@@ -560,8 +592,14 @@ def apply(page):
         page, n = re.subn(r'(<a class="wa-float"[\s\S]*?</a>)', lambda m: WA_OPEN + m.group(1) + "</aside>", page, count=1)
         assert n == 1, "WhatsApp link not found"
     page = add(page, "</body>", MENU_JS, "fitron:menu-a11y", "menu keyboard focus", before=True)
-    page = swap(page, BOOT_OLD, BOOT_NEW, "3D logo loading")
-    page = swap(page, LIVE_DEMO_OLD, LIVE_DEMO_NEW, "Gym Accounting card: live demo")
+    if "const webgl" not in page:  # the first half of a chain that the TEXT entries above carry on
+        page = swap(page, BOOT_OLD, BOOT_NEW, "3D logo loading")
+    for old, new, why in BOOT_STEPS:
+        page = swap(page, old, new, why)
+    if 'class="ld-poster" loading="lazy"' not in page:  # the first half of a chain that LATE_STEPS carries on
+        page = swap(page, LIVE_DEMO_OLD, LIVE_DEMO_NEW, "Gym Accounting card: live demo")
+    for old, new, why in LATE_STEPS:
+        page = swap(page, old, new, why)
     page = add(page, '  <symbol id="i-close"', LIVE_DEMO_ICONS, '<symbol id="i-play"', "live demo icons", before=True)
     page = add(page, "</style>", LIVE_DEMO_CSS, "fitron:live-demo*/", "live demo styles", before=True)
     page = add(page, "</body>", LIVE_DEMO_JS, "fitron:live-demo-js", "live demo script", before=True)
