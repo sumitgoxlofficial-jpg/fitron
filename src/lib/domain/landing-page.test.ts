@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { NAV } from "@/lib/nav";
+import { isPublicPath } from "@/lib/public-paths";
+import { ASSISTANT_NAME, ASSISTANT_PATH, FACTS, SUGGESTED_QUESTIONS } from "./assistant";
 import { PLANS } from "./pricing";
 import { COACH_DAILY_LIMIT } from "./trainer";
 import { PRIORITY_SUPPORT_PLANS } from "./features";
@@ -182,6 +184,55 @@ describe("what search engines are told", () => {
 
   it("has no hand-typed last-modified date", () => {
     expect(sitemap().every((s) => s.lastModified === undefined)).toBe(true);
+  });
+});
+
+describe("Fitron Assistant on the home page", () => {
+  const widget = html.match(/<!--fitron:assistant-->([\s\S]*?)<!--\/fitron:assistant-->/)?.[1] ?? "";
+  const script = widget.match(/<script>([\s\S]*)<\/script>/)?.[1] ?? "";
+
+  it("is on the page once, as a landmark with its name, and shows only when scripts run", () => {
+    expect(widget.length).toBeGreaterThan(1000);
+    expect([...html.matchAll(/id="fitronAssistant"/g)]).toHaveLength(1);
+    expect(widget).toContain(`<aside class="fa" id="fitronAssistant" aria-label="${ASSISTANT_NAME}" hidden>`);
+    expect(widget).toContain(`<b>${ASSISTANT_NAME}</b>`);
+    expect(widget).toContain('role="dialog"');
+    // The panel's heading is not an h1/h2: the page keeps its one h1 and its own heading order.
+    expect(/<h[1-6][\s>]/.test(widget)).toBe(false);
+  });
+
+  it("asks the endpoint that answers it", () => {
+    expect(script.includes(`API = '${ASSISTANT_PATH}'`), `API = '${ASSISTANT_PATH}'`).toBe(true);
+    expect(isPublicPath(ASSISTANT_PATH)).toBe(true);
+  });
+
+  it("offers the questions the server knows how to answer", () => {
+    const asked = [...widget.matchAll(/data-q="([^"]+)"/g)].map((m) => m[1]);
+    expect(asked).toEqual([...SUGGESTED_QUESTIONS]);
+  });
+
+  it("only turns addresses into links when they lead to a public page of the site", () => {
+    const pages = script.match(/var PAGES = '([^']+)'/)?.[1].split("|") ?? [];
+    expect(pages.length).toBeGreaterThan(8);
+    for (const p of pages) expect(isPublicPath(`/${p}`), p).toBe(true);
+    // Every page an answer sends visitors to is one of them, so the link works.
+    const sent = new Set(FACTS.flatMap((f) => [...f.answer.matchAll(/(?<![\w/:.])\/([a-z][\w-]*)/g)].map((m) => m[1]!)));
+    for (const p of sent) expect(pages, p).toContain(p);
+  });
+
+  it("builds answers from text, never as HTML, and runs nothing it was sent", () => {
+    for (const bad of ["eval(", "document.write", "insertAdjacentHTML", "new Function"]) expect(script.includes(bad), bad).toBe(false);
+    // The one innerHTML is the three dots of "typing", a fixed string.
+    expect([...script.matchAll(/innerHTML/g)]).toHaveLength(1);
+    expect(script.includes("typingEl.innerHTML = '<i></i><i></i><i></i>")).toBe(true);
+  });
+
+  it("stays out of the way of the phone menu and the cookie banner, and of printing", () => {
+    for (const rule of ["body.menu-open .fa{", "body:has(.consent.show) .fa{", "@media print{.fa{display:none}}"]) expect(html.includes(rule), rule).toBe(true);
+  });
+
+  it("keeps the page's promises: it adds no words the other tests forbid", () => {
+    expect((/tally/i).test(widget), "widget must not match /tally/i").toBe(false);
   });
 });
 
