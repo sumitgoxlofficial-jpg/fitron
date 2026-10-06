@@ -330,15 +330,37 @@ export async function applyDeliveryStatus(providerMessageId: string, status: str
   }
 }
 
-/** Pulls final statuses for messages the linked-phone connector still has queued. */
+/** How long the connector may keep a message queued (250 a day, 8 to 15 s apart) before the app stops waiting for it. */
+const QUEUE_GIVE_UP_MS = 6 * 3_600_000;
+
+/**
+ * Pulls statuses for messages the linked-phone connector queued: Sent, Delivered, Read or Failed. Status only moves forward.
+ * A message the connector no longer knows (it was restarted while the message waited) is marked Failed after a while.
+ */
 export async function refreshQueued(orgId: string) {
-  const queued = await db.whatsAppMessage.findMany({ where: { orgId, provider: "connector", status: "Queued", sentAt: { gte: new Date(Date.now() - 3 * 86_400_000) } }, select: { id: true } });
-  const res = await connectorResults(queued.map((q) => q.id));
+  const since = new Date(Date.now() - 3 * 86_400_000);
+  const open = await db.whatsAppMessage.findMany({ where: { orgId, provider: "connector", status: { in: ["Queued", "Sent", "Delivered"] }, sentAt: { gte: since } }, select: { id: true, status: true, sentAt: true, deliveredAt: true } });
+  const res = await connectorResults(open.map((q) => q.id));
+  if (!res) return 0;
+  const rank: Record<string, number> = { Queued: 1, Sent: 2, Delivered: 3, Read: 4, Failed: 5 };
   let n = 0;
-  for (const [id, r] of Object.entries(res)) {
-    const status = /sent/i.test(r.status) ? "Sent" : /fail|error/i.test(r.status) ? "Failed" : null;
-    if (!status) continue;
-    await db.whatsAppMessage.update({ where: { id }, data: { status, error: r.error ?? null } });
+  for (const m of open) {
+    const r = res[m.id];
+    let status: string | null = null;
+    let error: string | null = null;
+    if (r) {
+      status = /read/i.test(r.status) ? "Read" : /deliver/i.test(r.status) ? "Delivered" : /sent/i.test(r.status) ? "Sent" : /fail|error/i.test(r.status) ? "Failed" : null;
+      error = r.error ?? null;
+    } else if (m.status === "Queued" && Date.now() - m.sentAt.getTime() > QUEUE_GIVE_UP_MS) {
+      status = "Failed";
+      error = "The WhatsApp connector was restarted before this message was sent. Send it again.";
+    }
+    if (!status || (rank[status] ?? 0) <= (rank[m.status] ?? 0)) continue;
+    const at = new Date();
+    await db.whatsAppMessage.update({
+      where: { id: m.id },
+      data: { status, error, ...(status === "Delivered" ? { deliveredAt: at } : {}), ...(status === "Read" ? { readAt: at, deliveredAt: m.deliveredAt ?? at } : {}) },
+    });
     n++;
   }
   return n;

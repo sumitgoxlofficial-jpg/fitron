@@ -11,9 +11,9 @@ type View = LinkStatus["state"] | "checking";
  * The Link WhatsApp dialog's live part: asks the server for the connector's state every few seconds
  * (a bit slower while it is offline), shows the QR code, and moves on once the phone is linked.
  */
-export function LinkWatcher({ envMessage }: { envMessage: string | null }) {
+export function LinkWatcher({ envMessage, address }: { envMessage: string | null; address: string }) {
   const router = useRouter();
-  const [st, setSt] = useState<{ state: View; qr?: string; text: string }>({ state: "checking", text: "" });
+  const [st, setSt] = useState<{ state: View; qr?: string; text: string; problem?: string }>({ state: "checking", text: "" });
   useEffect(() => {
     let stop = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -49,8 +49,10 @@ export function LinkWatcher({ envMessage }: { envMessage: string | null }) {
           <span>
             Double-click <strong>Start WhatsApp -Windows-.bat</strong> in the Fitron <code>connector</code> folder (Mac: <strong>Start WhatsApp -Mac-.command</strong>). Keep its window open. The QR code appears here by itself, no need to refresh.
           </span>
-          <span className="text-xs text-muted">The connector address and key are set on the server (WA_CONNECTOR_URL, WA_CONNECTOR_KEY).</span>
-          {envMessage && <span className="text-xs text-alert">{envMessage}</span>}
+          <span className="text-xs text-muted">
+            Fitron looks for the connector at <code>{address}</code>, which is this computer unless <code>WA_CONNECTOR_URL</code> and <code>WA_CONNECTOR_KEY</code> point to one hosted elsewhere. If Fitron itself is hosted online, host the connector too (see the connector README).
+          </span>
+          {(envMessage || st.text) && <span className="text-xs text-alert">{envMessage ?? st.text}</span>}
           <span className="text-xs text-muted">Waiting for the connector… checking every few seconds</span>
         </div>
       </div>
@@ -72,9 +74,12 @@ export function LinkWatcher({ envMessage }: { envMessage: string | null }) {
       </div>
     );
   return (
-    <div className="flex items-center gap-2.5 py-6 text-sm">
-      <CircleNotchIcon size={22} weight="duotone" className="animate-spin text-accent" />
-      {st.state === "checking" ? "Connecting to the connector…" : st.text || "Connector is starting WhatsApp…"}
+    <div className="flex flex-col gap-2 py-6 text-sm">
+      <div className="flex items-center gap-2.5">
+        <CircleNotchIcon size={22} weight="duotone" className="animate-spin text-accent" />
+        {st.state === "checking" ? "Connecting to the connector…" : st.text || "Connector is starting WhatsApp…"}
+      </div>
+      {st.problem && <span className="text-xs text-alert">{st.problem}</span>}
     </div>
   );
 }

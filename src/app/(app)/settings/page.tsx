@@ -22,7 +22,7 @@ import { Dialog } from "@/components/dialog";
 import { ConfirmButton } from "@/components/confirm-button";
 import { PaperPlaneTiltIcon, PlugsIcon, QrCodeIcon, WhatsappLogoIcon } from "@phosphor-icons/react/dist/ssr";
 import { fmtClock, fmtDate, fmtShort, fmtStamp, fmtTime } from "@/lib/format";
-import { providerReady } from "@/lib/integrations/whatsapp";
+import { connectorAddress, providerReady } from "@/lib/integrations/whatsapp";
 import { getAccessRules } from "@/lib/services/attendance";
 import { JOBS, recentRuns } from "@/lib/services/jobs";
 import { todayIso } from "@/lib/services/time";
@@ -333,7 +333,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           </Panel>
           {sp.link === "1" && u.has("whatsapp") && (
             <Dialog kicker="WhatsApp" title="Link WhatsApp" close="/settings?tab=wa" width={600}>
-              <LinkWatcher envMessage={providerReady("connector")} />
+              <LinkWatcher envMessage={providerReady("connector")} address={connectorAddress()} />
               <div className="flex flex-wrap justify-end gap-2.5">
                 <form action={simulateLinkAction}>
                   <Button variant="ghost" title="For demos without a connector">
