@@ -16,6 +16,7 @@
     .scr::-webkit-scrollbar{width:9px;height:9px}
     .scr::-webkit-scrollbar-thumb{background:#d8d2c2;border-radius:9px}
     .scr::-webkit-scrollbar-track{background:transparent}
+    .scr-dark::-webkit-scrollbar-thumb{background:#3a3322}
     .noscx{scrollbar-width:none;-ms-overflow-style:none} .noscx::-webkit-scrollbar{display:none;height:0;width:0}
     .coachbg{background-image:linear-gradient(rgba(244,241,232,.55),rgba(244,241,232,.55)),url(assets/coach-bg-light.png);background-size:auto,420px;background-position:center;background-repeat:no-repeat,repeat}
     @media(max-width:500px){.appwrap{padding:0 !important;gap:0 !important}.devpill{display:none !important}}
