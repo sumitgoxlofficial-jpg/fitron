@@ -12,15 +12,26 @@ No settings are needed on the Fitron server for this: when `WA_CONNECTOR_URL` an
 
 If Fitron runs in Docker on the same PC, set `WA_CONNECTOR_URL=http://host.docker.internal:3131` and `WA_CONNECTOR_KEY=<the FITRON_KEY the connector was started with>` in `deploy/.env`. The connector only accepts other machines once `FITRON_KEY` is set, so start it with `FITRON_KEY` set.
 
-## Always-on: cloud server (no PC needed)
-Deploy this folder to Render (render.yaml included), Railway or any VPS with Docker. Then set two environment variables on the **Fitron server** (on Vercel: Project › Settings › Environment Variables, then redeploy):
+## Always-on: cloud server (Render)
+Use this when Fitron itself is hosted online (Vercel or a server): it cannot reach a PC, so the connector must be online too.
 
-```
-WA_CONNECTOR_URL=https://<your-connector-host>        (no trailing path)
-WA_CONNECTOR_KEY=<the FITRON_KEY Render generated for the connector>
-```
+1. Push this repo to GitHub (it already is) and sign in at render.com.
+2. **New + > Web Service** > pick the repo. Set:
+   - **Root Directory:** `prototype/connector`
+   - **Runtime / Language:** Docker (it uses the `Dockerfile` here)
+   - **Instance type:** at least **Starter**. A disk needs a paid instance, and Chrome can run out of memory on 512 MB: if the service restarts by itself, pick **Standard**.
+3. **Environment:** add `FITRON_KEY` = a long secret you make up (for example 40 random characters). Keep a copy.
+4. **Disks > Add Disk:** name `session`, mount path `/app/session`, 1 GB. Without it the phone has to be re-linked on every restart.
+5. Create the service and wait until the log says *Fitron WhatsApp connector running*. Its address is shown at the top, like `https://fitron-whatsapp.onrender.com`.
+6. On the **Fitron server** (Vercel: Project > Settings > Environment Variables, then redeploy) set:
+   ```
+   WA_CONNECTOR_URL=https://fitron-whatsapp.onrender.com
+   WA_CONNECTOR_KEY=<the same FITRON_KEY>
+   ```
+7. In Fitron: Settings > WhatsApp > **Link WhatsApp**, scan the QR from the gym phone. Check the connector's own page: opening its address in a browser should answer `Wrong connector key` (that means it is running and protected).
 
-Open Fitron › Settings › WhatsApp › **Link WhatsApp**: the QR appears there, and after scanning every staff device just sees "Linked".
+`render.yaml` in this folder describes the same service if you prefer Render's **Blueprint** option (choose this file's path when asked).
+If the Fitron dialog says it cannot reach the connector, open the service's **Logs** on Render: the connector prints why WhatsApp did not start.
 
 ## Manual setup (terminal)
 1. Install Node.js 18 or newer from nodejs.org.
