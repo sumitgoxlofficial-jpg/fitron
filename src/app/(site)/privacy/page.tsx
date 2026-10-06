@@ -34,6 +34,7 @@ export default function PrivacyPage() {
         <h2 id="sharing">Who we share it with</h2>
         <p>Only with service providers who help us run FITRON, under contract and only for that purpose: cloud hosting, payment processing (e.g. Razorpay), messaging (e.g. WhatsApp Business), email delivery, and the AI model provider that generates coaching replies. We may disclose data when the law requires it.</p>
         <p><b>What the AI model provider receives.</b> When you chat with the AI coach, we send it your messages and what you told the app that it needs to coach you: your plan, and answers such as age, sex, height, weight, injuries, goals, diet, training schedule and, if you allow it, your city. We do not send your name or email. When gym staff use Fitron AI, we send their question and the details it looks up to answer it, such as member names, phone numbers, plans and dues, limited to what that staff member is allowed to see. The provider processes this on its own servers, which may be outside India, only to write the reply.</p>
+        <p><b>Fitron Assistant on fitron.in.</b> When you ask the chat on our home page a question, we send the provider your messages in that chat so it can write the reply, and nothing else about you. Please don&apos;t type personal details, passwords, card numbers or OTPs into it. We do not store these conversations; your browser keeps the chat in that tab until you close it.</p>
       </section>
       <section>
         <h2 id="storage">Where it is kept and for how long</h2>

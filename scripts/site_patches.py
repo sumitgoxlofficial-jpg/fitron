@@ -269,6 +269,33 @@ LIVE_DEMO_JS = """<script>/*fitron:live-demo-js*/
 </script>
 """
 
+# Fitron Assistant, the chat in the corner of the page. Its markup, styles and script are real files next to this one
+# (site-assistant.html, .css, .js) so they can be read and checked as what they are; the patch puts them between markers,
+# and when they are already there it replaces what is between them, so a change to a source reaches the page by running
+# this script again. The answers come from /api/assistant (src/app/api/assistant/route.ts); its suggested questions are the
+# data-q buttons in the markup, which landing-page.test.ts keeps equal to SUGGESTED_QUESTIONS in src/lib/domain/assistant.ts.
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def source(name):
+    with open(os.path.join(HERE, name), encoding="utf-8") as f:
+        return f.read()
+
+
+def put(page, anchor, block, start, end, why):
+    """Put `block` between `start` and `end` before the first `anchor`; if it is already on the page, replace what is between them."""
+    region = start + block + end
+    found = re.compile(re.escape(start) + r"[\s\S]*?" + re.escape(end))
+    if found.search(page):
+        return found.sub(lambda _: region, page, count=1)
+    assert anchor in page, f"{why}: anchor not found"
+    return page.replace(anchor, region + anchor, 1)
+
+
+ASSISTANT_CSS = "".join(line.strip() for line in source("site-assistant.css").splitlines())
+ASSISTANT_HTML = source("site-assistant.html")
+ASSISTANT_JS = "<script>\n" + source("site-assistant.js") + "</script>\n"
+
 # On a phone the cookie banner and the WhatsApp button float above the open menu and cover its lower links.
 MENU_CSS = "/*fitron:menu-over-banner*/body.menu-open .consent,body.menu-open .wa-float{opacity:0;visibility:hidden;pointer-events:none}"
 
@@ -413,6 +440,8 @@ def apply(page):
     page = add(page, '  <symbol id="i-close"', LIVE_DEMO_ICONS, '<symbol id="i-play"', "live demo icons", before=True)
     page = add(page, "</style>", LIVE_DEMO_CSS, "fitron:live-demo*/", "live demo styles", before=True)
     page = add(page, "</body>", LIVE_DEMO_JS, "fitron:live-demo-js", "live demo script", before=True)
+    page = put(page, "</style>", ASSISTANT_CSS, "/*fitron:assistant*/", "/*fitron:assistant-end*/", "Fitron Assistant styles")
+    page = put(page, "</body>", ASSISTANT_HTML + ASSISTANT_JS, "<!--fitron:assistant-->", "<!--/fitron:assistant-->", "Fitron Assistant chat")
     # The guides for gym owners (src/lib/domain/guides.ts), at the end of the footer links.
     page = swap(page, '<li><a href="#faq">FAQ</a></li></ul>', '<li><a href="#faq">FAQ</a></li><li><a href="/guides">Guides for gym owners</a></li></ul>', "footer: guides link")
     page = add(page, '<link rel="apple-touch-icon" href="/fitron-mark.png">', '\n<link rel="manifest" href="/manifest.webmanifest">', 'rel="manifest"', "web app manifest (src/app/manifest.ts)")
