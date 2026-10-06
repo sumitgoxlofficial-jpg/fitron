@@ -10,6 +10,8 @@ import "server-only";
 
 export type WaMode = "demo" | "cloud" | "connector";
 export type Outgoing = {
+  /** The gym sending it: the connector keeps one WhatsApp link per gym. */
+  orgId: string;
   localId: string;
   to: string;
   body: string;
@@ -27,7 +29,7 @@ const connectorKey = () => env("WA_CONNECTOR_KEY") || DEFAULT_CONNECTOR_KEY;
 const graph = () => `https://graph.facebook.com/${env("WHATSAPP_API_VERSION") || "v21.0"}`;
 
 /** Fitron on Vercel cannot reach a connector on the gym PC (127.0.0.1 is Vercel's own machine): the connector must be hosted and WA_CONNECTOR_URL set. */
-export const HOSTED_NEEDS_CONNECTOR = "Fitron is hosted online, so it cannot reach a connector on your own computer. Host the connector on Render, then set WA_CONNECTOR_URL and WA_CONNECTOR_KEY on the Fitron server (prototype/connector/README.md).";
+export const HOSTED_NEEDS_CONNECTOR = "Fitron is hosted online, so it cannot reach a connector on your own computer. Run the Fitron connector on an always-on server, then set WA_CONNECTOR_URL and WA_CONNECTOR_KEY on the Fitron server (prototype/connector/README.md).";
 
 export const providerReady = (mode: WaMode): string | null => {
   if (mode === "cloud" && !(env("WHATSAPP_TOKEN") && env("WHATSAPP_PHONE_NUMBER_ID"))) return "WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are not set on the server.";
@@ -80,10 +82,10 @@ export function connectorProblem(e: unknown): string {
   return msg;
 }
 
-async function connectorFetch(path: string, init: { method: "GET" | "POST"; body?: unknown; timeout?: number }) {
+async function connectorFetch(orgId: string, path: string, init: { method: "GET" | "POST"; body?: unknown; timeout?: number }) {
   const res = await fetch(`${connectorUrl()}${path}`, {
     method: init.method,
-    headers: { "Content-Type": "application/json", "x-fitron-key": connectorKey() },
+    headers: { "Content-Type": "application/json", "x-fitron-key": connectorKey(), "x-fitron-org": orgId },
     body: init.method === "POST" ? JSON.stringify(init.body ?? {}) : undefined,
     signal: AbortSignal.timeout(init.timeout ?? 15_000),
   });
@@ -93,11 +95,11 @@ async function connectorFetch(path: string, init: { method: "GET" | "POST"; body
   return json;
 }
 
-const connectorCall = (path: string, body: unknown) => connectorFetch(path, { method: "POST", body });
+const connectorCall = (orgId: string, path: string, body: unknown) => connectorFetch(orgId, path, { method: "POST", body });
 
 async function sendConnector(m: Outgoing): Promise<SendResult> {
   const media = m.pdf ? { mimetype: "application/pdf", data: Buffer.from(m.pdf.bytes).toString("base64"), filename: m.pdf.filename } : undefined;
-  await connectorCall("/send", { id: m.localId, to: m.to, text: m.body, media });
+  await connectorCall(m.orgId, "/send", { id: m.localId, to: m.to, text: m.body, media });
   // The connector sends from a queue with 8–15 s gaps; the final status is fetched later.
   return { status: "Queued", providerMessageId: m.localId };
 }
@@ -114,11 +116,11 @@ export async function sendWhatsApp(mode: WaMode, m: Outgoing): Promise<SendResul
 }
 
 /** Final statuses for messages the connector queued: { id: { status, error } }. null when the connector can't be reached. */
-export async function connectorResults(ids: string[]): Promise<Record<string, { status: string; error?: string }> | null> {
+export async function connectorResults(orgId: string, ids: string[]): Promise<Record<string, { status: string; error?: string }> | null> {
   if (!ids.length) return {};
   if (providerReady("connector")) return null;
   try {
-    return (await connectorCall("/results", { ids })) as Record<string, { status: string; error?: string }>;
+    return (await connectorCall(orgId, "/results", { ids })) as Record<string, { status: string; error?: string }>;
   } catch {
     return null;
   }
@@ -127,10 +129,10 @@ export async function connectorResults(ids: string[]): Promise<Record<string, { 
 export type ConnectorStatus = { state: string; number?: string; qr?: string; sentToday?: number; cap?: number; queued?: number; error?: string | null };
 
 /** The connector's link state and, while it waits for a scan, the current QR code (data URL). */
-export async function connectorStatus(): Promise<ConnectorStatus> {
-  const st = (await connectorFetch("/status", { method: "GET", timeout: 10_000 })) as ConnectorStatus;
+export async function connectorStatus(orgId: string): Promise<ConnectorStatus> {
+  const st = (await connectorFetch(orgId, "/status", { method: "GET", timeout: 10_000 })) as ConnectorStatus;
   if (st.state === "ready") return st;
-  const qr = (await connectorFetch("/qr", { method: "GET", timeout: 10_000 })) as { qr?: string; state?: string };
+  const qr = (await connectorFetch(orgId, "/qr", { method: "GET", timeout: 10_000 })) as { qr?: string; state?: string };
   return { ...st, state: qr.state ?? st.state ?? "starting", qr: qr.qr ?? undefined };
 }
 
@@ -138,17 +140,17 @@ export async function connectorStatus(): Promise<ConnectorStatus> {
 export const connectorAddress = () => connectorUrl();
 
 /** "Unlink": the connector signs out of WhatsApp. Errors are ignored; the app forgets the link either way. */
-export async function connectorLogout() {
+export async function connectorLogout(orgId: string) {
   if (providerReady("connector")) return;
   try {
-    await connectorFetch("/logout", { method: "POST", timeout: 10_000 });
+    await connectorFetch(orgId, "/logout", { method: "POST", timeout: 10_000 });
   } catch {
     // The connector may already be off.
   }
 }
 
 /** Connection check for Settings: who we'd send as, or why we can't. */
-export async function providerStatus(mode: WaMode): Promise<{ ok: boolean; text: string; qr?: string; number?: string; name?: string }> {
+export async function providerStatus(mode: WaMode, orgId: string): Promise<{ ok: boolean; text: string; qr?: string; number?: string; name?: string }> {
   if (mode === "demo") return { ok: false, text: "WhatsApp is not linked yet. Messages are saved in Fitron but nothing is sent until you link it." };
   const missing = providerReady(mode);
   if (missing) return { ok: false, text: missing };
@@ -159,7 +161,7 @@ export async function providerStatus(mode: WaMode): Promise<{ ok: boolean; text:
       if (!res.ok) return { ok: false, text: j.error?.message ?? `WhatsApp API returned ${res.status}` };
       return { ok: true, text: `Connected as ${j.verified_name ?? "?"} (${j.display_phone_number ?? "?"}), quality ${j.quality_rating ?? "unknown"}.`, number: j.display_phone_number, name: j.verified_name };
     }
-    const st = await connectorStatus();
+    const st = await connectorStatus(orgId);
     if (st.state === "ready") return { ok: true, text: `Linked to ${st.number ?? "the gym phone"}. ${st.sentToday ?? 0} of ${st.cap ?? 250} sent today.` };
     if (st.error) return { ok: false, text: `The connector is running but WhatsApp has not started: ${st.error}` };
     return { ok: false, text: `Not linked yet (${st.state}). Scan the QR from WhatsApp › Linked devices on the gym phone.`, qr: st.qr };

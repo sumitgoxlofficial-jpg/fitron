@@ -12,26 +12,27 @@ No settings are needed on the Fitron server for this: when `WA_CONNECTOR_URL` an
 
 If Fitron runs in Docker on the same PC, set `WA_CONNECTOR_URL=http://host.docker.internal:3131` and `WA_CONNECTOR_KEY=<the FITRON_KEY the connector was started with>` in `deploy/.env`. The connector only accepts other machines once `FITRON_KEY` is set, so start it with `FITRON_KEY` set.
 
-## Always-on: cloud server (Render)
-Use this when Fitron itself is hosted online (Vercel or a server): it cannot reach a PC, so the connector must be online too.
+## Always-on server (one connector for every gym)
+Use this when Fitron itself is hosted online (Vercel or a server): it cannot reach a PC, so the connector must run on an always-on machine. **One connector serves many gyms.** Each gym owner links her own WhatsApp in Fitron (Settings › WhatsApp › Link WhatsApp), and every reminder, invoice and renewal goes out from that gym's own number to its members. Members never link anything. Each gym has its own queue, its own daily cap and its own delivery results.
 
-1. Push this repo to GitHub (it already is) and sign in at render.com.
-2. **New + > Web Service** > pick the repo. Set:
-   - **Root Directory:** `prototype/connector`
-   - **Runtime / Language:** Docker (it uses the `Dockerfile` here)
-   - **Instance type:** at least **Starter**. A disk needs a paid instance, and Chrome can run out of memory on 512 MB: if the service restarts by itself, pick **Standard**.
-3. **Environment:** add `FITRON_KEY` = a long secret you make up (for example 40 random characters). Keep a copy.
-4. **Disks > Add Disk:** name `session`, mount path `/app/session`, 1 GB. Without it the phone has to be re-linked on every restart.
-5. Create the service and wait until the log says *Fitron WhatsApp connector running*. Its address is shown at the top, like `https://fitron-whatsapp.onrender.com`.
-6. On the **Fitron server** (Vercel: Project > Settings > Environment Variables, then redeploy) set:
+Any host that keeps a Docker container or a Node process running works: a VPS, AWS (EC2 or Lightsail), Fly.io, Railway, Render and so on. Pick a machine with about 1 GB of memory for every 2 linked gyms (each linked gym keeps one Chrome open) and a disk that survives restarts.
+
+1. On the server, from this folder: `docker build -t fitron-whatsapp .` then
    ```
-   WA_CONNECTOR_URL=https://fitron-whatsapp.onrender.com
+   docker run -d --restart always --name fitron-whatsapp -p 3131:3131 \
+     -e FITRON_KEY=<a long secret you make up> -e MAX_SESSIONS=20 \
+     -v fitron-wa-session:/app/session fitron-whatsapp
+   ```
+   Without the volume, every gym has to re-link after a restart. Put it behind https (a reverse proxy such as Caddy or nginx, or the host's own https), because the Fitron app calls it from Vercel.
+2. On the **Fitron server** (Vercel: Project > Settings > Environment Variables, then redeploy) set:
+   ```
+   WA_CONNECTOR_URL=https://<the connector's https address>
    WA_CONNECTOR_KEY=<the same FITRON_KEY>
    ```
-7. In Fitron: Settings > WhatsApp > **Link WhatsApp**, scan the QR from the gym phone. Check the connector's own page: opening its address in a browser should answer `Wrong connector key` (that means it is running and protected).
+3. Check: opening the connector's address in a browser should answer `Wrong connector key` (it is running and protected).
+4. Each gym owner: Fitron › Settings › WhatsApp › **Link WhatsApp**, scan the QR from the gym phone (WhatsApp › Linked devices › Link a device).
 
-`render.yaml` in this folder describes the same service if you prefer Render's **Blueprint** option (choose this file's path when asked).
-If the Fitron dialog says it cannot reach the connector, open the service's **Logs** on Render: the connector prints why WhatsApp did not start.
+Settings (environment variables): `MAX_SESSIONS` gyms at once (default 20; a full connector says so instead of dropping a gym), `DAILY_CAP` messages a day per gym (default 250), `SESSION_DIR` where the links are kept. A gym that opens the QR and never scans it is closed after 5 minutes; linked gyms come back by themselves after a restart. `render.yaml` here describes the same service for Render if you ever want it.
 
 ## Manual setup (terminal)
 1. Install Node.js 18 or newer from nodejs.org.
@@ -46,11 +47,11 @@ If the Fitron dialog says it cannot reach the connector, open the service's **Lo
 5. Keep the terminal running (or install as a service with `pm2 start server.js --name fitron-wa`).
 
 ## Notes
-- Messages go out one every 8–15 seconds, max 250 a day (`DAILY_CAP`).
+- Messages go out one every 8–15 seconds per gym, max 250 a day per gym (`DAILY_CAP`).
 - Unlink: press Unlink in Fitron, or delete the `session` folder.
 - The phone must come online at least every 14 days.
 - Unofficial: WhatsApp may restrict numbers that send bulk messages to people who haven't saved the number. Message only your members.
-- Fitron talks to the connector from its server, not from the browser, so the connector must be reachable from wherever Fitron runs. For a Fitron hosted online with the connector on a gym PC, expose the PC over https, e.g. `cloudflared tunnel --url http://localhost:3131`, and use that URL as `WA_CONNECTOR_URL`. Hosting the connector on Render is more reliable.
+- Fitron talks to the connector from its server, not from the browser, so the connector must be reachable from wherever Fitron runs. For a Fitron hosted online with the connector on a gym PC, expose the PC over https, e.g. `cloudflared tunnel --url http://localhost:3131`, and use that URL as `WA_CONNECTOR_URL`. Running the connector on a server is more reliable.
 - The window shows why WhatsApp did not start (no internet, Chrome missing) and keeps retrying; Fitron shows the same reason in the Link WhatsApp dialog. If a message stays "Queued", the connector was probably restarted before it sent it; Fitron marks such messages Failed after 6 hours so they can be sent again.
 
 
@@ -65,6 +66,6 @@ RZP_WEBHOOK_SECRET=any-long-random-string
 
 In the Razorpay dashboard → Webhooks add `https://<your-connector-host>/autopay/webhook` with the secret above and the events
 `subscription.authenticated, subscription.activated, subscription.charged, subscription.pending, subscription.halted, subscription.cancelled, subscription.paused, subscription.resumed, payment.failed`.
-Webhooks need a public HTTPS address, so host the connector on Render (or similar), not only on the gym PC.
+Webhooks need a public HTTPS address, so run the connector on an https server, not only on the gym PC.
 
 Then in Fitron → Settings → Integrations & AI → UPI autopay choose **Live (Razorpay)**. Creating a mandate sends the member an authorisation link on WhatsApp; once they approve it in any UPI app, Razorpay charges the plan amount on every renewal date, sends the NPCI pre-debit notice, retries failures, and Fitron records the renewal, invoice and payment automatically.

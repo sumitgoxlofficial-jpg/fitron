@@ -43,7 +43,7 @@ export async function goLiveChecklist(u: CurrentUser) {
     db.organization.findUniqueOrThrow({ where: { id: orgId }, select: { demo: true } }),
     db.member.count({ where: { orgId, deletedAt: null, walkIn: false } }),
   ]);
-  const waStatus = wa.mode === "demo" ? { ok: false, text: "" } : await providerStatus(wa.mode);
+  const waStatus = wa.mode === "demo" ? { ok: false, text: "" } : await providerStatus(wa.mode, orgId);
   const s = plan.standing;
   const standing: Standing =
     s.kind === "TRIAL"

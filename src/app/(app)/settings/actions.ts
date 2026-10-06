@@ -282,7 +282,7 @@ export async function sendTestAction() {
 /** "Unlink": the connector signs out and messages are logged until the gym links again. */
 export async function unlinkAction() {
   const u = await waUser();
-  if ((await getWaSettings(u.orgId)).mode === "connector" && !providerReady("connector")) await connectorLogout();
+  if ((await getWaSettings(u.orgId)).mode === "connector" && !providerReady("connector")) await connectorLogout(u.orgId);
   await setLinked(u, null, "demo");
   revalidatePath("/", "layout");
   waBack({ msg: "WhatsApp unlinked." });
@@ -300,7 +300,7 @@ export async function linkStatusAction(): Promise<LinkStatus> {
   if (missing) return { state: "offline", text: missing };
   let st: Awaited<ReturnType<typeof connectorStatus>>;
   try {
-    st = await connectorStatus();
+    st = await connectorStatus(u.orgId);
   } catch (e) {
     return { state: "offline", text: connectorProblem(e) };
   }

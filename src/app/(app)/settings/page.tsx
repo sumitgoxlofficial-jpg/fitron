@@ -77,7 +77,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     getWaSettings(u.orgId),
     getAutopaySettings(u.orgId),
   ]);
-  const waStatus = await providerStatus(wa.mode);
+  const waStatus = await providerStatus(wa.mode, u.orgId);
   const reminders =
     tab === "reminders"
       ? await (async () => {
