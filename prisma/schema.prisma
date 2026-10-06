@@ -168,7 +168,7 @@ model AuthCode {
   id        String    @id @default(cuid())
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// RESET_PASSWORD | LOGIN
+  /// VERIFY_EMAIL | RESET_PASSWORD | LOGIN
   purpose   String
   codeHash  String
   attempts  Int       @default(0)

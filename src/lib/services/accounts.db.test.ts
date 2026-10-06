@@ -16,7 +16,7 @@ vi.mock("@/lib/integrations/email", () => ({
   },
 }));
 
-const { recordSignIn, createGymAccount, requestPasswordReset, resetPassword, resetPasswordWithCode, requestSignInLink, redeemSignInLink, redeemSignInCode, verifyEmail, resendVerification } = await import("./accounts");
+const { recordSignIn, createGymAccount, requestPasswordReset, resetPassword, resetPasswordWithCode, verifyEmailWithCode, requestSignInLink, redeemSignInLink, redeemSignInCode, verifyEmail, resendVerification } = await import("./accounts");
 
 const linkToken = (text: string, path: string) => new URL(text.match(new RegExp(`https?://\\S+${path}\\?token=\\S+`))![0]).searchParams.get("token")!;
 const codeIn = (text: string) => text.match(/code[^\n]*: (\d{6})/)![1]!;
@@ -47,6 +47,23 @@ describe.skipIf(!hasDb)("Gym self sign-up (database)", () => {
     expect(await verifyEmail(token)).toBeNull();
     await resendVerification(email);
     expect(sent).toHaveLength(1);
+  });
+
+  it("confirms the address with the emailed code too, once, and the code kills the link", async () => {
+    const email = `${randomUUID()}@gym.test`;
+    await createGymAccount(signup(email));
+    const code = codeIn(sent[0]!.text);
+    expect(sent[0]!.text).toContain("/verify-email?token=");
+    const wrong = code === "000000" ? "000001" : "000000";
+    expect(await verifyEmailWithCode(email, wrong)).toBeNull();
+    expect((await verifyEmailWithCode(email, code))?.emailVerifiedAt).toBeInstanceOf(Date);
+    expect(await verifyEmailWithCode(email, code)).toBeNull();
+    expect(await verifyEmail(linkToken(sent[0]!.text, "/verify-email"))).toBeNull();
+    // A reset or sign-in code is not a verification code.
+    const other = `${randomUUID()}@gym.test`;
+    await createGymAccount(signup(other));
+    await requestPasswordReset(other);
+    expect(await verifyEmailWithCode(other, codeIn(sent[sent.length - 1]!.text))).toBeNull();
   });
 
   it("trusts the address when no email service is set up", async () => {

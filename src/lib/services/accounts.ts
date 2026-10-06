@@ -20,7 +20,7 @@ type Purpose = keyof typeof LIFETIME;
 /** The emailed six-digit codes (the typed-in twin of a link) last this long and allow this many tries, as 10^6 guesses is few. */
 const CODE_LIFETIME = 10 * 60_000;
 const CODE_TRIES = 5;
-type CodePurpose = "RESET_PASSWORD" | "LOGIN";
+type CodePurpose = "VERIFY_EMAIL" | "RESET_PASSWORD" | "LOGIN";
 
 export const appUrl = () => (process.env.APP_URL?.trim() || (process.env.NODE_ENV === "production" ? "https://fitron.in" : "http://localhost:3000")).replace(/\/$/, "");
 
@@ -40,7 +40,7 @@ async function redeemToken(token: string, purpose: Purpose) {
   if (!row || row.purpose !== purpose || row.usedAt || row.expiresAt.getTime() < Date.now()) return null;
   const { count } = await db.authToken.updateMany({ where: { id: row.id, usedAt: null }, data: { usedAt: new Date() } });
   if (count !== 1) return null;
-  if (purpose !== "VERIFY_EMAIL") await retireCodes(row.userId, purpose);
+  await retireCodes(row.userId, purpose);
   return row.userId;
 }
 
@@ -173,10 +173,11 @@ export async function sendVerification(userId: string) {
   const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
   if (user.emailVerifiedAt) return;
   const link = `${appUrl()}/verify-email?token=${await issueToken(user.id, "VERIFY_EMAIL")}`;
+  const code = await issueCode(user.id, "VERIFY_EMAIL");
   await sendEmail({
     to: user.email,
-    subject: "Confirm your email for FITRON",
-    text: `Hi ${user.name},\n\nConfirm your email to start using FITRON:\n${link}\n\nThe link works for 48 hours. If you didn't sign up, ignore this email.\n\nFITRON\nhello@fitron.in`,
+    subject: `${code} is your FITRON verification code`,
+    text: `Hi ${user.name},\n\nYour code to confirm your email for FITRON: ${code}\nIt works for 10 minutes. Enter it on the page you signed up on.\n\nOr confirm with this link (it works for 48 hours):\n${link}\n\nIf you didn't sign up, ignore this email. Never share the code with anyone.\n\nFITRON\nhello@fitron.in`,
   });
 }
 
@@ -190,6 +191,12 @@ export async function verifyEmail(token: string) {
   const userId = await redeemToken(token, "VERIFY_EMAIL");
   if (!userId) return null;
   return db.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } });
+}
+
+/** Confirms the address with the six-digit code from the sign-up email instead of the link. Null if the code is wrong, expired or used. */
+export async function verifyEmailWithCode(email: string, code: string) {
+  const user = await redeemCode(email, code, "VERIFY_EMAIL");
+  return user ? db.user.update({ where: { id: user.id }, data: { emailVerifiedAt: user.emailVerifiedAt ?? new Date() } }) : null;
 }
 
 /** Emails a reset link and code if the address belongs to an active account. Always looks the same to the caller. */
