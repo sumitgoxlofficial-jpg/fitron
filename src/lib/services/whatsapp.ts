@@ -30,7 +30,7 @@ export async function getReminderSettings(orgId: string): Promise<ReminderSettin
   return { ...DEFAULT_REMINDERS, ...inherited, ...(row ?? {}) };
 }
 
-/** The gym's WhatsApp number paired through the connector (or "Simulate instead" for demos). */
+/** The gym's WhatsApp number paired through the connector . */
 export type WaLinked = { number: string; device: string; at: string };
 /**
  * Setting "whatsapp": how messages go out, the linked device and quiet hours. Reminder days and

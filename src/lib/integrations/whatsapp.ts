@@ -26,8 +26,12 @@ const connectorUrl = () => (env("WA_CONNECTOR_URL") || DEFAULT_CONNECTOR_URL).re
 const connectorKey = () => env("WA_CONNECTOR_KEY") || DEFAULT_CONNECTOR_KEY;
 const graph = () => `https://graph.facebook.com/${env("WHATSAPP_API_VERSION") || "v21.0"}`;
 
+/** Fitron on Vercel cannot reach a connector on the gym PC (127.0.0.1 is Vercel's own machine): the connector must be hosted and WA_CONNECTOR_URL set. */
+export const HOSTED_NEEDS_CONNECTOR = "Fitron is hosted online, so it cannot reach a connector on your own computer. Host the connector on Render, then set WA_CONNECTOR_URL and WA_CONNECTOR_KEY on the Fitron server (prototype/connector/README.md).";
+
 export const providerReady = (mode: WaMode): string | null => {
   if (mode === "cloud" && !(env("WHATSAPP_TOKEN") && env("WHATSAPP_PHONE_NUMBER_ID"))) return "WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are not set on the server.";
+  if (mode === "connector" && !env("WA_CONNECTOR_URL") && env("VERCEL")) return HOSTED_NEEDS_CONNECTOR;
   if (mode === "connector" && env("WA_CONNECTOR_URL") && !/^https?:\/\//i.test(env("WA_CONNECTOR_URL"))) return "WA_CONNECTOR_URL must start with http:// or https://.";
   return null;
 };
@@ -145,7 +149,7 @@ export async function connectorLogout() {
 
 /** Connection check for Settings: who we'd send as, or why we can't. */
 export async function providerStatus(mode: WaMode): Promise<{ ok: boolean; text: string; qr?: string; number?: string; name?: string }> {
-  if (mode === "demo") return { ok: true, text: "Demo mode: messages are logged in Fitron and not sent." };
+  if (mode === "demo") return { ok: false, text: "WhatsApp is not linked yet. Messages are saved in Fitron but nothing is sent until you link it." };
   const missing = providerReady(mode);
   if (missing) return { ok: false, text: missing };
   try {
