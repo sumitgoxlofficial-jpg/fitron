@@ -9,12 +9,12 @@ Google Analytics 4 is **off until you switch it on**, and even then it only runs
    *Accept all* and *Essential only* on the cookie banner, or *Manage settings* for Preferences and Analytics separately.
    Nothing is sent to Google, and no Google script is loaded, unless **Analytics** is ticked. Withdrawing consent stops
    events and removes the `_ga` cookies.
-4. The tracker is `public/site/analytics.js`. It switches off advertising features and Google signals and anonymises IP
-   addresses: it is for measurement only. FITRON uses no advertising cookies.
+4. The tracker is `public/site/analytics.js`. It switches off advertising features and Google signals: it is for measurement
+   only. FITRON uses no advertising cookies.
 
-Before you turn it on, check that the Privacy Policy's cookie section (`/privacy#cookies`) names Google Analytics as the
-analytics provider. The policy already says that, with consent, anonymised analytics are collected; if your lawyer wants the
-provider named, add it there.
+The Privacy Policy (`/privacy`, sections "Who we share it with" and "Cookies") names Google Analytics, what it receives, the
+`_ga` cookies and that it may process data outside India. Those words were added with the analytics code and are for your
+lawyer to review. If you change what the tracker sends (`public/site/analytics.js`), change that text with it.
 
 ## Events
 

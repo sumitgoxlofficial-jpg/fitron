@@ -46,25 +46,26 @@ writing its screen in `src/app/(site)/tools/calculators.tsx` and its maths with 
   This needs the founder's own words and name; it cannot be written for them.
 - Do not chase domain rating. A relevant link from a small gym blog beats a generic one from a large site.
 
-## Trust (E-E-A-T): what is missing and needs you
+## Trust (E-E-A-T)
 
-The site has real pricing, real screenshots, policies, a grievance officer and contact details. It does **not** yet have:
+The site has real pricing, real screenshots, policies, a grievance officer, contact details and an About page (`/about`) made
+only of what the product and the policies already say. Three things on it need real facts from the owner, and each is one list in
+`src/lib/domain/about-data.json` that is empty until it is filled in. The page, the footers and the structured data show a
+section only when its list has an entry, so nothing is ever a placeholder:
 
-1. **An About page** with who runs FITRON, the company name and the founder. Only you can supply this; it was left out rather
-   than invented. Add it as `/about`, link it from the footer's Company column and add it to the sitemap.
-2. **Real customer stories.** Ask a few gyms for a quote and permission, then publish them with their name.
-3. **Real author names and dates** on every guide.
-4. **Official social accounts** for the footer and the Organization schema's `sameAs`. None are linked because none are
-   known. Add them only when they exist.
+1. **`founders`**: a real person who runs FITRON: name, role, and a few lines in their own words (and an optional profile link).
+   Appears on `/about` and as `founder` in the Organization structured data.
+2. **`social`**: official FITRON accounts that exist (https links). Appear in both footers, on `/about`, and as `sameAs`.
+3. **`stories`**: something a real customer said, with their agreement to be published under their name (`permission: true`
+   is required). Appears on `/about`.
 
-Do not add review or rating markup until real reviews exist on a third-party site.
+Also worth doing when you can: real author names and dates on every guide, and the company's registered name, address and GSTIN
+(`FITRON_LEGAL_NAME`, `FITRON_ADDRESS`, `FITRON_GSTIN`), which appear on `/about` and `/contact` once set.
+
+Do not add review or rating markup until real reviews exist on a third-party site; the tests fail if it appears.
 
 ## Known gaps in this redesign
 
-- **Unknown addresses do not show the 404 page to signed-out visitors.** `src/proxy.ts` sends every path that is not on the
-  public list to sign-in (default-deny, on purpose), so `fitron.in/anything-wrong` answers 307 to `/login` instead of 404, for
-  search engines too. Fixing it means deciding which paths are the console's and letting the rest 404; that is a security
-  decision, so it was not changed here.
 - **The sign-in page is a chooser, not a form.** Gym owners and members have separate sign-in systems (`/login` and `/trainer`),
   so `/signin` sends people to the right one instead of asking for a password itself.
 - **Screenshots** on the Gym Accounting pages are real captures of the console's demo gym (`public/site/features`, 1280 × 760

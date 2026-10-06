@@ -74,7 +74,7 @@ export function SiteConsent() {
     <div role="dialog" aria-label="Cookie consent" className="s-card s-solid fixed inset-x-3 bottom-3 z-[55] mx-auto flex max-h-[85vh] max-w-3xl flex-col gap-3 overflow-y-auto p-4 shadow-lg sm:p-5">
       <p className="text-sm text-muted">
         <b className="block text-fg">Cookies and your data</b>
-        We use essential cookies to run fitron.in. With your consent we also remember your preferences and collect anonymised analytics. No advertising cookies.{" "}
+        We use essential cookies to run fitron.in. With your consent we also remember your preferences and use analytics (Google Analytics) to count how the site is used. No advertising cookies.{" "}
         <a href="/privacy#cookies" className="underline">
           Cookie Policy
         </a>{" "}
@@ -100,7 +100,7 @@ export function SiteConsent() {
           <label className="flex items-start gap-3">
             <input type="checkbox" checked={analytics} onChange={(e) => setAnalytics(e.target.checked)} className="mt-1 size-5 accent-[var(--accent)]" />
             <span>
-              <b className="block text-fg">Analytics</b>Anonymised counts of which pages and buttons are used, so we can improve the site.
+              <b className="block text-fg">Analytics</b>Counts of which pages and buttons are used, with Google Analytics, so we can improve the site.
             </span>
           </label>
           <p>Advertising cookies: none are used.</p>

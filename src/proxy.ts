@@ -1,15 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCsp, cspHeaderName, cspMode, type CspTier } from "@/lib/csp";
-import { isPublicPath } from "@/lib/public-paths";
+import { isGuardedPath } from "@/lib/public-paths";
 
 // Runs before every page. Two jobs:
-//  1. Optimistic check only: send visitors without a session cookie to sign-in. Real checks happen on the server in
-//     every page and action.
+//  1. Optimistic check only: send visitors without a session cookie to sign-in when they ask for a console page or a
+//     private API route. Real checks happen on the server in every page and action. An address that is neither public
+//     nor the console's is not a page, and is let through to answer 404.
 //  2. Send the Content-Security-Policy for the page (src/lib/csp.ts). The console's gets a new nonce on every request;
 //     Next.js reads it from the request header set here and puts it on its own scripts.
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
-  const guarded = !isPublicPath(pathname);
+  const guarded = isGuardedPath(pathname);
   if (guarded && !req.cookies.has("fitron_session")) {
     // Come back to the page they wanted after logging in.
     const login = new URL("/login", req.url);

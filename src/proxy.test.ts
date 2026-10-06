@@ -3,7 +3,7 @@ import path from "node:path";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GYM_PAGES } from "@/lib/domain/gym-pages";
-import { isPublicPath } from "@/lib/public-paths";
+import { CONSOLE_SEGMENTS, isGuardedPath, isPublicPath } from "@/lib/public-paths";
 import { config, proxy } from "./proxy";
 
 const matcher = new RegExp(`^${config.matcher[0]}$`);
@@ -58,6 +58,44 @@ describe("the sign-in check", () => {
 
   it("lets a visitor with a session cookie into the console", () => {
     expect(visit("/dashboard", true).status).toBe(200);
+  });
+});
+
+describe("an address that is not a page", () => {
+  it("is left to answer 404 for a stranger, instead of being sent to the sign-in", () => {
+    for (const p of ["/anything-wrong", "/gym-accounting-software-old", "/blog/some-article", "/this/is/not/a/page", "/apple-icon.png", "/icon.png"]) {
+      const r = visit(p);
+      expect(r.status, p).toBe(200); // the proxy lets it through; Next.js then answers 404
+      expect(r.headers.get("location"), p).toBeNull();
+      expect(isGuardedPath(p), p).toBe(false);
+    }
+  });
+
+  it("still sends a stranger who asks for a console page or a private API route to the sign-in", () => {
+    for (const p of ["/dashboard", "/members/abc", "/settings/billing", "/invoices/new", "/onboarding", "/plan-ended", "/documents/abc", "/api/ai/chat", "/api/search", "/api/unknown"]) {
+      const r = visit(p);
+      expect(r.status, p).toBe(307);
+      expect(new URL(r.headers.get("location")!).pathname, p).toBe("/login");
+    }
+  });
+
+  it("knows every folder of the console: a page added without listing it would stop being protected by the sign-in redirect", () => {
+    const app = path.join(__dirname, "app");
+    const folders = (dir: string) => readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
+    const consoleFolders = folders(path.join(app, "(app)"));
+    expect(consoleFolders.length).toBeGreaterThan(20);
+    expect(consoleFolders.filter((f) => !(CONSOLE_SEGMENTS as readonly string[]).includes(f))).toEqual([]);
+    // Every other top-level folder of src/app is public, the console's, the API, or a route group.
+    const others = folders(app).filter((f) => !f.startsWith("(") && f !== "api");
+    expect(others.filter((f) => !isPublicPath(`/${f}`) && !(CONSOLE_SEGMENTS as readonly string[]).includes(f))).toEqual([]);
+    // And every segment listed is a real folder (a rename would otherwise leave the old name behind).
+    const real = new Set([...consoleFolders, ...folders(app)]);
+    expect((CONSOLE_SEGMENTS as readonly string[]).filter((c) => !real.has(c))).toEqual([]);
+    // Every private API folder is guarded.
+    for (const f of folders(path.join(app, "api"))) {
+      const p = `/api/${f}/x`;
+      expect(isPublicPath(p) || isGuardedPath(p), p).toBe(true);
+    }
   });
 });
 

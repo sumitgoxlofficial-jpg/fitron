@@ -478,6 +478,12 @@ def structured_data(page):
         *apps,
         {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in faq(page)]},
     ]
+    about = about_data()
+    org_node = next(g for g in graph if g["@type"] == "Organization")
+    if about["social"]:
+        org_node["sameAs"] = [x["url"] for x in about["social"]]
+    if about["founders"]:
+        org_node["founder"] = [{"@type": "Person", "name": x["name"], **({"url": x["url"]} if x.get("url") else {})} for x in about["founders"]]
     body = json.dumps({"@context": "https://schema.org", "@graph": graph}, ensure_ascii=False).replace("</", "<\\/")
     return f'<script type="application/ld+json">{body}</script>\n'
 
@@ -535,6 +541,17 @@ def checks(items):
     return '<ul class="checks two">' + "".join(CHECK_ITEM.format(i) for i in items) + "</ul>"
 
 
+def about_data():
+    """The owner's real profiles, from src/lib/domain/about-data.json (empty until they are supplied)."""
+    with open(os.path.join(HERE, "..", "src", "lib", "domain", "about-data.json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def social_html():
+    links = "".join(f'<a href="{htmllib.escape(x["url"])}" rel="me noopener" target="_blank">{htmllib.escape(x["network"])}</a>' for x in about_data()["social"])
+    return links
+
+
 def redesign(page):
     page = region(page, r'<header class="nav" id="nav">.*?</header>\s*<nav class="mobile-menu".*?</nav>\n', site_src("nav.html"), "nav", "header and phone menu")
     page = region(page, r'<div class="hero-wrap" id="top">.*?(?=\s*<section class="band")', site_src("hero.html"), "hero", "hero")
@@ -544,7 +561,7 @@ def redesign(page):
     page = put(page, '      </div>\n      <div class="p-panel p-acc" id="pricing-accounting">', site_src("compare-ai.html"), "<!--fitron:compare-ai-->", "<!--/fitron:compare-ai-->", "AI plan table")
     page = put(page, '<p class="p-fine">*WhatsApp messaging', site_src("compare-gym.html"), "<!--fitron:compare-gym-->", "<!--/fitron:compare-gym-->", "gym plan table")
     page = region(page, r'<div class="faq reveal">.*?</div>(?=\s*</section>)', site_src("faq.html"), "faq", "FAQ")
-    page = region(page, r"<footer id=\"siteEnd\">.*?</footer>", site_src("footer.html"), "footer", "footer")
+    page = region(page, r"<footer id=\"siteEnd\">.*?</footer>", site_src("footer.html").replace("@@SOCIAL@@", social_html()), "footer", "footer")
     page = region(page, r'<div class="consent" id="consent".*?</div>\n</div>', site_src("consent.html"), "consent", "cookie banner")
     page = region(page, r'<ul class="checks">.*?</ul>', checks(AI_FEATURES), "ai-checks", "AI Trainer card features")
     page = region(page, r'<ul class="checks">.*?</ul>', checks(GYM_FEATURES) + '<p class="sc-fine" style="text-align:left;margin-top:12px">Some features need the Professional or Enterprise plan. <a href="#pricing">Compare plans</a>.</p>', "gym-checks", "Gym Accounting card features")

@@ -11,7 +11,7 @@ const PRIVATE = ["/api/", "/auth/", "/login", "/signin", "/signup", "/onboarding
 export default function robots(): MetadataRoute.Robots {
   return {
     // Only the public website is indexed; the console and APIs are private.
-    rules: { userAgent: "*", allow: ["/", ...GYM_PAGES.map((p) => p.path), TRAINER_PAGE.path, GUIDES_PATH, TOOLS_PATH, "/trainer", "/contact", "/privacy", "/terms", "/refund"], disallow: PRIVATE },
+    rules: { userAgent: "*", allow: ["/", ...GYM_PAGES.map((p) => p.path), TRAINER_PAGE.path, GUIDES_PATH, TOOLS_PATH, "/trainer", "/about", "/contact", "/privacy", "/terms", "/refund"], disallow: PRIVATE },
     sitemap: "https://fitron.in/sitemap.xml",
     host: "https://fitron.in",
   };

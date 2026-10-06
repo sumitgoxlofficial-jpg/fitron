@@ -18,6 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...GUIDES.map((g) => ({ url: `${base}${guidePath(g)}`, changeFrequency: "monthly" as const, priority: 0.7 })),
     { url: `${base}${TOOLS_PATH}`, changeFrequency: "monthly", priority: 0.7 },
     ...TOOLS.map((t) => ({ url: `${base}${toolPath(t)}`, changeFrequency: "monthly" as const, priority: 0.6 })),
+    { url: `${base}/about`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${base}/contact`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/terms`, changeFrequency: "yearly", priority: 0.3 },

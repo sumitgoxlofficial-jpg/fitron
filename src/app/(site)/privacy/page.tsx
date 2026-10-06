@@ -22,7 +22,7 @@ export default function PrivacyPage() {
     <LegalPage
       title="Privacy Policy"
       toc={TOC}
-      updated="4 October 2026"
+      updated="6 October 2026"
       intro={<p>FITRON (&quot;we&quot;) runs fitron.in, the FITRON AI Trainer and FITRON Gym Accounting. This policy explains what personal data we collect, why, and the rights you have under India&apos;s Digital Personal Data Protection Act, 2023 (DPDP Act). Your use of FITRON is also covered by our <a href="/terms">Terms &amp; Conditions</a>.</p>}
     >
       <section>
@@ -41,14 +41,15 @@ export default function PrivacyPage() {
           <li>To provide the service you signed up for, including AI-generated plans and coaching.</li>
           <li>To bill you, send invoices and reminders, and provide support.</li>
           <li>To keep the service secure and to meet legal, tax and accounting obligations.</li>
-          <li>With your consent only: anonymised analytics and product updates. You can withdraw consent at any time.</li>
+          <li>With your consent only: usage analytics on our public website, and product updates. You can withdraw consent at any time.</li>
         </ul>
         <p>We do not sell personal data and we do not use it for advertising. Members&apos; conversations with the AI coach are never shown to their gym.</p>
       </section>
       <section>
         <h2 id="sharing">Who we share it with</h2>
-        <p>Only with service providers who help us run FITRON, under contract and only for that purpose: cloud hosting, payment processing (e.g. Razorpay), messaging (e.g. WhatsApp Business), email delivery, and the AI model provider that generates coaching replies. We may disclose data when the law requires it.</p>
+        <p>Only with service providers who help us run FITRON, under contract and only for that purpose: cloud hosting, payment processing (e.g. Razorpay), messaging (e.g. WhatsApp Business), email delivery, the AI model provider that generates coaching replies and, only if you agree to analytics on fitron.in, Google Analytics. We may disclose data when the law requires it.</p>
         <p><b>What the AI model provider receives.</b> When you chat with the AI coach, we send it your messages and what you told the app that it needs to coach you: your plan, and answers such as age, sex, height, weight, injuries, goals, diet, training schedule and, if you allow it, your city. We do not send your name or email. When gym staff use Fitron AI, we send their question and the details it looks up to answer it, such as member names, phone numbers, plans and dues, limited to what that staff member is allowed to see. The provider processes this on its own servers, which may be outside India, only to write the reply.</p>
+        <p><b>Analytics on fitron.in.</b> If you choose &quot;Accept all&quot;, or tick &quot;Analytics&quot; under &quot;Manage settings&quot;, we may use Google Analytics 4 on our public pages (not inside Gym Accounting or the AI Trainer) to count which pages and buttons are used. Google receives your IP address, your browser and device details, a cookie identifier, and the address of the page and the button you use. We do not send it your name, email address or phone number, and we switch off Google&apos;s advertising features and Google signals, so it is used only to measure the site. Google processes this on its own servers, which may be outside India. If you do not agree, no Google script is loaded and nothing is sent to Google.</p>
         <p><b>Fitron Assistant on fitron.in.</b> When you ask the chat on our home page a question, we send the provider your messages in that chat so it can write the reply, and nothing else about you. Please don&apos;t type personal details, passwords, card numbers or OTPs into it. We do not store these conversations; your browser keeps the chat in that tab until you close it.</p>
       </section>
       <section>
@@ -68,7 +69,7 @@ export default function PrivacyPage() {
       </section>
       <section>
         <h2 id="cookies">Cookies</h2>
-        <p>We use essential cookies to keep you signed in and to remember your cookie choice. With your consent we also remember preferences and collect anonymised analytics. We do not use advertising cookies. You can change your choice any time with &quot;Cookie settings&quot; at the bottom of fitron.in.</p>
+        <p>We use essential cookies to keep you signed in and to remember your cookie choice. With your consent we also remember preferences and use Google Analytics, which sets cookies named _ga and _ga_ followed by an identifier and lasting up to two years, to count how the public pages are used. We do not use advertising cookies. You can change your choice any time with &quot;Cookie settings&quot; at the bottom of fitron.in.</p>
       </section>
       <section>
         <h2 id="security">Security</h2>
