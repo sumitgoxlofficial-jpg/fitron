@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyCoupon, couponCovers, couponState, MIN_CHARGE, normaliseCode } from "./coupons";
+import { applyCoupon, couponLabel, couponCovers, couponState, MIN_CHARGE, normaliseCode } from "./coupons";
 
 const base = { appliesTo: "ALL", validTill: "2026-10-31", usageLimit: null, status: "ACTIVE" };
 
@@ -43,4 +43,14 @@ describe("coupons", () => {
   });
 
   it("normalises codes", () => expect(normaliseCode(" welcome 99 ")).toBe("WELCOME99"));
+
+  it("a flat-price coupon charges that amount whatever the price, never above the price or below ₹1", () => {
+    expect(applyCoupon(3_99_900, 99, 100)).toEqual({ discount: 3_99_800, total: 100 });
+    expect(applyCoupon(29_900, 99, 100)).toEqual({ discount: 29_800, total: 100 });
+    expect(applyCoupon(50, 99, 100)).toEqual({ discount: 0, total: 50 });
+    expect(applyCoupon(3_99_900, 99, 10).total).toBe(MIN_CHARGE);
+    expect(applyCoupon(5_000, 99, 9_00_000).total).toBe(5_000);
+    expect(couponLabel(99, 100)).toBe("price set to ₹1");
+    expect(couponLabel(99, null)).toBe("99% off");
+  });
 });

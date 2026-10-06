@@ -11,7 +11,7 @@ import { toIso, todayIso } from "./time";
 
 const uid = () => randomUUID().slice(0, 8).toUpperCase();
 const DAY = 86_400_000;
-const input = (o: Partial<Parameters<typeof createCoupon>[1]> = {}) => ({ code: `C${uid()}`, description: "", percentOff: 99, appliesTo: "ALL" as const, validTill: null, usageLimit: null, ...o });
+const input = (o: Partial<Parameters<typeof createCoupon>[1]> = {}) => ({ code: `C${uid()}`, description: "", percentOff: 99, appliesTo: "ALL" as const, validTill: null, usageLimit: null, ...o, payRupees: o.payRupees ?? null });
 const coupon = (o: Partial<Parameters<typeof createCoupon>[1]> = {}) => createCoupon("team@fitron.in", input(o));
 
 /** A gym that can pay for any plan: Enterprise, on trial. */

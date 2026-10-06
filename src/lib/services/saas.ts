@@ -1,4 +1,5 @@
 import "server-only";
+import { couponLabel } from "@/lib/domain/coupons";
 import { db } from "@/lib/db";
 import type { CurrentUser } from "@/lib/auth/current";
 import type { Prisma, RazorpaySubscription } from "@/generated/prisma/client";
@@ -189,7 +190,7 @@ async function gymPrice(u: CurrentUser, what: PaymentFor, cycle: Cycle | "ONCE")
 export async function quoteGymCoupon(u: CurrentUser, what: PaymentFor, cycle: Cycle | "ONCE", code: string) {
   const { price } = await gymPrice(u, what, cycle);
   const q = await quoteCoupon(code, "GYM", { orgId: u.orgId }, price.total);
-  return { code: q.code, percentOff: q.percentOff, listTotal: q.listTotal, discount: q.discount, total: q.total };
+  return { code: q.code, percentOff: q.percentOff, payPaise: q.payPaise, listTotal: q.listTotal, discount: q.discount, total: q.total };
 }
 
 /**
@@ -246,7 +247,7 @@ export async function startPayment(u: CurrentUser, what: PaymentFor, cycle: Cycl
     await afterCouponPayment(sub);
     return { mode: "FREE", id: sub.id, total: 0 };
   }
-  const description = `${describe(what, cycle)} (GST included${quote ? `, coupon ${quote.code} ${quote.percentOff}% off` : ""})`;
+  const description = `${describe(what, cycle)} (GST included${quote ? `, coupon ${quote.code} ${couponLabel(quote.percentOff, quote.payPaise)}` : ""})`;
   if (!keyId) return { mode: "DEMO", id: sub.id, total: price.total };
   const seller = fitronSeller();
   const prefill = { name: u.name, email: u.email };

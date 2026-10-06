@@ -39,7 +39,7 @@ function couponLabel(label: string, total: number) {
   return label.startsWith("Pay ") ? `Pay ${price}` : label;
 }
 
-type Quote = { code: string; percentOff: number; listTotal: number; discount: number; total: number };
+type Quote = { code: string; percentOff: number; payPaise: number | null; listTotal: number; discount: number; total: number };
 
 /** Pay FITRON for the gym's plan, an extra branch (new slot, or renewing one) or a one-time add-on. A coupon code can be typed before paying. */
 export function PayButton({
@@ -175,7 +175,7 @@ export function PayButton({
       )}
       {applied && (
         <p className="text-sm text-ok">
-          Coupon {applied.code} applied: {applied.percentOff}% off. {applied.total === 0 ? "Nothing to pay." : `You pay ${formatInr(applied.total)}, not ${formatInr(applied.listTotal)}.`} {cycle !== "ONCE" && applied.total > 0 ? "It is one payment and doesn't renew by itself." : ""}
+          Coupon {applied.code} applied: {applied.payPaise != null ? "price set to " + formatInr(applied.payPaise) : `${applied.percentOff}% off`}. {applied.total === 0 ? "Nothing to pay." : `You pay ${formatInr(applied.total)}, not ${formatInr(applied.listTotal)}.`} {cycle !== "ONCE" && applied.total > 0 ? "It is one payment and doesn't renew by itself." : ""}
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">

@@ -1,4 +1,5 @@
 import "server-only";
+import { couponLabel } from "@/lib/domain/coupons";
 import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import type { Prisma, TrainerMember } from "@/generated/prisma/client";
@@ -330,7 +331,7 @@ function paymentArgs(a: { plan: string; cycle: string; kind: string }) {
 export async function quoteTrainerCoupon(memberId: string, a: { plan: string; cycle: string; code: string }) {
   const { plan, cycle } = paymentArgs({ ...a, kind: "purchase" });
   const q = await quoteCoupon(a.code, "TRAINER", { memberId }, trainerPrice(plan, cycle).total);
-  return { code: q.code, percentOff: q.percentOff, listTotal: q.listTotal, discount: q.discount, total: q.total };
+  return { code: q.code, percentOff: q.percentOff, payPaise: q.payPaise, listTotal: q.listTotal, discount: q.discount, total: q.total };
 }
 
 /**
@@ -377,7 +378,7 @@ export async function startTrainerCouponPayment(memberId: string, a: { plan: str
   }
   const order = await createOrder({ amount: price.total, receipt: p.id, notes: { trainerPayment: p.id, member: memberId, cycle } });
   await db.trainerPayment.update({ where: { id: p.id }, data: { razorpayOrderId: order.id } });
-  return { ...out, mode: "LIVE" as const, keyId: keyId!, orderId: order.id, description: `${name}, ${period} (GST included, coupon ${quote.code} ${quote.percentOff}% off)` };
+  return { ...out, mode: "LIVE" as const, keyId: keyId!, orderId: order.id, description: `${name}, ${period} (GST included, coupon ${quote.code} ${couponLabel(quote.percentOff, quote.payPaise)})` };
 }
 
 // ── AI Coach limits ─────────────────────────────────────────────────────────
