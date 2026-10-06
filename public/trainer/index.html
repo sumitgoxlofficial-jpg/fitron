@@ -695,6 +695,18 @@
           <div class="ob-sec"><span class="ob-lab">Sex <small>changes the calorie maths</small></span>
               <div class="ob-chips"><sc-for list="{{ sexChips }}" as="c" hint-placeholder-count="3"><button class="{{ c.cls }}" onClick="{{ c.pick }}"><i class="ph-duotone ph-{{ c.icon }}"></i>{{ c.label }}</button></sc-for></div>
             </div>
+
+          <div class="ob-sec"><span class="ob-lab">Did a partner gym refer you to Fitron? <small>needed</small></span>
+            <sc-if value="{{ gymLinked }}" hint-placeholder-val="{{ false }}"><div class="card" style="flex-direction:row;align-items:center;gap:12px"><i class="ph-duotone ph-buildings goldc" style="font-size:24px"></i><div style="flex:1"><div style="font-weight:700;font-size:14px">Referred by {{ gymName }}</div><div class="mut" style="font-size:12px">{{ gymMemberLine }}</div></div><button class="btn btn-ghost" style="min-height:38px;padding:6px 12px;font-size:13px" onClick="{{ unlinkGym }}">Change</button></div></sc-if>
+            <sc-if value="{{ gymNotLinked }}" hint-placeholder-val="{{ true }}">
+              <div class="ob-chips"><sc-for list="{{ referChips }}" as="c" hint-placeholder-count="2"><button class="{{ c.cls }}" onClick="{{ c.pick }}"><i class="ph-duotone ph-{{ c.icon }}"></i>{{ c.label }}</button></sc-for></div>
+              <sc-if value="{{ referYes }}" hint-placeholder-val="{{ false }}">
+                <div class="ob-f" style="margin-top:12px"><label>Gym code</label><div style="display:flex;gap:8px"><input class="ob-in" style="flex:1;letter-spacing:.12em;text-transform:uppercase" aria-label="Gym code" placeholder="e.g. PHG7K2" value="{{ gymCode }}" onInput="{{ setGymCode }}"><button class="btn btn-gold" style="min-height:44px;padding:0 16px" onClick="{{ linkGym }}" disabled="{{ gymBusy }}">Link</button></div></div>
+                <p class="ob-help" style="margin-top:6px">Ask the gym's front desk for its Fitron code. Enter it and tap Link, so we know which gym referred you.</p>
+              </sc-if>
+            </sc-if>
+            <sc-if value="{{ gymMsgOn }}" hint-placeholder-val="{{ false }}"><p class="ob-help" style="margin-top:8px;color:var(--gold)">{{ gymMsg }}</p></sc-if>
+          </div>
           </sc-if>
 
           <sc-if value="{{ ob2 }}" hint-placeholder-val="{{ false }}">
@@ -756,13 +768,9 @@
             </div></div>
             <sc-if value="{{ showGymName }}" hint-placeholder-val="{{ false }}">
             <div class="ob-sec">
-              <sc-if value="{{ gymLinked }}" hint-placeholder-val="{{ false }}"><div class="card" style="flex-direction:row;align-items:center;gap:12px"><i class="ph-duotone ph-buildings goldc" style="font-size:24px"></i><div style="flex:1"><div style="font-weight:700;font-size:14px">{{ gymName }}</div><div class="mut" style="font-size:12px">{{ gymMemberLine }}</div></div><button class="btn btn-ghost" style="min-height:38px;padding:6px 12px;font-size:13px" onClick="{{ unlinkGym }}">Leave</button></div></sc-if>
               <sc-if value="{{ gymNotLinked }}" hint-placeholder-val="{{ true }}">
-                <div class="ob-f"><label>Gym code</label><div style="display:flex;gap:8px"><input class="ob-in" style="flex:1;letter-spacing:.12em;text-transform:uppercase" aria-label="Gym code" placeholder="e.g. PHG7K2" value="{{ gymCode }}" onInput="{{ setGymCode }}"><button class="btn btn-gold" style="min-height:44px;padding:0 16px" onClick="{{ linkGym }}" disabled="{{ gymBusy }}">Link</button></div></div>
-                <p class="ob-help" style="margin-top:6px">If your gym is on FITRON, ask the front desk for its code: your gym then sees your training next to your membership.</p>
-                <div class="ob-f" style="margin-top:12px"><label>Your gym</label><input class="ob-in" aria-label="Gym" placeholder="Optional" value="{{ obGymName }}" onInput="{{ setObGym }}"></div><p class="ob-help" style="margin-top:6px">Where you train, if your gym is not on FITRON. Optional.</p>
+                <div class="ob-f"><label>Your gym</label><input class="ob-in" aria-label="Gym" placeholder="Optional" value="{{ obGymName }}" onInput="{{ setObGym }}"></div><p class="ob-help" style="margin-top:6px">Where you train, if you train at a gym. Optional.</p>
               </sc-if>
-              <sc-if value="{{ gymMsgOn }}" hint-placeholder-val="{{ false }}"><p class="ob-help" style="margin-top:8px;color:var(--gold)">{{ gymMsg }}</p></sc-if>
             </div>
             </sc-if>
           </sc-if>
@@ -1063,6 +1071,8 @@ class Component extends DCLogic {
     };
     if (step === 1) {
       need(o.name, 'your name'); need(o.sex, 'sex');
+      if (o.referral !== 'gym' && o.referral !== 'none') m.push('whether a partner gym referred you');
+      else if (o.referral === 'gym' && !this.state.gym) m.push("your gym's code (type it and tap Link)");
       range(o.age, 12, 100, 'your age'); range(o.height, 90, 250, 'your height in cm'); range(o.weight, 25, 300, 'your weight in kg');
       const yrs = parseFloat(o.age) || 0;
       if (yrs >= 12 && yrs < 18) {
@@ -1292,13 +1302,13 @@ class Component extends DCLogic {
     this.setState({ gymBusy: true, gymMsg: '' });
     const r = await this._api('gym', 'POST', { code });
     try { localStorage.removeItem('fitron.gym'); } catch (e) {}
-    if (r.ok && r.data.gym) this.setState(st => ({ gym: r.data.gym, gymBusy: false, gymCode: '', gymMsg: 'Linked to ' + r.data.gym.name + (r.data.gym.member ? ' as ' + r.data.gym.member.name + ' (' + r.data.gym.member.code + ').' : '.'), ob: { ...st.ob, gymName: r.data.gym.name } }));
+    if (r.ok && r.data.gym) this.setState(st => ({ gym: r.data.gym, gymBusy: false, gymCode: '', gymMsg: 'Linked to ' + r.data.gym.name + (r.data.gym.member ? ' as ' + r.data.gym.member.name + ' (' + r.data.gym.member.code + ').' : '.'), ob: { ...st.ob, gymName: r.data.gym.name, referral: 'gym' } }));
     else this.setState({ gymBusy: false, gymMsg: r.error || 'Could not link. Try again.' });
   };
   unlinkGym = async () => {
     if (!window.confirm('Leave this gym? It will no longer see your training, and stops earning from your plan.')) return;
     const r = await this._api('gym', 'DELETE');
-    if (r.ok) this.setState({ gym: null, gymMsg: 'You left the gym.' }); else this.setState({ gymMsg: r.error });
+    if (r.ok) this.setState(st => ({ gym: null, gymMsg: 'You left the gym.', ob: { ...st.ob, referral: st.ob.referral === 'gym' ? '' : st.ob.referral } })); else this.setState({ gymMsg: r.error });
   };
   // A code from /trainer?gym=CODE links as soon as the member is signed in.
   _autoLinkGym(d) {
@@ -1390,6 +1400,8 @@ class Component extends DCLogic {
       const keep = ['ob','plan','schedule','suppInfo','supps','suppList','dietPref','reminders','notificationsOn','focusMode','theme'].reduce((o, k) => (p[k] !== undefined && p[k] !== null ? { ...o, [k]: p[k] } : o), {});
       const ob = { ...st.ob, ...(keep.ob || {}), email: m.email };
       if (!ob.name && m.name) ob.name = m.name;
+      // Referral answer: a linked gym is the referral; accounts set up before this question was asked count as not referred.
+      if (d.gym) ob.referral = 'gym'; else if (m.onboarded && !ob.referral) ob.referral = 'none';
       const locked = m.access === 'LOCKED' && m.onboarded;
       const inApp = !['login', 'signup', 'landing', 'onboard', 'pickTheme', 'consent'].includes(st.screen);
       return { ...keep, ob, avatar: p.avatar || st.avatar, groc: p.groc || st.groc, chats: this._ch,
@@ -2300,7 +2312,7 @@ class Component extends DCLogic {
       })(),
       pfPlanLine: this._planLine(),
       pfGym: st.gym ? st.gym.name + (st.gym.member ? ' · ' + st.gym.member.code : '') + ' · linked' : (ob.gymName || '').trim() || 'Link your gym',
-      pfGymGo: () => this.setState({ screen: 'onboard', onboardStep: 5, signup: true, moreOpen: false, obFrom: 'profile' }),
+      pfGymGo: () => this.setState({ screen: 'onboard', onboardStep: 1, signup: true, moreOpen: false, obFrom: 'profile' }),
       pfEditLabel: st.pfEdit ? 'Done' : 'Edit',
       pfToggleEdit: this.pfToggleEdit, pfEditBody: this.pfEditBody,
       pfAch: (() => {
@@ -2617,6 +2629,11 @@ class Component extends DCLogic {
             card('equipment','Bodyweight only','No equipment at all','person-simple-run', true),
             card('equipment','Nothing yet','I am about to start','sparkle', true),
           ],
+      referChips: [
+        { label: 'Yes, a gym referred me', icon: 'buildings', cls: cls(o.referral === 'gym', 'ob-chip'), pick: () => this.pickOb('referral', 'gym') },
+        { label: 'No, I found Fitron myself', icon: 'user', cls: cls(o.referral === 'none', 'ob-chip'), pick: () => this.pickOb('referral', 'none') },
+      ],
+      referYes: o.referral === 'gym',
       obGymName: o.gymName || '', setObGym: this.setOb('gymName'), showGymName: true,
       gymLinked: !!st.gym, gymNotLinked: !st.gym, gymName: st.gym ? st.gym.name : '', gymMemberLine: st.gym ? (st.gym.member ? 'Linked as ' + st.gym.member.name + ' · ' + st.gym.member.code : 'Linked · your gym sees your training') : '', gymCode: st.gymCode || '', setGymCode: this.setGymCode, linkGym: this.linkGym, unlinkGym: this.unlinkGym, gymBusy: !!st.gymBusy, gymMsg: st.gymMsg || '', gymMsgOn: !!st.gymMsg,
 

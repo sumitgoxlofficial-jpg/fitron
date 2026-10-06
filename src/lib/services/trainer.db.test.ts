@@ -91,14 +91,14 @@ describe.skipIf(!hasDb)("AI Trainer (database)", () => {
     const m = await findOrCreateTrainer(email(), "EMAIL");
     const plan = { Mon: "Push", Tue: "Pull", Wed: "Legs", Thu: "Rest", Fri: "Push", Sat: "Pull", Sun: "Rest" };
     const today = "2026-09-30"; // a Wednesday
-    await saveTrainerState(m.id, { profile: { ob: { name: "Asha", weight: "72" }, plan, junk: "dropped" }, day: { water: 1.5, habits: { workout: true, meals: true, extra: true }, workoutDone: true }, onboarded: true }, "2026-09-29");
+    await saveTrainerState(m.id, { profile: { ob: { name: "Asha", weight: "72", referral: "none" }, plan, junk: "dropped" }, day: { water: 1.5, habits: { workout: true, meals: true, extra: true }, workoutDone: true }, onboarded: true }, "2026-09-29");
     await saveTrainerState(m.id, { day: { water: 2.04, habits: { protein: true }, workoutDone: true } }, today);
 
     const d = await loadTrainer(m.id, today);
     expect(d.member.name).toBe("Asha");
     expect(d.member.onboarded).toBe(true);
     expect(d.member.access).toBe("LOCKED");
-    expect(d.profile).toEqual({ ob: { name: "Asha", weight: "72" }, plan });
+    expect(d.profile).toEqual({ ob: { name: "Asha", weight: "72", referral: "none" }, plan });
     expect(d.today).toMatchObject({ date: today, water: 2, focus: "Legs", workoutDone: true, habits: { workout: false, protein: true } });
     expect(d.progress.streak).toBe(2);
     expect(d.progress.weights).toEqual([{ date: "2026-09-29", kg: 72 }]);

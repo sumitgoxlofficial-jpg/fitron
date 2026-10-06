@@ -45,7 +45,7 @@ describe.skipIf(!hasDb)("AI Trainer push reminders (database)", () => {
 
   it("sends what is due to onboarded members and counts a device's failures", async () => {
     const m = await findOrCreateTrainer(email(), "EMAIL", "Asha");
-    await saveTrainerState(m.id, { profile: { ob: { name: "Asha", water: "3" }, plan: { Mon: "Chest", Tue: "Chest", Wed: "Chest", Thu: "Chest", Fri: "Chest", Sat: "Chest", Sun: "Chest" }, reminders: { workout: true, water: true }, notificationsOn: true }, onboarded: true });
+    await saveTrainerState(m.id, { profile: { ob: { name: "Asha", water: "3", referral: "none" }, plan: { Mon: "Chest", Tue: "Chest", Wed: "Chest", Thu: "Chest", Fri: "Chest", Sat: "Chest", Sun: "Chest" }, reminders: { workout: true, water: true }, notificationsOn: true }, onboarded: true });
     const s = sub(3);
     await savePush(m.id, s);
     // Not onboarded yet: nothing goes to this one.

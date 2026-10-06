@@ -18,10 +18,10 @@ describe.skipIf(!hasDb)("AI Trainer admin (database)", () => {
     await db.trainerMember.update({ where: { id: paying.id }, data: { paidUntil: fromIso(today), onboardedAt: new Date() } });
     await db.trainerPayment.create({ data: { memberId: paying.id, plan: "ai-pro", cycle: "MONTHLY", kind: "purchase", base: 29_900, gst: 5_382, total: 35_282, mode: "SUBSCRIPTION", status: "PAID", paidAt: new Date() } });
     const trial = await findOrCreateTrainer(email(), "EMAIL", `Trial ${tag}`);
-    await saveTrainerState(trial.id, { onboarded: true });
+    await saveTrainerState(trial.id, { profile: { ob: { referral: "none" } }, onboarded: true });
     await startTrainerTrial(trial.id);
     const locked = await findOrCreateTrainer(email(), "EMAIL", `Locked ${tag}`);
-    await saveTrainerState(locked.id, { onboarded: true });
+    await saveTrainerState(locked.id, { profile: { ob: { referral: "none" } }, onboarded: true });
 
     const all = await trainerMembers({ q: tag }, today);
     expect(all.total).toBe(3);
