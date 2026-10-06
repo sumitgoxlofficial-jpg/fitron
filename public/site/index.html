@@ -901,6 +901,36 @@ footer p{color:var(--muted);font-size:.9rem;max-width:38ch;margin-top:14px}
 .twin-card .media .mini-console{width:100%}
 @media (max-width:480px){.twin-card .media{height:auto}}
 .twin-card .cta-row{justify-content:flex-start;margin-top:auto;padding-top:10px}
+/* live Gym Accounting demo in the product card: poster, then the prototype scaled from a desktop-sized frame; full screen unscales it */
+.live-demo{position:relative;isolation:isolate}
+.live-demo .ld-poster{transition:opacity .5s,filter .4s}
+.live-demo:not(.running):hover .ld-poster{filter:brightness(.72)}
+.ld-frame{position:absolute;top:0;left:0;width:1280px;height:832px;border:0;background:#0e0d0a;transform:scale(var(--ld-scale,.4));transform-origin:0 0;opacity:0;transition:opacity .5s}
+.live-demo.ready .ld-frame{opacity:1}
+.live-demo.ready .ld-poster{opacity:0}
+.ld-play{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;border:0;background:radial-gradient(circle at 50% 50%,rgba(14,13,10,.55),rgba(14,13,10,.15) 70%);color:var(--text);font:600 1rem/1.25 var(--font-body);cursor:pointer;text-align:center}
+.ld-play-ring{display:grid;place-items:center;width:68px;height:68px;border-radius:50%;background:var(--gold-grad);color:#17140d;box-shadow:0 1px 0 #8f6a1c,0 3px 0 #634812,0 18px 34px -10px rgba(0,0,0,.8);transition:transform .3s var(--ease)}
+.ld-play-ring .icon{width:28px;height:28px;fill:currentColor;stroke-width:1.4;margin-left:3px}
+.ld-play:hover .ld-play-ring,.ld-play:focus-visible .ld-play-ring{transform:scale(1.08)}
+.ld-play-text{display:grid;gap:4px;padding:8px 14px;border-radius:12px;background:rgba(14,13,10,.72);border:1px solid var(--line-2)}
+.ld-play-text small{font-size:.74rem;font-weight:500;color:var(--muted)}
+.live-demo.running .ld-play{display:none}
+.ld-loading{position:absolute;inset:0;z-index:2;display:grid;place-items:center;font:600 .9rem var(--font-body);color:var(--gold-2);background:rgba(14,13,10,.55)}
+.ld-loading::after{content:"";position:absolute;left:50%;top:calc(50% + 22px);width:110px;height:3px;margin-left:-55px;border-radius:2px;background:linear-gradient(90deg,var(--gold-deep),var(--gold-2));animation:demoLoad 1.6s ease-in-out infinite}
+.live-demo.ready .ld-loading{display:none}
+.ld-tools{position:absolute;right:10px;bottom:10px;z-index:3;display:flex;gap:6px}
+.ld-btn{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 11px;border-radius:999px;border:1px solid var(--line-2);background:rgba(14,13,10,.82);color:var(--gold-2);font:600 .76rem/1 var(--font-body);text-decoration:none;cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .2s,border-color .2s}
+.ld-btn:hover,.ld-btn:focus-visible{background:rgba(38,34,24,.95);border-color:var(--gold)}
+.ld-btn .icon{width:16px;height:16px;stroke-width:2}
+.live-demo:fullscreen{width:100%;height:100%;max-width:none;aspect-ratio:auto!important;border:0;border-radius:0;transform:none;background:#0e0d0a}
+.live-demo:fullscreen .ld-frame{width:100%;height:100%;transform:none}
+.live-demo:fullscreen .ld-poster{display:none}
+.live-demo:fullscreen .ld-tools{right:8px;bottom:auto;top:50%;translate:0 -50%;flex-direction:column;opacity:.6;transition:opacity .2s}
+.live-demo:fullscreen .ld-tools:hover,.live-demo:fullscreen .ld-tools:focus-within{opacity:1}
+.live-demo:fullscreen .ld-btn{width:38px;min-height:38px;padding:0;justify-content:center}
+.live-demo:fullscreen .ld-btn span{display:none}
+@media (max-width:560px){.ld-play{gap:10px;padding:10px 10px 52px}.ld-play-ring{width:54px;height:54px}.ld-play-ring .icon{width:22px;height:22px}.ld-play-text small{display:none}}
+@media (prefers-reduced-motion:reduce){.ld-frame,.live-demo .ld-poster,.ld-play-ring{transition:none}.ld-loading::after{animation:none}}
 .mini-console{border-radius:20px;background:#0b0a08;border:1px solid var(--line-2);padding:16px;display:grid;gap:12px;box-shadow:var(--shadow)}
 .mini-console .kpis .kpi b{font-size:1.5rem}
 .together{display:grid;grid-template-columns:1fr auto 1fr;gap:clamp(16px,3vw,40px);align-items:center}
@@ -973,6 +1003,10 @@ footer p{color:var(--muted);font-size:.9rem;max-width:38ch;margin-top:14px}
   <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6l8-3z"></path><path d="M9 12l2 2 4-4"></path></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"></path></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"></path></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></symbol>
+  <symbol id="i-shrink" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"></path></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"></path></symbol>
 </svg>
 
 <header class="nav" id="nav">
@@ -1065,7 +1099,7 @@ footer p{color:var(--muted);font-size:.9rem;max-width:38ch;margin-top:14px}
         <h3>FITRON Gym Accounting</h3>
         <div class="tp"><span class="amt gold-3d"><span class="rs">₹</span>999</span><span class="per">/ month · 7-day free trial</span></div>
         <p>Members, fees, GST invoices, WhatsApp reminders, attendance, payroll and P&amp;L in one console. For one gym or every branch you run.</p>
-        <div class="media"><div class="mini-console lift-sm" style="padding:0;overflow:hidden;aspect-ratio:16/10.4"><img src="/site/console-dashboard.webp" alt="FITRON Gym Accounting dashboard: active members, revenue, outstanding and renewals for Power Haus Gym" style="display:block;width:100%;height:100%;object-fit:cover;object-position:0 0"></div></div>
+        <div class="media"><div class="mini-console lift-sm live-demo" id="liveDemo" data-src="/site/gym-demo.html" style="padding:0;overflow:hidden;aspect-ratio:16/10.4"><img class="ld-poster" src="/site/console-dashboard.webp" alt="FITRON Gym Accounting dashboard: active members, revenue, outstanding and renewals for Power Haus Gym" style="display:block;width:100%;height:100%;object-fit:cover;object-position:0 0"><button type="button" class="ld-play" data-ld-play><span class="ld-play-ring"><svg class="icon"><use href="#i-play"></use></svg></span><span class="ld-play-text">Try the live demo<small>Click around a working console with demo data</small></span></button><div class="ld-tools"><button type="button" class="ld-btn" data-ld-full aria-label="Open the live demo full screen"><svg class="icon"><use href="#i-expand"></use></svg><span>Full screen</span></button><a class="ld-btn" href="/site/gym-demo.html" target="_blank" rel="noopener" aria-label="Open the live demo in a new tab"><svg class="icon"><use href="#i-external"></use></svg></a></div></div></div>
         <ul class="checks">
           <li><svg class="icon"><use href="#i-check"></use></svg>24 modules: members, billing, GST, expenses, P&amp;L</li>
           <li><svg class="icon"><use href="#i-check"></use></svg>WhatsApp reminders and invoices with payment links</li>

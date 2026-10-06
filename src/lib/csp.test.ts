@@ -74,7 +74,8 @@ describe("the website's and the trainer's policies", () => {
     // Razorpay's checkout frame is the one other thing it may show, for paying for a plan.
     expect(policy("trainer")["frame-src"]).toEqual(["'self'", "https://www.youtube-nocookie.com", "https://www.youtube.com", "https://*.razorpay.com"]);
     expect(policy("site")["style-src"]).not.toContain("https://fonts.googleapis.com");
-    expect(policy("site")["frame-src"]).toEqual(["'none'"]);
+    // The website frames only its own Gym Accounting live demo.
+    expect(policy("site")["frame-src"]).toEqual(["'self'"]);
   });
 });
 
