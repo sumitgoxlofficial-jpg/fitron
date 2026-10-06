@@ -1,4 +1,5 @@
 import { GYM_PAGES } from "@/lib/domain/gym-pages";
+import { TRAINER_PAGE } from "@/lib/domain/trainer-page";
 
 // The paths that anyone can open without a session (src/proxy.ts sends every other path to the sign-in): the website,
 // the sign-in and sign-up pages, links from emails, the member check-in page the front-desk QR poster opens (/c/…), the AI
@@ -13,6 +14,7 @@ const PUBLIC = [
   "api/health", "api/client-error", "api/csp-report", "api/webhooks", "api/jobs", "iclock",
   // The pages about Gym Accounting (src/lib/domain/gym-pages.ts) join this list by themselves.
   ...GYM_PAGES.map((p) => p.path.slice(1)),
+  TRAINER_PAGE.path.slice(1), "manifest.webmanifest",
 ];
 
 export function isPublicPath(pathname: string): boolean {

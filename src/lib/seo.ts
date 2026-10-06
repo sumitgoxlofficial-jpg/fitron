@@ -16,6 +16,8 @@ export function pageMetadata({ title, description, path }: { title: string; desc
     title,
     description,
     alternates: { canonical: url },
+    // The root layout keeps every other page out of search results; the public pages say so explicitly.
+    robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-snippet": -1, "max-image-preview": "large", "max-video-preview": -1 } },
     openGraph: { type: "website", siteName: SITE_NAME, locale: "en_IN", url, title, description, images: [SOCIAL_IMAGE] },
     twitter: { card: "summary_large_image", title, description, images: [SOCIAL_IMAGE.url] },
   };
