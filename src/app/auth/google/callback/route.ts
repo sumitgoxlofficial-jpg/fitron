@@ -27,12 +27,16 @@ export async function GET(req: NextRequest) {
     return res;
   };
   if (!f) {
+    log.warn("google.flow_cookie_missing", undefined, { host: req.nextUrl.host });
     const flow = (q.get("state") ?? "").split(".")[0];
     return done(to(googleBackUrl((GOOGLE_FLOWS as readonly string[]).includes(flow) ? (flow as GoogleFlow) : "staff", "expired")));
   }
   const back = (code: string) => googleBackUrl(f.flow, code, { plan: f.plan, cycle: f.cycle });
   // Cancelled on Google's screen, or a state that isn't ours.
-  if (q.get("error") || !q.get("code") || q.get("state") !== f.state) return done(to(back("cancelled")));
+  if (q.get("error") || !q.get("code") || q.get("state") !== f.state) {
+    log.warn("google.signin_cancelled", undefined, { error: q.get("error"), stateMatches: q.get("state") === f.state });
+    return done(to(back("cancelled")));
+  }
 
   let me: GoogleProfile;
   try {
