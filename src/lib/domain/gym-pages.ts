@@ -52,8 +52,8 @@ const opens = (f: Feature) => planFor(f).name;
 export const GYM_ACCOUNTING: GymPage = {
   path: "/gym-accounting",
   label: "Gym accounting software",
-  title: "Gym Accounting Software in India: GST Invoices & P&L | FITRON",
-  description: `Gym accounting software for India: member fees, GST invoices, expenses, dues and monthly profit and loss in one place. ${trial}, from ${rupeesLabel(lowestGymPrice("MONTHLY"))} a month.`,
+  title: "Gym Accounting Software for Indian Gyms | FITRON",
+  description: `Manage gym members, fees, GST invoices, expenses, payments, profit & loss and reports with FITRON Gym Accounting. Start your ${trial}.`,
   kicker: "FITRON Gym Accounting",
   h1: "Gym accounting software for Indian gyms",
   intro:

@@ -1,14 +1,29 @@
 import { LegalPage } from "../legal";
 import { pageMetadata } from "@/lib/seo";
 
-export const metadata = pageMetadata({ title: "Privacy Policy · FITRON", description: "How FITRON collects, uses and protects personal data under India's DPDP Act, 2023.", path: "/privacy" });
+export const metadata = pageMetadata({ title: "Privacy Policy | FITRON", description: "Read FITRON's Privacy Policy covering personal data, AI Trainer, Gym Accounting, cookies, security and your rights under India's DPDP Act.", path: "/privacy" });
+
+const TOC = [
+  ["collect", "What we collect"],
+  ["use", "How we use it"],
+  ["sharing", "Who we share it with"],
+  ["storage", "Where it is kept and for how long"],
+  ["rights", "Your DPDP rights"],
+  ["cookies", "Cookies"],
+  ["security", "Security"],
+  ["dpa", "Data Processing terms"],
+  ["children", "Children"],
+  ["grievance", "Grievance Officer"],
+  ["changes", "Changes"],
+] as const;
 
 export default function PrivacyPage() {
   return (
     <LegalPage
       title="Privacy Policy"
+      toc={TOC}
       updated="4 October 2026"
-      intro={<p>FITRON (&quot;we&quot;) runs fitron.in, the FITRON AI Trainer and FITRON Gym Accounting. This policy explains what personal data we collect, why, and the rights you have under India&apos;s Digital Personal Data Protection Act, 2023 (DPDP Act).</p>}
+      intro={<p>FITRON (&quot;we&quot;) runs fitron.in, the FITRON AI Trainer and FITRON Gym Accounting. This policy explains what personal data we collect, why, and the rights you have under India&apos;s Digital Personal Data Protection Act, 2023 (DPDP Act). Your use of FITRON is also covered by our <a href="/terms">Terms &amp; Conditions</a>.</p>}
     >
       <section>
         <h2 id="collect">What we collect</h2>

@@ -14,7 +14,7 @@
   var id = null, started = false, ready = false, queue = [];
 
   function allowed() {
-    try { var c = JSON.parse(localStorage.getItem(KEY) || 'null'); return !!(c && c.analytics); } catch (e) { return false; }
+    try { var c = JSON.parse(localStorage.getItem(KEY) || 'null'); return !!(c && c.analytics); } catch { return false; }
   }
   function gtag() { (window.dataLayer = window.dataLayer || []).push(arguments); }
 

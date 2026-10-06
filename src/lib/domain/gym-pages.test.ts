@@ -52,7 +52,7 @@ describe.each(GYM_PAGES.map((p) => [p.path, p] as const))("%s", (_path, page) =>
   });
 
   it("only links to pages and sections that exist", () => {
-    const known = new Set(["/", "/login", "/contact", "/privacy", "/site/gym-demo.html", ...GYM_PAGES.map((p) => p.path), ...GUIDES.map(guidePath)]);
+    const known = new Set(["/", "/login", "/contact", "/privacy", "/ai-personal-trainer", "/site/gym-demo.html", ...GYM_PAGES.map((p) => p.path), ...GUIDES.map(guidePath)]);
     const links = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => decode(m[1]!));
     expect(links.length).toBeGreaterThan(8);
     const bad: string[] = [];

@@ -37,10 +37,10 @@
   var KEY = 'fitron-site-consent', box = $('#consent');
   if (!box) return;
   var panel = $('#consentPanel'), manage = $('[data-consent-manage]', box), prefs = $('#consentPrefs'), ana = $('#consentAnalytics');
-  var read = function () { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } };
+  var read = function () { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; } };
   var save = function (c) {
     var v = { choice: c.choice, analytics: !!c.analytics, preferences: !!c.preferences, at: new Date().toISOString() };
-    try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { /* storage blocked: the choice lasts for this page only */ }
+    try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* storage blocked: the choice lasts for this page only */ }
     box.classList.remove('show');
     if (panel) { panel.hidden = true; if (manage) manage.setAttribute('aria-expanded', 'false'); }
     window.dispatchEvent(new CustomEvent('fitron:consent', { detail: v }));

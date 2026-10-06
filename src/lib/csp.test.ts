@@ -133,4 +133,16 @@ describe("zod", () => {
     expect(bad).toEqual([]);
     expect(readFileSync(path.join(root, "src/lib/zod-config.ts"), "utf8")).toContain("z.config({ jitless: true })");
   });
+
+describe("Google Analytics", () => {
+  it("is not allowed anywhere unless a measurement ID is set", () => {
+    for (const t of ["app", "site", "trainer"] as const) expect(buildCsp({ tier: t, nonce: "n", analytics: false })).not.toMatch(/googletagmanager|google-analytics|analytics\.google/);
+  });
+
+  it("is allowed for the public website only, never for the console or the AI Trainer", () => {
+    expect(buildCsp({ tier: "site", analytics: true })).toContain("script-src 'self' 'unsafe-inline' https://www.googletagmanager.com");
+    expect(buildCsp({ tier: "site", analytics: true })).toContain("https://*.google-analytics.com");
+    for (const t of ["app", "trainer"] as const) expect(buildCsp({ tier: t, nonce: "n", analytics: true })).not.toMatch(/googletagmanager|google-analytics/);
+  });
+});
 });

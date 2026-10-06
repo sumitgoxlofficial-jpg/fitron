@@ -36,3 +36,8 @@ To add a page, add it to `GYM_PAGES`; the sitemap, robots file, link checks and 
 7. **Watch the results.** In Search Console, *Performance* shows which searches show the site and which get clicks;
    *Pages* shows what is indexed. It takes weeks to show anything and months to settle. Expect to adjust the page
    wording from what you see there.
+
+## More
+
+- `docs/ANALYTICS.md`: switching on Google Analytics (`GA_MEASUREMENT_ID`) and the events it records.
+- `docs/GROWTH.md`: the content plan, link building, trust gaps and the known gaps of the redesign.
