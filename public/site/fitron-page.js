@@ -167,6 +167,8 @@ export function init() {
       if (innerWidth < 760) toggleFull(); else { start(); frame.focus(); }
     });
     fullBtn.addEventListener('click', toggleFull);
+    // "Demo product" under the card opens the same demo full screen (its link to the demo page is the no-script fallback).
+    $$('[data-ld-open]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); if (!isFull()) toggleFull(); }));
     document.addEventListener('fullscreenchange', setFullUi);
     document.addEventListener('webkitfullscreenchange', setFullUi);
     if ('ResizeObserver' in window) new ResizeObserver(fit).observe(live); else addEventListener('resize', fit);
