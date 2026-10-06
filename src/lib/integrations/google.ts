@@ -62,7 +62,11 @@ export async function exchangeCode(code: string, verifier: string, redirectUri: 
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ code, code_verifier: verifier, client_id: env("GOOGLE_CLIENT_ID"), client_secret: env("GOOGLE_CLIENT_SECRET"), redirect_uri: redirectUri, grant_type: "authorization_code" }),
   });
-  if (!res.ok) throw new Error(`Google token exchange failed (${res.status})`);
+  if (!res.ok) {
+    // Google's own reason (invalid_client, redirect_uri_mismatch, invalid_grant…) is what the logs need; it holds no secrets.
+    const why = (await res.json().catch(() => ({}))) as { error?: string; error_description?: string };
+    throw new Error(`Google token exchange failed (${res.status} ${[why.error, why.error_description].filter(Boolean).join(": ")})`);
+  }
   const { id_token } = (await res.json()) as { id_token?: string };
   if (!id_token) throw new Error("Google sent no ID token");
   return profileFromIdToken(id_token, env("GOOGLE_CLIENT_ID"));
