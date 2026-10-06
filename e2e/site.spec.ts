@@ -1,7 +1,28 @@
+import type { APIRequestContext, APIResponse } from "@playwright/test";
 import { expect, newContext, test } from "./support";
 
 // What a visitor and a search engine get from the public site. The sitemap is the list of pages: every address in it
 // has to open, say what it is, and point to itself as its one address.
+
+/**
+ * What to print when a sitemap address does not open, so a failure in CI says more than "404": the answer the server gave
+ * (status, headers, the start of the body), the same address asked for again at once, and the status of every address in
+ * the sitemap now. That shows whether one page or all of them fail, and every time or once. Only called after the check
+ * has failed, so a passing run makes no extra requests.
+ */
+async function explain(request: APIRequestContext, r: APIResponse, locs: string[]) {
+  const status = async (path: string) => (await request.get(path, { maxRedirects: 0 })).status();
+  const path = new URL(r.url()).pathname;
+  const body = (await r.text()).replace(/\s+/g, " ").slice(0, 500);
+  return [
+    `${r.status()} ${r.statusText()} for ${r.url()}`,
+    `headers: ${JSON.stringify(r.headers())}`,
+    `body: ${body}`,
+    `asked again: ${await status(path)}`,
+    "every sitemap address now:",
+    ...(await Promise.all(locs.map(async (l) => `  ${await status(new URL(l).pathname)} ${new URL(l).pathname}`))),
+  ].join("\n");
+}
 
 const attr = (html: string, re: RegExp) => html.match(re)?.[1]?.replace(/&amp;/g, "&").replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"');
 
@@ -17,7 +38,7 @@ test.describe("search engines", () => {
       const url = new URL(loc);
       expect(url.origin, "sitemap addresses are the real site's").toBe("https://fitron.in");
       const r = await request.get(url.pathname, { maxRedirects: 0 });
-      expect(r.status(), loc).toBe(200);
+      expect(r.status(), r.status() === 200 ? loc : `${loc}\n${await explain(request, r, locs)}`).toBe(200);
       const html = await r.text();
 
       const title = attr(html, /<title[^>]*>([^<]*)<\/title>/);
