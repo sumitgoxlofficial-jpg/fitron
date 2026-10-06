@@ -70,6 +70,31 @@ describe.skipIf(!hasDb)("Gym Partnership (database)", () => {
     expect(await trainerStatusFor(owner, ravi.id)).toBeNull();
   });
 
+  it("a new member must say whether a gym referred them, and a gym referral needs the gym's code", async () => {
+    const g = await makeGym();
+    const code = await ensureTrainerCode(g.org.id);
+    const m = await findOrCreateTrainer(email(), "EMAIL", "Kabir");
+    const fresh = async () => (await db.trainerMember.findUniqueOrThrow({ where: { id: m.id } })).onboardedAt;
+
+    // No answer yet.
+    await expect(saveTrainerState(m.id, { profile: { ob: { name: "Kabir" } }, onboarded: true })).rejects.toThrow(/whether a partner gym referred you/);
+    expect(await fresh()).toBeNull();
+    // Says a gym referred them, but has not entered its code.
+    await expect(saveTrainerState(m.id, { profile: { ob: { name: "Kabir", referral: "gym" } }, onboarded: true })).rejects.toThrow(/code your gym gave you/);
+    expect(await fresh()).toBeNull();
+    // With the code entered the referral stands, and the member is linked to that gym.
+    await linkTrainerGym(m.id, code);
+    await saveTrainerState(m.id, { profile: { ob: { name: "Kabir", referral: "gym" } }, onboarded: true });
+    expect(await fresh()).not.toBeNull();
+    expect((await loadTrainer(m.id)).gym?.name).toBe(g.org.name);
+
+    // Not referred: that is an answer too. Edits after onboarding are not asked again.
+    const n = await findOrCreateTrainer(email(), "GOOGLE", "Nina");
+    await saveTrainerState(n.id, { profile: { ob: { name: "Nina", referral: "none" } }, onboarded: true });
+    expect((await db.trainerMember.findUniqueOrThrow({ where: { id: n.id } })).onboardedAt).not.toBeNull();
+    await expect(saveTrainerState(n.id, { profile: { ob: { name: "Nina" } }, onboarded: true })).resolves.toBeUndefined();
+  });
+
   it("the partnership page counts the gym's share of payments confirmed in a month", async () => {
     const g = await makeGym();
     const owner = await g.user("Super Admin");

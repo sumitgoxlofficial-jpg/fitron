@@ -136,6 +136,16 @@ function focusOn(profile: Record<string, unknown>, date: string) {
 
 export type DayInput = { water?: number; habits?: unknown; workoutDone?: boolean; sets?: unknown };
 
+/**
+ * A new member has to say whether a partner gym referred them before the account is set up: "gym" means they
+ * must also have entered that gym's trainer code (linked), "none" means nobody referred them.
+ */
+function requireReferralAnswer(m: Pick<TrainerMember, "orgId">, profile: Record<string, unknown>) {
+  const referral = (profile.ob as { referral?: unknown } | undefined)?.referral;
+  if (referral !== "gym" && referral !== "none") throw new UserError("Tell us whether a partner gym referred you.");
+  if (referral === "gym" && !m.orgId) throw new UserError("Enter the code your gym gave you, so we know which gym referred you.");
+}
+
 /** Saves what the member changed: the app's state, and/or today's log. The plan itself never changes here: only starting the trial or a confirmed payment sets it. */
 export async function saveTrainerState(memberId: string, input: { profile?: unknown; day?: DayInput; name?: string; onboarded?: boolean; consented?: boolean; cycle?: string }, today = todayIso()) {
   const m = await db.trainerMember.findUniqueOrThrow({ where: { id: memberId } });
@@ -149,7 +159,10 @@ export async function saveTrainerState(memberId: string, input: { profile?: unkn
     if (ob?.name && typeof ob.name === "string") data.name = ob.name.trim().slice(0, 100);
   }
   if (input.name !== undefined) data.name = String(input.name).trim().slice(0, 100);
-  if (input.onboarded && !m.onboardedAt) data.onboardedAt = new Date();
+  if (input.onboarded && !m.onboardedAt) {
+    requireReferralAnswer(m, profile);
+    data.onboardedAt = new Date();
+  }
   if (input.consented && !m.consentedAt) data.consentedAt = new Date();
   if (input.cycle === "MONTHLY" || input.cycle === "YEARLY") data.cycle = input.cycle;
   // Not onto an account deleted while this save was on its way.
