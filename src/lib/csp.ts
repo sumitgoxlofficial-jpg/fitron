@@ -63,7 +63,8 @@ export function buildCsp({ tier, nonce, dev = false }: { tier: CspTier; nonce?: 
     d["connect-src"] = ["'self'", ...(tier === "trainer" ? [RAZORPAY] : []), ...(dev ? ["ws:", "wss:"] : [])];
     // The trainer's page has an iframe whose address is a {{placeholder}} until its template fills it in, which the browser
     // first tries as a same-origin address (our own X-Frame-Options refuses it); 'self' keeps that out of the reports.
-    d["frame-src"] = tier === "trainer" ? ["'self'", ...YOUTUBE, RAZORPAY] : ["'none'"];
+    // The website shows the Gym Accounting live demo (public/site/gym-demo.html) in a frame on the home page.
+    d["frame-src"] = tier === "trainer" ? ["'self'", ...YOUTUBE, RAZORPAY] : ["'self'"];
     d["media-src"] = ["'self'", "blob:", ...(tier === "trainer" ? ["https:"] : [])];
   }
   d["report-uri"] = ["/api/csp-report"];

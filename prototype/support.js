@@ -1440,6 +1440,7 @@
             if (mounted.has(key)) continue;
             mounted.add(key);
             const el = doc.createElement("script");
+            el.async = false;
             for (const { name: an, value } of [...child.attributes])
               el.setAttribute(an, value);
             if (child.textContent) el.textContent = child.textContent;
