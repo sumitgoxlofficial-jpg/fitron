@@ -1,3 +1,4 @@
+import { GUIDES, guidePath } from "@/lib/domain/guides";
 import { GYM_ACCOUNTING, GYM_PAGES, planNote, type GymPage } from "@/lib/domain/gym-pages";
 import { PLANS, TRIAL_DAYS, rupeesLabel } from "@/lib/domain/pricing";
 import { gymSignupHref } from "@/lib/domain/site-links";
@@ -70,6 +71,20 @@ export function GymPageView({ page }: { page: GymPage }) {
           </a>
         </div>
         <p className="mt-3 text-sm text-muted">No card needed. Or ask us for a demo on WhatsApp +91 62077 74673.</p>
+        {page.path === GYM_ACCOUNTING.path && (
+          <figure className="mt-10 overflow-hidden rounded-lg border border-line">
+            {/* eslint-disable-next-line @next/next/no-img-element -- a static file of the home page, already optimised */}
+            <img
+              src="/site/console-dashboard.webp"
+              width={1400}
+              height={658}
+              alt="FITRON Gym Accounting dashboard showing active members, revenue, outstanding dues and renewals for a gym"
+              className="block h-auto w-full"
+              fetchPriority="high"
+            />
+            <figcaption className="px-4 py-2 text-sm text-muted">The Gym Accounting dashboard: members, revenue, dues and renewals at a glance.</figcaption>
+          </figure>
+        )}
       </header>
 
       <div className="mt-12 flex flex-col gap-10 leading-relaxed">
@@ -139,6 +154,13 @@ export function GymPageView({ page }: { page: GymPage }) {
               <li key={p.path} className="mt-1.5">
                 <a href={p.path} className="font-semibold text-accent underline">
                   {p.label}
+                </a>
+              </li>
+            ))}
+            {GUIDES.map((g) => (
+              <li key={g.slug} className="mt-1.5">
+                <a href={guidePath(g)} className="font-semibold text-accent underline">
+                  Guide: {g.label}
                 </a>
               </li>
             ))}

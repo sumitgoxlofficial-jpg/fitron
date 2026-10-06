@@ -12,11 +12,22 @@ No one can promise first place on Google. Rankings depend on how many trusted si
 | `sitemap.xml` lists every public page | `src/app/sitemap.ts` |
 | Structured data: Organization, WebSite, SoftwareApplication with prices, FAQPage and BreadcrumbList | home page (`scripts/site_patches.py`), `gym-page.tsx`, `ai-personal-trainer/page.tsx` |
 | One landing page for each search intent | `/gym-accounting`, `/gym-management-software`, `/gym-gst-billing`, `/ai-personal-trainer` |
+| Guides that answer gym owners' questions and link to the product pages (Article + FAQ structured data) | `/guides` (content in `src/lib/domain/guides.ts`) |
 | Internal links: the header and footer of every public page link to every product page, and the home page links to all of them | `src/app/(site)/layout.tsx`, `scripts/site_patches.py` |
 | Web app manifest | `src/app/manifest.ts` |
 | `lang="en-IN"`, one `<h1>` per page, alt text on images, cached static assets | layouts, `next.config.ts` |
 
 When you add a public page, call `pageMetadata` (if you leave it out, the page stays `noindex`). Add the page to `sitemap.ts`, `robots.ts` (allow) and `src/lib/public-paths.ts`, and link to it from the site footer.
+
+## Plan for "gym accounting software"
+
+Look at that search today. Google's AI Overview and the panel next to it quote **articles**: "top gym accounting software" lists and explainers (BUSY, VJM Global, Gymdesk). Every tool those articles name gets a mention and a link. To get into the top results you need three things:
+
+1. **Be indexed and trusted.** Search Console is set up, the sitemap is submitted, and every page in it shows as "Indexed". Until this is true, nothing else counts.
+2. **Be named in the articles Google already trusts.** Write to the authors of every "best / top gym accounting software (India)" and "gym management software India" article on the first two pages of results. Ask them to review FITRON, and offer a free account and screenshots. Get listed in the "gym management software" category on SoftwareSuggest, Techjockey, Capterra and G2. Those category pages rank for this search themselves, and their reviews feed the AI Overview.
+3. **Answer the whole topic on fitron.in.** `/gym-accounting` is the page meant to rank. The guides cover the questions around it (GST, profit and loss, moving from a register) and link to it with the words "gym accounting software". Add a new guide every month or two, for example on gym expense categories, trainer commission and payroll, or renewals and dues follow-up.
+
+Start with the long-tail searches you can win sooner: "gym accounting software India", "gym GST billing software", "gym fee management software". Then the head term follows. For a new domain this usually takes 3 to 6 months of steady links and content. Nothing in the code can force a position, and anyone who promises "#1 in a week" is selling something Google penalises.
 
 ## Off-page: do these once
 

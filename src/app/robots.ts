@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { GYM_PAGES } from "@/lib/domain/gym-pages";
+import { GUIDES_PATH } from "@/lib/domain/guides";
 import { TRAINER_PAGE } from "@/lib/domain/trainer-page";
 
 // The console paths a crawler could find in a link but must not index. Everything else under "/" is allowed; the
@@ -9,7 +10,7 @@ const PRIVATE = ["/api/", "/auth/", "/login", "/signin", "/signup", "/onboarding
 export default function robots(): MetadataRoute.Robots {
   return {
     // Only the public website is indexed; the console and APIs are private.
-    rules: { userAgent: "*", allow: ["/", ...GYM_PAGES.map((p) => p.path), TRAINER_PAGE.path, "/trainer", "/contact", "/privacy", "/terms", "/refund"], disallow: PRIVATE },
+    rules: { userAgent: "*", allow: ["/", ...GYM_PAGES.map((p) => p.path), TRAINER_PAGE.path, GUIDES_PATH, "/trainer", "/contact", "/privacy", "/terms", "/refund"], disallow: PRIVATE },
     sitemap: "https://fitron.in/sitemap.xml",
     host: "https://fitron.in",
   };
