@@ -116,6 +116,7 @@ model User {
   /// Null until the user clicks the link in the verification email
   emailVerifiedAt DateTime?       @db.Timestamptz
   authTokens      AuthToken[]
+  authCodes       AuthCode[]
   /// Two-step sign-in (authenticator app): the secret, sealed with AES-GCM (src/lib/services/two-step.ts). Set while a
   /// person is setting it up, but only enforced once totpEnabledAt is set.
   totpSecret      Bytes?
@@ -152,8 +153,25 @@ model AuthToken {
   id        String    @id
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// VERIFY_EMAIL | RESET_PASSWORD
+  /// VERIFY_EMAIL | RESET_PASSWORD | LOGIN
   purpose   String
+  expiresAt DateTime  @db.Timestamptz
+  usedAt    DateTime? @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+
+  @@index([userId, purpose])
+}
+
+/// Six-digit codes sent by email, the typed-in twin of an AuthToken link (the same email carries both). Only a hash of the
+/// code is kept, and a code stops working after a few wrong tries.
+model AuthCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// VERIFY_EMAIL | RESET_PASSWORD | LOGIN
+  purpose   String
+  codeHash  String
+  attempts  Int       @default(0)
   expiresAt DateTime  @db.Timestamptz
   usedAt    DateTime? @db.Timestamptz
   createdAt DateTime  @default(now()) @db.Timestamptz

@@ -78,7 +78,7 @@ const member = (verb: string) => (c: Ctx) => `${verb} member ${[str(c.a.name) ||
 const rupees = (v: unknown) => formatRupees(Number(v) || 0);
 
 const SENTENCES: Record<string, (c: Ctx) => string> = {
-  "auth.login": (c) => `Signed in via ${c.a.via === "google" ? "Google" : "password"}`,
+  "auth.login": (c) => `Signed in via ${c.a.via === "google" ? "Google" : c.a.via === "email-link" ? "an emailed link" : c.a.via === "email-code" ? "an emailed code" : "password"}`,
   "auth.logout": () => "Signed out",
   "auth.idle-signout": () => "Signed out after sitting idle",
   "profile.password": () => "Changed own password",

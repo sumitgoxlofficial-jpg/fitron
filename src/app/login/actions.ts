@@ -6,7 +6,9 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/services/audit";
-import { recordSignIn } from "@/lib/services/accounts";
+import { recordSignIn, redeemSignInCode, redeemSignInLink, requestSignInLink } from "@/lib/services/accounts";
+import { emailReady } from "@/lib/integrations/email";
+import type { User } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/auth/current";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, destroySession, idleSignOut } from "@/lib/auth/session";
@@ -15,7 +17,7 @@ import { verifySecondFactor } from "@/lib/services/two-step";
 import { safeNext } from "@/lib/auth/next";
 import { rateLimit } from "@/lib/rate-limit";
 import { fieldErrors, type FormState } from "@/lib/validation/common";
-import { signupStep1Schema } from "@/lib/validation/site";
+import { emailOnlySchema, signInCodeSchema, signupStep1Schema } from "@/lib/validation/site";
 
 const loginInput = z.object({
   email: z.email({ error: "Enter your email." }).transform((s) => s.toLowerCase().trim()),
@@ -50,6 +52,56 @@ export async function login(_: LoginState, formData: FormData): Promise<LoginSta
   await createSession(user.id);
   await recordSignIn(user.id, "email");
   redirect(safeNext(formData.get("next")));
+}
+
+/** Passwordless sign-in finishes here, with the same two-step rule as a password: no session until the authenticator code is given. */
+async function finishEmailSignIn(user: User, via: "email-link" | "email-code", next: string): Promise<never> {
+  if (user.totpEnabledAt) {
+    await startChallenge({ uid: user.id, next, via });
+    redirect("/login?step=2");
+  }
+  await createSession(user.id);
+  await recordSignIn(user.id, via);
+  redirect(next);
+}
+
+const clientIp = async () => (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+
+type EmailState = (FormState & { email?: string; sent?: boolean }) | undefined;
+
+/** Passwordless sign-in, step 1: email a link and a six-digit code. Looks the same whether or not the address has an account. */
+export async function sendSignInEmail(_: EmailState, formData: FormData): Promise<EmailState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!rateLimit(`email-signin:${await clientIp()}`, 5, 10 * 60_000)) return { email, message: "Too many tries in a few minutes. Wait a little and try again." };
+  const parsed = emailOnlySchema.safeParse({ email });
+  if (!parsed.success) return { email, errors: z.flattenError(parsed.error).fieldErrors };
+  // Per address as well, so nobody can fill a stranger's inbox from many places.
+  if (!rateLimit(`email-signin-to:${parsed.data.email}`, 3, 10 * 60_000)) return { email, sent: true, message: "We already sent a code a moment ago. Check your inbox and spam, or wait a few minutes to ask again." };
+  if (!emailReady() && process.env.NODE_ENV === "production") return { email, message: "Email sign-in is not set up on this server. Use your password instead." };
+  await requestSignInLink(parsed.data.email);
+  return { email: parsed.data.email, sent: true, message: "If there is an account with that email, we sent a six-digit code and a sign-in link. Check spam too." };
+}
+
+/** Passwordless sign-in, step 2: the six-digit code from the email. */
+export async function verifySignInCode(_: EmailState, formData: FormData): Promise<EmailState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!rateLimit(`email-code:${await clientIp()}`, 20, 10 * 60_000)) return { email, sent: true, message: "Too many tries. Wait a few minutes and ask for a new code." };
+  const parsed = signInCodeSchema.safeParse({ email, code: formData.get("code") });
+  if (!parsed.success) return { email, sent: true, errors: z.flattenError(parsed.error).fieldErrors };
+  // Per address too: a code has a million possibilities (and also stops after a few wrong tries).
+  if (!rateLimit(`email-code-for:${parsed.data.email}`, 10, 10 * 60_000)) return { email, sent: true, message: "Too many wrong codes. Wait a few minutes and ask for a new code." };
+  const user = await redeemSignInCode(parsed.data.email, parsed.data.code.replace(/\s/g, ""));
+  if (!user) return { email, sent: true, message: "That code is not right, or it has expired. Check it, or ask for a new one." };
+  return finishEmailSignIn(user, "email-code", safeNext(formData.get("next")));
+}
+
+/** Passwordless sign-in by the link: it opens a page with a button, and only the button (a POST) uses the link up, so a mail scanner that opens links cannot. */
+export async function confirmSignInLink(_: FormState, formData: FormData): Promise<FormState> {
+  if (!rateLimit(`email-link:${await clientIp()}`, 20, 10 * 60_000)) return { message: "Too many tries. Wait a few minutes and ask for a new link." };
+  const token = String(formData.get("token") ?? "");
+  const user = token.length >= 20 ? await redeemSignInLink(token) : null;
+  if (!user) return { message: "This link has expired or was already used. Ask for a new one." };
+  return finishEmailSignIn(user, "email-link", safeNext(formData.get("next")));
 }
 
 /** The second step of a sign-in: a code from the authenticator app, or a recovery code. */
