@@ -82,7 +82,7 @@ test.describe("an attacker's script", () => {
 });
 
 test.describe("the public pages work under the policy", () => {
-  const PAGES = ["/", "/gym-accounting", "/gym-management-software", "/gym-gst-billing", "/ai-personal-trainer", "/tools", "/tools/gym-profit-calculator", "/contact", "/privacy", "/terms", "/refund", "/login", "/login?tab=up&plan=professional&cycle=MONTHLY", "/signin", "/forgot-password"];
+  const PAGES = ["/", "/gym-accounting", "/gym-management-software", "/gym-gst-billing", "/ai-personal-trainer", "/about", "/tools", "/tools/gym-profit-calculator", "/contact", "/privacy", "/terms", "/refund", "/login", "/login?tab=up&plan=professional&cycle=MONTHLY", "/signin", "/forgot-password"];
   for (const url of PAGES) {
     test(url, async ({ page }) => {
       const seen = watch(page);

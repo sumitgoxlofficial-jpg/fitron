@@ -1,4 +1,5 @@
 import { Logo } from "@/components/logo";
+import { ABOUT } from "@/lib/domain/about";
 import { CookieSettingsButton } from "./site-consent";
 
 // The footer of every public page, in the same five columns as the home page's.
@@ -25,6 +26,7 @@ const columns = [
   [
     "Company",
     [
+      ["/about", "About"],
       ["/#together", "Better Together"],
       ["/#faq", "FAQ"],
       ["/contact", "Contact"],
@@ -63,6 +65,17 @@ export function SiteFooter() {
             </a>
             <span className="text-muted">Mon–Sat, 10 am to 6 pm IST</span>
           </p>
+          {ABOUT.social.length > 0 && (
+            <ul aria-label="FITRON on social media" className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {ABOUT.social.map((x) => (
+                <li key={x.url}>
+                  <a href={x.url} rel="me noopener" target="_blank" className={link}>
+                    {x.network}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         {columns.map(([title, links]) => (
           <nav key={title} aria-label={title}>

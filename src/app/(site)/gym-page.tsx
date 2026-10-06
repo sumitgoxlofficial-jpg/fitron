@@ -79,18 +79,6 @@ export function GymPageView({ page }: { page: GymPage }) {
           </a>
           , or WhatsApp us on +91 62077 74673.
         </p>
-        {page.path === GYM_ACCOUNTING.path && (
-          <figure className="mt-10 overflow-hidden rounded-lg border border-line">
-            <LiveDemo
-              poster="/site/console-dashboard.webp"
-              srcSet="/site/console-dashboard-700.webp 700w, /site/console-dashboard.webp 1400w"
-              width={1400}
-              height={658}
-              alt="FITRON Gym Accounting dashboard showing active members, revenue, outstanding dues and renewals for a gym"
-            />
-            <figcaption className="px-4 py-2 text-sm text-muted">The Gym Accounting dashboard: members, revenue, dues and renewals at a glance. Try the live demo to click around it.</figcaption>
-          </figure>
-        )}
       </header>
 
       <nav aria-label="On this page" className="mt-10">
@@ -110,6 +98,20 @@ export function GymPageView({ page }: { page: GymPage }) {
           </li>
         </ul>
       </nav>
+
+      {/* Below the first screen on a phone, and lazy: the picture is 54 KB and would otherwise load ahead of the page's own text. */}
+      {page.path === GYM_ACCOUNTING.path && (
+        <figure className="mt-10 overflow-hidden rounded-lg border border-line">
+          <LiveDemo
+            poster="/site/console-dashboard.webp"
+            srcSet="/site/console-dashboard-700.webp 700w, /site/console-dashboard.webp 1400w"
+            width={1400}
+            height={658}
+            alt="FITRON Gym Accounting dashboard showing active members, revenue, outstanding dues and renewals for a gym"
+          />
+          <figcaption className="px-4 py-2 text-sm text-muted">The Gym Accounting dashboard: members, revenue, dues and renewals at a glance. Try the live demo to click around it.</figcaption>
+        </figure>
+      )}
 
       <p className="mt-6 text-sm text-muted">The screenshots on this page are from FITRON&apos;s demo gym, with sample members and numbers.</p>
 

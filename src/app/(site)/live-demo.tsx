@@ -110,6 +110,8 @@ export function LiveDemo({ poster, srcSet, alt, width, height }: { poster: strin
         width={width}
         height={height}
         alt={alt}
+        loading="lazy"
+        decoding="async"
         className={`block h-auto w-full transition-opacity duration-500 ${ready ? "opacity-0" : ""} ${full ? "hidden" : ""}`}
       />
       {started && (

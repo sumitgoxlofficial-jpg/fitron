@@ -69,11 +69,14 @@ test.describe("search engines", () => {
     for (const open of ["/gym-accounting", "/gym-management-software", "/gym-gst-billing"]) expect(txt, open).toContain(`Allow: ${open}`);
   });
 
-  test("an address that does not exist answers 404 to a signed-in person, and sends a stranger to sign in", async ({ signedIn: page, request }) => {
+  test("an address that does not exist answers 404 to everyone, and a console address sends a stranger to sign in", async ({ signedIn: page, request }) => {
     expect((await page.request.get("/this/is/not/a/page")).status()).toBe(404);
     const stranger = await request.get("/this/is/not/a/page", { maxRedirects: 0 });
-    expect(stranger.status()).toBeGreaterThanOrEqual(300);
-    expect(stranger.headers().location).toContain("/login");
+    expect(stranger.status(), "a stranger gets a real 404, which search engines understand").toBe(404);
+    expect(await stranger.text()).toContain("wrong turn");
+    const console_ = await request.get("/members", { maxRedirects: 0 });
+    expect(console_.status()).toBeGreaterThanOrEqual(300);
+    expect(console_.headers().location).toContain("/login");
   });
 });
 

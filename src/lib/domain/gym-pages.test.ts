@@ -150,6 +150,13 @@ describe("the screenshots on the Gym Accounting pages", () => {
     }
   });
 
+  it("keep the demo picture out of the first screen: after the page's own text and the section links, and lazy", () => {
+    const html = render(GYM_ACCOUNTING);
+    expect(html.indexOf('aria-label="On this page"')).toBeGreaterThan(html.indexOf("<h1"));
+    expect(html.indexOf("/site/console-dashboard")).toBeGreaterThan(html.indexOf('aria-label="On this page"'));
+    expect(html).toMatch(/<img[^>]*console-dashboard[^>]*loading="lazy"|<img[^>]*loading="lazy"[^>]*console-dashboard/);
+  });
+
   it("each pages says they show a demo gym, and every section that has one is on a page that renders it", () => {
     for (const p of GYM_PAGES.filter((q) => q.blocks.some((b) => b.shots))) {
       const html = render(p);

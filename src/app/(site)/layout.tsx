@@ -9,7 +9,7 @@ import "./site.css";
 
 // The two fonts every public page's text and headings need (Plus Jakarta Sans and Oswald, latin), asked for with the HTML
 // rather than after the stylesheet has been read.
-const FONTS = ["/site/fonts/94fe6a0f-92d6-4207-b31a-5f1996480dd1.woff2", "/site/fonts/b6fcac0c-a35e-4fc6-acbf-0ae1df9e3d45.woff2"];
+const FONTS = ["/site/fonts/94fe6a0f-92d6-4207-b31a-5f1996480dd1.woff2", "/site/fonts/b6fcac0c-a35e-4fc6-acbf-0ae1df9e3d45.woff2", "/site/fonts/4632733b-b063-4bbf-a396-0e31b80c17fa.woff2"];
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   for (const href of FONTS) preload(href, { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
