@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { log } from "@/lib/log";
 
 // Razorpay Subscriptions (UPI Autopay). Keys live only in the server environment:
 // RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET.
@@ -66,8 +67,27 @@ export function verifyWebhook(rawBody: string, signature: string | null, secret 
 
 // ── Fitron's own account: extra-branch payments through Razorpay Checkout ──
 
-/** The public key id Checkout needs, or null when Fitron's keys aren't set (demo mode). */
-export const fitronKeyId = () => (env("FITRON_RAZORPAY_KEY_ID") && env("FITRON_RAZORPAY_KEY_SECRET") ? env("FITRON_RAZORPAY_KEY_ID") : null);
+/** Fitron's keys are Razorpay test keys (rzp_test_): no money moves, and the live plan ids don't exist in that account. */
+export const fitronTestMode = () => env("FITRON_RAZORPAY_KEY_ID").startsWith("rzp_test_");
+
+let warnedTestKeys = false;
+
+/**
+ * The public key id Checkout needs, or null when Fitron's keys aren't set (demo mode). Test keys count as not set on a
+ * live server unless FITRON_ALLOW_TEST_PAYMENTS=1: a test payment is free, so it would give a real plan away.
+ */
+export const fitronKeyId = () => {
+  const id = env("FITRON_RAZORPAY_KEY_ID");
+  if (!id || !env("FITRON_RAZORPAY_KEY_SECRET")) return null;
+  if (fitronTestMode() && process.env.NODE_ENV === "production" && env("FITRON_ALLOW_TEST_PAYMENTS") !== "1") {
+    if (!warnedTestKeys) {
+      warnedTestKeys = true;
+      log.warn("razorpay.test_keys_refused", new Error("FITRON_RAZORPAY_KEY_ID is a test key on a live server. Set FITRON_ALLOW_TEST_PAYMENTS=1 to try payments, or use live keys."));
+    }
+    return null;
+  }
+  return id;
+};
 
 export const createOrder = (a: { amount: number; receipt: string; notes: Record<string, string> }) =>
   rzp<{ id: string; amount: number; status: string }>("POST", "/orders", { amount: a.amount, currency: "INR", receipt: a.receipt, notes: a.notes }, "FITRON");
@@ -91,6 +111,15 @@ export const createFitronSubscription = (a: { planId: string; totalCount: number
 
 /** A plan's per-period amount (paise), to be sure the plan id charges what the price list says before anyone is sent to pay. */
 export const getFitronPlan = (id: string) => rzp<{ id: string; period?: string; interval?: number; item?: { amount?: number; currency?: string } }>("GET", `/plans/${encodeURIComponent(id)}`, undefined, "FITRON");
+
+export type FitronPlan = { id: string; period?: string; interval?: number; item?: { name?: string; amount?: number; currency?: string } };
+
+/** One page (up to 100) of the plans in Fitron's Razorpay account. */
+export const listFitronPlans = (skip: number) => rzp<{ items?: FitronPlan[] }>("GET", `/plans?count=100&skip=${skip}`, undefined, "FITRON");
+
+/** A plan that charges `amount` paise every month or year. Only used in test mode, to make the test plans. */
+export const createFitronPlan = (a: { name: string; period: "monthly" | "yearly"; amount: number }) =>
+  rzp<FitronPlan>("POST", "/plans", { period: a.period, interval: 1, item: { name: a.name, amount: a.amount, currency: "INR" } }, "FITRON");
 
 export const getFitronSubscription = (id: string) => rzp<FitronSubscription>("GET", `/subscriptions/${encodeURIComponent(id)}`, undefined, "FITRON");
 
