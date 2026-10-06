@@ -176,6 +176,15 @@ Gyms and AI Trainer members pay FITRON through Razorpay (UPI AutoPay, cards, net
 4. Run `bash deploy/update.sh`. Until the keys are set, a test server runs payments in demo mode (nothing is charged) and a live server takes no payment at all.
 5. Try it with a small real payment from a test gym, then check **Settings › Plan & billing** shows the plan as paid with an invoice, and **Automatic renewals** lists it.
 
+### Try it with test keys first
+
+Razorpay's **Test mode** has its own keys, its own plans and its own webhooks, and no real money moves. In Test mode generate a key (it starts with `rzp_test_`) and put it in `FITRON_RAZORPAY_KEY_ID` and `FITRON_RAZORPAY_KEY_SECRET`. FITRON notices the `rzp_test_` prefix and finds or makes the matching plans in the test account the first time each one is paid for (they are named `FITRON test …`), so there are no plans to create by hand.
+
+- A live server refuses test keys unless `FITRON_ALLOW_TEST_PAYMENTS=1` is also set. That is on purpose: a test payment is free, so on a real site it would give a plan away. Set it only while you try payments.
+- Add a separate webhook in Test mode (same address, its own secret) if you want to see renewals and failed payments. Checkout's own confirmation is enough for a first payment.
+- Pay with Razorpay's test cards or the test UPI ID `success@razorpay`. Each test payment marks the gym or member as paid for the period, so try it on a test account.
+- To go live: generate **Live** keys, put them in the same two variables, clear `FITRON_ALLOW_TEST_PAYMENTS`, add the Live webhook and redeploy. The live plans are already made.
+
 What is paid how: a monthly plan, a partner plan (monthly) and an extra branch (monthly) are Razorpay subscriptions. A yearly extra branch and a yearly partner plan have no Razorpay plan, so they are one payment that the gym renews by hand. One-time add-ons (onboarding, branding, data migration, custom integration, mobile app) are one payment each, and the FITRON team is not told automatically: check **Settings › Plan & billing › Payment history** or your Razorpay dashboard. If a renewal fails, Razorpay retries and the gym is told in the app and by email; if it gives up, the plan runs to the end of the period already paid, then the usual 7 days' grace and read-only apply.
 
 Not automatic: paying partner gyms their 70% share. The monthly amount owed is on `/fitron-admin/trainer` (70% of what members pay before GST: the GST inside the listed price is not shared); paying it out is manual unless you ask Razorpay to turn on Route.

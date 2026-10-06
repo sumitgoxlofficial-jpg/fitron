@@ -1,7 +1,7 @@
 // FITRON's auto-renewing plans in its own Razorpay account (Dashboard > Subscriptions > Plans, live mode).
 // A Razorpay plan has a fixed amount, so the plan id decides what is charged: `amount` here is what that plan
 // charges each period in paise, GST included, and a test keeps it equal to the price list (pricing.ts, saas.ts).
-// Test mode has its own separate plans: to try payments with test keys, make the same plans there and swap the ids.
+// Test mode has its own separate plans: with rzp_test_ keys the app finds or makes matching test plans itself (subscriptions.ts).
 import type { Cycle } from "./pricing";
 
 /** Razorpay stops after this many charges: 10 years of months, or 10 years of years. */

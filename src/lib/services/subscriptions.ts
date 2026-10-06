@@ -2,8 +2,8 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { Prisma, RazorpaySubscription } from "@/generated/prisma/client";
 import type { Cycle } from "@/lib/domain/pricing";
-import { BRANCH_PLAN_KEY, RENEWING_STATUSES, razorpayPlan, SUBSCRIPTION_CHARGES, type SubscriptionKind } from "@/lib/domain/razorpay-plans";
-import { cancelFitronSubscription, createFitronSubscription, fitronKeyId, getFitronPlan, getFitronSubscription } from "@/lib/integrations/razorpay";
+import { BRANCH_PLAN_KEY, RENEWING_STATUSES, razorpayPlan, SUBSCRIPTION_CHARGES, type RazorpayPlan, type SubscriptionKind } from "@/lib/domain/razorpay-plans";
+import { cancelFitronSubscription, createFitronPlan, createFitronSubscription, fitronKeyId, fitronTestMode, getFitronPlan, getFitronSubscription, listFitronPlans } from "@/lib/integrations/razorpay";
 import { UserError } from "./errors";
 import { log } from "@/lib/log";
 
@@ -28,20 +28,46 @@ export type NewSubscription = {
   branchId?: string | null;
 };
 
+const testPlanIds = new Map<string, string>();
+
+/**
+ * The Razorpay plan id to subscribe to. With live keys it is the id in razorpay-plans.ts. A test account has none of
+ * those plans, so with test keys the plan is looked up by name in the test account, and made once if it is missing.
+ */
+async function planIdFor(entry: RazorpayPlan, planKey: string, cycle: Cycle): Promise<string> {
+  if (!fitronTestMode()) return entry.id;
+  const name = `FITRON test ${planKey} ${cycle.toLowerCase()}`;
+  const period = cycle === "YEARLY" ? "yearly" : "monthly";
+  const cacheKey = `${fitronKeyId() ?? ""}|${name}|${entry.amount}`;
+  const known = testPlanIds.get(cacheKey);
+  if (known) return known;
+  let id: string | undefined;
+  for (let skip = 0; skip < 500 && !id; skip += 100) {
+    const page = (await listFitronPlans(skip)).items ?? [];
+    id = page.find((p) => p.item?.name === name && p.item.amount === entry.amount && (p.item.currency ?? "INR") === "INR" && p.period === period && (p.interval ?? 1) === 1)?.id;
+    if (page.length < 100) break;
+  }
+  id ??= (await createFitronPlan({ name, period, amount: entry.amount })).id;
+  testPlanIds.set(cacheKey, id);
+  return id;
+}
+
 /**
  * Makes the Razorpay subscription and keeps a row for it. The live plan's amount is checked first: a plan id whose
  * price drifted from the price list would charge people something other than what they were shown.
  */
 export async function createSubscription(a: NewSubscription): Promise<RazorpaySubscription> {
-  const entry = razorpayPlan(a.kind === "BRANCH" ? BRANCH_PLAN_KEY : a.plan, a.cycle);
+  const planKey = a.kind === "BRANCH" ? BRANCH_PLAN_KEY : a.plan;
+  const entry = razorpayPlan(planKey, a.cycle);
   if (!entry || entry.amount !== a.expectedTotal) throw new Error(`No Razorpay plan charges ${a.expectedTotal} paise for ${a.plan ?? BRANCH_PLAN_KEY} ${a.cycle}`);
-  const live = await getFitronPlan(entry.id);
+  const planId = await planIdFor(entry, planKey ?? BRANCH_PLAN_KEY, a.cycle);
+  const live = await getFitronPlan(planId);
   if (live.item?.amount !== entry.amount || (live.item?.currency ?? "INR") !== "INR") {
-    log.error("subscriptions.plan_mismatch", new Error(`Razorpay plan ${entry.id} charges ${live.item?.amount} ${live.item?.currency}, the price list says ${entry.amount} INR`));
+    log.error("subscriptions.plan_mismatch", new Error(`Razorpay plan ${planId} charges ${live.item?.amount} ${live.item?.currency}, the price list says ${entry.amount} INR`));
     throw new UserError("Online payment for this plan isn't set up correctly yet. Write to hello@fitron.in and we will sort it out.");
   }
   const notes: Record<string, string> = { kind: a.kind, cycle: a.cycle, ...(a.plan ? { plan: a.plan } : {}), ...(a.orgId ? { org: a.orgId } : {}), ...(a.memberId ? { member: a.memberId } : {}), ...(a.branchId ? { branch: a.branchId } : {}) };
-  const sub = await createFitronSubscription({ planId: entry.id, totalCount: SUBSCRIPTION_CHARGES[a.cycle], notes });
+  const sub = await createFitronSubscription({ planId, totalCount: SUBSCRIPTION_CHARGES[a.cycle], notes });
   return db.razorpaySubscription.create({
     data: { id: sub.id, kind: a.kind, orgId: a.orgId ?? null, memberId: a.memberId ?? null, plan: a.plan, branchId: a.branchId ?? null, cycle: a.cycle, status: sub.status || "created" },
   });

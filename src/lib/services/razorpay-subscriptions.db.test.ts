@@ -84,7 +84,7 @@ async function trialGym(plan = "starter") {
 
 describe.skipIf(!hasDb)("Razorpay subscriptions for gym plans (database)", () => {
   beforeAll(() => {
-    vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
+    vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_live_x");
     vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", SECRET);
   });
   afterAll(() => {
@@ -124,7 +124,7 @@ describe.skipIf(!hasDb)("Razorpay subscriptions for gym plans (database)", () =>
     const rz = fakeRazorpay();
     const c = await startPayment(owner, { kind: "PLAN", plan: "professional" }, "MONTHLY");
     if (c.mode !== "SUBSCRIPTION") throw new Error(`expected a subscription, got ${c.mode}`);
-    expect(c).toMatchObject({ total: 1_99_900, keyId: "rzp_test_x", description: "Gym Accounting Professional, 1 month (GST included)" });
+    expect(c).toMatchObject({ total: 1_99_900, keyId: "rzp_live_x", description: "Gym Accounting Professional, 1 month (GST included)" });
     // The live plan is read before anyone is sent to pay, then the subscription is made on it.
     expect(rz.calls.map((x) => `${x.method} ${x.path}`)).toEqual(["GET /plans/plan_TkDDXb0qPjvxEO", "POST /subscriptions"]);
     expect(rz.calls[1]!.body).toMatchObject({ plan_id: "plan_TkDDXb0qPjvxEO", total_count: 120, quantity: 1, notes: { kind: "GYM_PLAN", plan: "professional", org: gym.org.id } });
@@ -447,12 +447,12 @@ describe.skipIf(!hasDb)("Razorpay subscriptions for gym plans (database)", () =>
       expect((await db.organization.findUniqueOrThrow({ where: { id: gym.org.id } })).plan).toBe("partner-referral");
       expect(await startPayment(owner, { kind: "PLAN", plan: "starter" }, "MONTHLY")).toMatchObject({ mode: "DEMO", total: 99_900 });
       // With the keys set, the plan renews itself instead of being paid by hand.
-      vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
+      vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_live_x");
       vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", SECRET);
       fakeRazorpay();
       expect(await startPayment(owner, { kind: "PLAN", plan: "starter" }, "MONTHLY")).toMatchObject({ mode: "SUBSCRIPTION" });
     } finally {
-      vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
+      vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_live_x");
       vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", SECRET);
     }
   });
@@ -460,7 +460,7 @@ describe.skipIf(!hasDb)("Razorpay subscriptions for gym plans (database)", () =>
 
 describe.skipIf(!hasDb)("Razorpay subscriptions for AI Trainer members (database)", () => {
   beforeAll(() => {
-    vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
+    vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_live_x");
     vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", SECRET);
   });
   afterAll(() => {
@@ -501,7 +501,7 @@ describe.skipIf(!hasDb)("Razorpay subscriptions for AI Trainer members (database
     const rz = fakeRazorpay();
     const pay = await startTrainerPayment(m.id, { plan: "ai-pro", cycle: "MONTHLY", kind: "purchase" });
     if (pay.mode !== "SUBSCRIPTION") throw new Error("expected a subscription");
-    expect(pay).toMatchObject({ total: 29_900, base: 25_339, gst: 4_561, keyId: "rzp_test_x", description: "AI Pro, 1 month (GST included)", prefill: { name: "Ravi", email: m.email } });
+    expect(pay).toMatchObject({ total: 29_900, base: 25_339, gst: 4_561, keyId: "rzp_live_x", description: "AI Pro, 1 month (GST included)", prefill: { name: "Ravi", email: m.email } });
     expect(rz.calls.map((x) => `${x.method} ${x.path}`)).toEqual(["GET /plans/plan_TkD9pDREcTR3NX", "POST /subscriptions"]);
     expect(rz.calls[1]!.body).toMatchObject({ total_count: 120, notes: { kind: "TRAINER", plan: "ai-pro", member: m.id } });
     expect(await db.trainerPayment.findUniqueOrThrow({ where: { id: pay.id } })).toMatchObject({ mode: "SUBSCRIPTION", status: "PENDING", gstIncluded: true, razorpaySubscriptionId: pay.subscriptionId });

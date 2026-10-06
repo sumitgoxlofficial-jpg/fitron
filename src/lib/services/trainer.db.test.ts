@@ -37,7 +37,7 @@ const planAmounts = new Map(Object.values(RAZORPAY_PLANS).flatMap((c) => Object.
  * `pay` runs the member through Checkout's success step for a payment they started, as the browser would.
  */
 function razorpayOn() {
-  vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
+  vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_live_x");
   vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", SECRET);
   const amounts = new Map<string, number>();
   const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -157,7 +157,7 @@ describe.skipIf(!hasDb)("AI Trainer (database)", () => {
     await expect(startTrainerPayment(m.id, { plan: "elite", cycle: "MONTHLY", kind: "purchase" })).rejects.toThrow(/Pick AI Pro/);
     const pay = await rz.pay(m.id, { plan: "ai-premium", cycle: "YEARLY", kind: "purchase" });
     // The listed ₹4,999 is what is paid; the GST is inside it.
-    expect(pay).toMatchObject({ mode: "SUBSCRIPTION", base: 423_644, gst: 76_256, total: 4_99_900, keyId: "rzp_test_x" });
+    expect(pay).toMatchObject({ mode: "SUBSCRIPTION", base: 423_644, gst: 76_256, total: 4_99_900, keyId: "rzp_live_x" });
     const row = await db.trainerPayment.findUniqueOrThrow({ where: { id: pay.id } });
     expect(row).toMatchObject({ status: "PAID", gstIncluded: true, mode: "SUBSCRIPTION" });
 
