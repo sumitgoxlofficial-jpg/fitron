@@ -10,7 +10,7 @@ import { BRANCH_COOKIE, requireUser } from "@/lib/auth/current";
 import { reasonInput } from "@/lib/validation/billing";
 import { deleteBranch, putSetting, saveBranch, setBranchActive, saveGymProfile, saveTax as saveTaxSettings } from "@/lib/services/settings";
 import { getWaSettings, sendTest, setLinked } from "@/lib/services/whatsapp";
-import { connectorLogout, connectorStatus, providerReady } from "@/lib/integrations/whatsapp";
+import { connectorAddress, connectorLogout, connectorProblem, connectorStatus, providerReady } from "@/lib/integrations/whatsapp";
 import { removeGymLogo, setGymLogo } from "@/lib/services/gym-logo";
 import { aiInput, autopayInput, branchInput, cookieNoticeInput, gymInput, numberingInput, privacyNoticeInput, privacyOfficerInput, reminderInput, reportsInput, taxInput } from "@/lib/validation/settings";
 import { assertCanErase, eraseCheck, eraseMember, findMemberByCode, savePrivacyNotice as storeNotice } from "@/lib/services/privacy";
@@ -296,8 +296,7 @@ export async function simulateLinkAction() {
   waBack({ msg: "Demo mode: messages are logged, not sent." });
 }
 
-export type LinkStatus = { state: "offline" | "waiting" | "qr" | "ready"; qr?: string; number?: string; text: string };
-const WAITING = "Waiting for the connector… checking every few seconds";
+export type LinkStatus = { state: "offline" | "waiting" | "qr" | "ready"; qr?: string; number?: string; text: string; problem?: string };
 
 /**
  * Polled by the Link WhatsApp dialog: the connector's state and QR code. Once the phone is linked,
@@ -306,12 +305,12 @@ const WAITING = "Waiting for the connector… checking every few seconds";
 export async function linkStatusAction(): Promise<LinkStatus> {
   const u = await waUser();
   const missing = providerReady("connector");
-  if (missing) return { state: "offline", text: `${missing} ${WAITING}` };
+  if (missing) return { state: "offline", text: missing };
   let st: Awaited<ReturnType<typeof connectorStatus>>;
   try {
     st = await connectorStatus();
-  } catch {
-    return { state: "offline", text: WAITING };
+  } catch (e) {
+    return { state: "offline", text: connectorProblem(e) };
   }
   if (st.state === "ready") {
     const number = (st.number ?? "").replace(/\D/g, "");
@@ -319,7 +318,7 @@ export async function linkStatusAction(): Promise<LinkStatus> {
     if (!(s.mode === "connector" && s.linked?.number === number)) {
       let host = "gym PC";
       try {
-        host = new URL(process.env.WA_CONNECTOR_URL ?? "").host || host;
+        host = new URL(connectorAddress()).host || host;
       } catch {
         // Keep the fallback.
       }
@@ -329,7 +328,7 @@ export async function linkStatusAction(): Promise<LinkStatus> {
     return { state: "ready", number, text: "Linked." };
   }
   if (st.qr) return { state: "qr", qr: st.qr, text: "" };
-  return { state: "waiting", text: st.state === "authenticating" ? "Scanned. Finishing link…" : "Connector is starting WhatsApp…" };
+  return { state: "waiting", text: st.state === "authenticating" ? "Scanned. Finishing link…" : "Connector is starting WhatsApp…", problem: st.error ?? undefined };
 }
 
 /** Settings › Help & support › Raise a ticket: saved, audited and emailed to support. */

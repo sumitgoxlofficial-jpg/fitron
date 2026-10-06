@@ -24,6 +24,9 @@ services:
     build: ..
     restart: unless-stopped
     env_file: .env
+    # Lets WA_CONNECTOR_URL=http://host.docker.internal:3131 reach a WhatsApp connector running on this server itself.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       # The Postgres in this file, unless EXTERNAL_DATABASE_URL is set in deploy/.env (a hosted database such as Supabase: README step 11).
       DATABASE_URL: ${EXTERNAL_DATABASE_URL:-postgresql://fitron:${POSTGRES_PASSWORD}@db:5432/fitron}
