@@ -39,8 +39,9 @@ describe("googleBackUrl", () => {
 describe("fitron.in's Log in", () => {
   const html = page("site/index.html");
   it("opens the sign-in chooser, and only Open Gym Accounting goes straight to the console", () => {
-    expect([...html.matchAll(/href="\/signin">Log in/g)]).toHaveLength(2);
-    expect(html).not.toMatch(/href="\/login">Log in/);
+    // Header and phone menu: "Sign In" opens the chooser, never a product's own sign-in.
+    expect([...html.matchAll(/href="\/signin"[^>]*>Sign In</g)]).toHaveLength(2);
+    expect(html).not.toMatch(/href="\/login"[^>]*>(Log in|Sign In)/);
     expect(html).toMatch(/href="\/login">Open Gym Accounting/);
   });
   it("is what scripts/import-site.py produces", () => {

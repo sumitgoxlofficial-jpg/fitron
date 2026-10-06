@@ -131,16 +131,19 @@ describe("the home page's links to them", () => {
   it("leads the title and description with what people search for", () => {
     const title = decode(home.match(/<title>(.*?)<\/title>/)![1]!);
     const description = decode(home.match(/<meta name="description" content="([^"]*)"/)![1]!);
-    expect(title.startsWith("Gym Accounting Software")).toBe(true);
+    // The home page leads with the AI personal trainer (its main keyword) and names the gym software next to it.
+    expect(title).toBe("FITRON — AI Personal Trainer & Gym Accounting Software");
     expect(title.length).toBeLessThanOrEqual(65);
-    expect(description.toLowerCase().startsWith("gym accounting software")).toBe(true);
+    expect(description.toLowerCase()).toContain("ai personal trainer");
+    expect(description.toLowerCase()).toContain("gym accounting");
+    expect(description).toContain("7-day free trial");
     expect(description.length).toBeGreaterThanOrEqual(70);
     expect(description.length).toBeLessThanOrEqual(160);
   });
 
   it("links to each page from the footer, and opens the live demo from the Gym Accounting card", () => {
     for (const p of GYM_PAGES) expect(home.includes(`<li><a href="${p.path}">`), p.path).toBe(true);
-    expect(home).toMatch(/<a class="btn btn-ghost" href="\/site\/gym-demo\.html"[^>]*data-ld-open>Demo product /);
+    expect(home).toMatch(/<a class="hero-partner" href="\/site\/gym-demo\.html"[^>]*data-ld-open[^>]*>Try the live demo<\/a>/);
   });
 
   it("does not say every payment makes a GST invoice: GST can be switched off", () => {
