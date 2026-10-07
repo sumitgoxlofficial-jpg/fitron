@@ -4,9 +4,11 @@ import { rupeesLabel, TRIAL_DAYS } from "@/lib/domain/pricing";
 import { trainerHref } from "@/lib/domain/site-links";
 import { TRAINER_PAGE as page, TRAINER_PLAN_LIST } from "@/lib/domain/trainer-page";
 import { absoluteUrl, breadcrumbJsonLd, faqJsonLd, jsonLdScript, pageMetadata, SITE_NAME } from "@/lib/seo";
+import { LiveDemo } from "../live-demo";
 
 // The public page about the FITRON AI Trainer (content in src/lib/domain/trainer-page.ts). It looks like the pages about
-// Gym Accounting (../gym-page.tsx), with the trainer's own plans and a link into the member app.
+// Gym Accounting (../gym-page.tsx), with the trainer's own plans and a link into the member app, and the AI Coach live demo
+// (public/site/coach-demo.html, the same one as on the home page) where the Gym Accounting pages have theirs.
 
 const primary = "s-btn s-btn-primary";
 const secondary = "s-btn s-btn-ghost";
@@ -67,6 +69,20 @@ export default function Page() {
         </div>
         <p className="mt-3 text-sm text-muted">No card needed. Cancel any time.</p>
       </header>
+
+      {/* Below the first screen on a phone, and lazy: the picture is 37 KB and the demo itself (3 MB) loads only when it is played. */}
+      <figure className="mx-auto mt-10 w-[min(320px,100%)]">
+        <div className="overflow-hidden rounded-[2rem] border border-line">
+          <LiveDemo
+            kind="coach"
+            poster="/site/coach-demo.webp"
+            width={560}
+            height={1100}
+            alt="FITRON AI Coach chat on a phone: a member asks for a legs workout and the coach replies with the exercises, sets and reps"
+          />
+        </div>
+        <figcaption className="mt-3 text-center text-sm text-muted">Try the AI coach: ask it about workouts, meals or recovery. A sample member, not your data. General guidance, not medical advice.</figcaption>
+      </figure>
 
       <div className="mt-12 flex flex-col gap-10 leading-relaxed">
         {page.blocks.map((b) => (

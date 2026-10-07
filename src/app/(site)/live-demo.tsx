@@ -2,16 +2,38 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// The Gym Accounting live demo (public/site/gym-demo.html, a self-contained prototype) in place of a dashboard picture,
-// like the product card on the home page (public/site/fitron-page.js). The picture shows until "Try the live demo"; the
-// demo is then drawn at desktop width and scaled to fit, and "Full screen" shows it at full size. Phones go straight to
-// full screen, and browsers without the Fullscreen API open the demo in a new tab.
+// The live demos of the website's product pages (public/site/gym-demo.html and coach-demo.html, self-contained prototypes) in
+// place of a screenshot, like the product cards on the home page (public/site/fitron-page.js, site_patches.py). The picture
+// shows until the play button; the demo is then drawn at its own design width and scaled to fit, and "Full screen" shows it at
+// full size. Phones go straight to full screen, and browsers without the Fullscreen API open the demo in a new tab.
 
-const SRC = "/site/gym-demo.html";
-const W = 1280;
-const SESSION_KEY = "fitron-session-v1"; // the demo's own sign-in, kept in this browser by the demo itself
+const DEMOS = {
+  // The Gym Accounting console, drawn at desktop width.
+  gym: {
+    src: "/site/gym-demo.html",
+    width: 1280,
+    title: "FITRON Gym Accounting live demo",
+    play: "Try the live demo",
+    hint: "Click around a working console with demo data",
+    opening: "Opening the demo console…",
+    open: "Open the live demo",
+  },
+  // The AI Coach: the member app, drawn at phone width, in a phone-shaped frame.
+  coach: {
+    src: "/site/coach-demo.html",
+    width: 392,
+    title: "FITRON AI Coach live demo",
+    play: "Chat with the AI coach",
+    hint: "Ask it anything, live",
+    opening: "Opening the AI coach…",
+    open: "Open the AI coach demo",
+  },
+} as const;
+export type DemoKind = keyof typeof DEMOS;
 
-/** Opens the demo signed in as the demo gym's owner, as if they had used the demo login on its sign-in page. */
+const SESSION_KEY = "fitron-session-v1"; // the gym demo's own sign-in, kept in this browser by the demo itself
+
+/** Opens the gym demo signed in as the demo gym's owner, as if they had used the demo login on its sign-in page. */
 function seedDemoSession() {
   try {
     if (localStorage.getItem(SESSION_KEY)) return;
@@ -27,7 +49,8 @@ function seedDemoSession() {
 const toolBtn =
   "inline-flex min-h-9 items-center gap-2 rounded-full border border-line bg-black/80 px-3 text-xs font-semibold text-fg backdrop-blur hover:border-accent focus-visible:border-accent";
 
-export function LiveDemo({ poster, srcSet, alt, width, height }: { poster: string; srcSet?: string; alt: string; width: number; height: number }) {
+export function LiveDemo({ kind = "gym", poster, srcSet, sizes, alt, width, height }: { kind?: DemoKind; poster: string; srcSet?: string; sizes?: string; alt: string; width: number; height: number }) {
+  const { src: SRC, width: W, title, play: playText, hint, opening, open } = DEMOS[kind];
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
   const [started, setStarted] = useState(false);
@@ -71,9 +94,9 @@ export function LiveDemo({ poster, srcSet, alt, width, height }: { poster: strin
   }, [started]);
 
   const start = useCallback(() => {
-    seedDemoSession();
+    if (kind === "gym") seedDemoSession();
     setStarted(true);
-  }, []);
+  }, [kind]);
 
   const toggleFull = useCallback(() => {
     const el = box.current;
@@ -89,7 +112,7 @@ export function LiveDemo({ poster, srcSet, alt, width, height }: { poster: strin
     // Ask for full screen inside the click, then load the demo into it.
     el.requestFullscreen().catch(() => window.open(SRC, "_blank", "noopener"));
     start();
-  }, [start]);
+  }, [start, SRC]);
 
   const play = () => {
     // On a phone the scaled console is too small to use, so it opens at full size straight away.
@@ -106,7 +129,7 @@ export function LiveDemo({ poster, srcSet, alt, width, height }: { poster: strin
       <img
         src={poster}
         srcSet={srcSet}
-        sizes={srcSet ? "(min-width: 768px) 768px, 100vw" : undefined}
+        sizes={srcSet ? (sizes ?? "(min-width: 768px) 768px, 100vw") : undefined}
         width={width}
         height={height}
         alt={alt}
@@ -118,13 +141,13 @@ export function LiveDemo({ poster, srcSet, alt, width, height }: { poster: strin
         <iframe
           ref={frame}
           src={SRC}
-          title="FITRON Gym Accounting live demo"
+          title={title}
           allow="fullscreen"
           className={`absolute top-0 left-0 border-0 bg-bg transition-opacity duration-500 ${ready ? "opacity-100" : "opacity-0"}`}
           style={frameStyle}
         />
       )}
-      {started && !ready && <div className="absolute inset-0 z-10 grid place-items-center bg-black/50 text-sm font-semibold text-accent">Opening the demo console…</div>}
+      {started && !ready && <div className="absolute inset-0 z-10 grid place-items-center bg-black/50 text-sm font-semibold text-accent">{opening}</div>}
       {!started && (
         <button
           type="button"
@@ -137,19 +160,19 @@ export function LiveDemo({ poster, srcSet, alt, width, height }: { poster: strin
             </svg>
           </span>
           <span className="rounded-lg border border-line bg-black/70 px-4 py-2 font-semibold">
-            Try the live demo
-            <span className="mt-0.5 block text-xs font-normal text-muted max-sm:hidden">Click around a working console with demo data</span>
+            {playText}
+            <span className="mt-0.5 block text-xs font-normal text-muted max-sm:hidden">{hint}</span>
           </span>
         </button>
       )}
       <div className={`absolute z-20 flex gap-1.5 ${full ? "top-1/2 right-2 -translate-y-1/2 flex-col opacity-60 hover:opacity-100 focus-within:opacity-100" : "right-2.5 bottom-2.5"}`}>
-        <button type="button" onClick={toggleFull} className={toolBtn} aria-label={full ? "Exit full screen" : "Open the live demo full screen"}>
+        <button type="button" onClick={toggleFull} className={toolBtn} aria-label={full ? "Exit full screen" : `${open} full screen`}>
           <svg viewBox="0 0 24 24" className="size-4 fill-none stroke-current stroke-2" aria-hidden="true">
             <path d={full ? "M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" : "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"} />
           </svg>
           {!full && <span>Full screen</span>}
         </button>
-        <a href={SRC} target="_blank" rel="noopener" className={toolBtn} aria-label="Open the live demo in a new tab">
+        <a href={SRC} target="_blank" rel="noopener" className={toolBtn} aria-label={`${open} in a new tab`}>
           <svg viewBox="0 0 24 24" className="size-4 fill-none stroke-current stroke-2" aria-hidden="true">
             <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
           </svg>
