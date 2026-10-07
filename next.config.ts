@@ -43,9 +43,10 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
         ],
       },
-      // The Gym Accounting live demo (a self-contained prototype) is shown in a frame on the home page, so our own pages,
-      // and only ours, may frame it. Later rules win for the same header.
+      // The Gym Accounting and AI Coach live demos (self-contained prototypes) are shown in a frame on the home page, so
+      // our own pages, and only ours, may frame them. Later rules win for the same header.
       { source: "/site/gym-demo.html", headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }] },
+      { source: "/site/coach-demo.html", headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }] },
       // Static files of the home page. Next sends public/ files with max-age=0, so every visit asked for the 1.2 MB 3D
       // library and the screenshots again. The fonts have hashed names and never change; the images and the library
       // may be replaced under the same name, so they are only kept for a day (then served while they refresh).
