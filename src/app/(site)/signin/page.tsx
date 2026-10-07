@@ -37,9 +37,25 @@ export default function SignInChoice() {
           <Logo size={40} />
           <p className="mt-8 max-w-sm font-[family-name:var(--font-head)] text-3xl leading-tight font-semibold uppercase">One FITRON for the person training and the gym they train in.</p>
         </div>
-        <div className="relative h-56">
-          <Image src="/site/console-dashboard.webp" alt="FITRON Gym Accounting dashboard" width={1400} height={658} sizes="360px" className="absolute top-0 right-0 w-[78%] rounded-xl border border-line shadow-lg" />
-          <Image src="/site/app-dashboard.webp" alt="FITRON AI Trainer app" width={575} height={987} sizes="140px" className="absolute bottom-0 left-0 w-[30%] rounded-2xl border border-line shadow-lg" />
+        <div className="flex flex-1 items-center">
+          <div className="s-dev">
+            <div className="s-dev-laptop">
+              <div className="s-dev-lid">
+                <div className="s-dev-screen">
+                  <Image src="/site/gym-dashboard.webp" alt="FITRON Gym Accounting dashboard on a laptop" width={1440} height={900} sizes="440px" />
+                </div>
+              </div>
+              <div className="s-dev-base" aria-hidden="true" />
+            </div>
+            <div className="s-dev-phone">
+              <div className="s-dev-body">
+                <span className="s-dev-cam" aria-hidden="true" />
+                <div className="s-dev-pscreen">
+                  <Image src="/site/phone-home.webp" alt="FITRON AI Trainer app on a phone" width={488} height={987} sizes="130px" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </aside>
 
