@@ -128,7 +128,7 @@ describe("the redesigned home page", () => {
   it("asks for the hero screenshot first, and sends small screens a smaller file", () => {
     expect(html.indexOf('rel="preload" as="image"')).toBeLessThan(html.indexOf("<style>"));
     const hero = html.slice(html.indexOf('id="heroVisual"'), html.indexOf("</section>", html.indexOf('id="heroVisual"')));
-    expect(hero).toContain("console-dashboard-700.webp 700w");
+    expect(hero).toContain("gym-dashboard-720.webp 720w");
     expect(hero).toContain("app-dashboard-300.webp 300w");
     expect([...hero.matchAll(/ sizes="/g)]).toHaveLength(2);
   });
@@ -144,8 +144,18 @@ describe("the redesigned home page", () => {
   it("shows both products in the hero, from the real screenshots, with alt text", () => {
     const hero = html.slice(html.indexOf('id="heroVisual"'), html.indexOf("</section>", html.indexOf('id="heroVisual"')));
     expect(hero).toContain("/site/app-dashboard.webp");
-    expect(hero).toContain("/site/console-dashboard.webp");
+    expect(hero).toContain("/site/gym-dashboard.webp");
     for (const alt of [...hero.matchAll(/<img[^>]*alt="([^"]*)"/g)].map((m) => m[1]!).filter(Boolean)) expect(alt.length).toBeGreaterThan(30);
+  });
+
+  it("frames the hero screenshots as a laptop and a phone, each opening its product's home page, and never hides them on short phones", () => {
+    const hero = html.slice(html.indexOf('id="heroVisual"'), html.indexOf("</section>", html.indexOf('id="heroVisual"')));
+    expect(hero).toMatch(/<a class="duo-laptop" href="\/gym-accounting"/);
+    expect(hero).toMatch(/<a class="duo-phone" href="\/ai-personal-trainer"/);
+    expect(hero).toContain("laptop-screen");
+    expect(hero).toContain("phone-screen");
+    // A rule that hid the visual on phones shorter than 760px removed it from most real phones.
+    expect(html.includes("@media (max-width:900px) and (max-height:760px){.hero-visual{display:none}}")).toBe(false);
   });
 
   it("says AI answers are general guidance, not medical advice, where the coach is shown", () => {
