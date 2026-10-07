@@ -46,7 +46,7 @@ describe(page.path, () => {
   });
 
   it("only links to pages that exist", () => {
-    const known = new Set(["/", "/trainer", "/privacy", "/tools/protein-calculator", "/tools/calorie-calculator", ...GYM_PAGES.map((p) => p.path)]);
+    const known = new Set(["/", "/trainer", "/site/coach-demo.html", "/privacy", "/tools/protein-calculator", "/tools/calorie-calculator", ...GYM_PAGES.map((p) => p.path)]);
     const links = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => decode(m[1]!).split(/[?#]/)[0] || "/");
     expect(links.filter((l) => !known.has(l))).toEqual([]);
   });
@@ -58,5 +58,18 @@ describe(page.path, () => {
     expect(rule.allow).toContain(page.path);
     expect(home.includes(`href="${page.path}"`)).toBe(true);
     expect(home).toContain('"@id": "https://fitron.in/ai-personal-trainer#software"');
+  });
+
+  it("shows the AI Coach live demo as a lazy picture with a play button, and says it is a sample, not medical advice", () => {
+    const fig = html.slice(html.indexOf("<figure"), html.indexOf("</figure>"));
+    expect(fig).toContain('src="/site/coach-demo.webp"');
+    expect(fig).toContain('loading="lazy"');
+    expect(fig).toContain("Chat with the AI coach");
+    expect(fig).toMatch(/A sample member, not your data\. General guidance, not medical advice\./);
+    // The demo itself (3 MB) is loaded only when it is played, so there is no frame yet, only the link to open it in a tab.
+    expect(html.includes("<iframe"), "no frame in the first render").toBe(false);
+    expect(fig).toContain('href="/site/coach-demo.html"');
+    const alt = fig.match(/alt="([^"]*)"/)?.[1] ?? "";
+    expect(alt.length).toBeGreaterThan(30);
   });
 });
