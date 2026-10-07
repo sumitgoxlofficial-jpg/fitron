@@ -135,7 +135,7 @@ describe("the redesigned home page", () => {
 
   it("fetches nothing below the first screen ahead of it: the product pictures and the hidden assistant's logo are lazy", () => {
     expect(html.includes('loading="eager"')).toBe(false);
-    expect(html).toMatch(/<img data-gallery-img="" src="\/site\/app-dashboard\.webp"[^>]*loading="lazy"/);
+    expect(html).toMatch(/<img data-gallery-img="" src="\/site\/coach-demo\.webp"[^>]*loading="lazy"/);
     expect(html).toMatch(/<img class="ld-poster" loading="lazy"/);
     const widget = html.slice(html.indexOf("<!--fitron:assistant-->"), html.indexOf("<!--/fitron:assistant-->"));
     for (const img of widget.match(/<img [^>]*>/g) ?? []) expect(img, img).toContain('loading="lazy"');
@@ -216,6 +216,42 @@ describe("the redesigned home page", () => {
     const js = readFileSync(path.join(root, "public/site/analytics.js"), "utf8");
     expect(js).toContain("c.analytics");
     expect(js).toContain("/api/analytics-config");
+  });
+});
+
+describe("the live AI Coach demo in the AI Trainer card", () => {
+  const card = html.slice(html.indexOf('id="coachDemo"'), html.indexOf("</article>", html.indexOf('id="coachDemo"')));
+
+  it("is a button over the coach's picture that loads the demo page only when pressed, and says it is a sample", () => {
+    expect(card).toContain('data-src="/site/coach-demo.html"');
+    expect(card).toContain("data-cd-play");
+    expect(html.includes('<iframe src="/site/coach-demo.html"'), "the 3 MB demo must not load with the page").toBe(false);
+    expect(card).toMatch(/Live demo with a sample member\. General guidance, not medical advice\./);
+    expect(card).toMatch(/data-cd-open[^>]*>Chat with the AI coach</);
+  });
+
+  it("counts its buttons as demo requests, which the analytics doc lists", () => {
+    expect(card.match(/data-track="demo_request"/g)!.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("is built from files that exist, and the demo page asks the open endpoint, not the signed-in one", () => {
+    for (const f of ["public/site/coach-demo.html", "public/site/coach-demo.webp", "src/app/api/coach/demo/route.ts"]) expect(existsSync(path.join(root, f)), f).toBe(true);
+    const demo = readFileSync(path.join(root, "public/site/coach-demo.html"), "utf8");
+    // The template is stored as JSON inside the page, so the quotes in what we look for are escaped.
+    expect(demo).toContain("fetch('/api/coach/demo'");
+    expect(demo.includes("fetch('/api/coach',")).toBe(false);
+  });
+
+  it("keeps its data out of the AI Trainer app's: every storage name starts with fitron-demo", () => {
+    const demo = readFileSync(path.join(root, "public/site/coach-demo.html"), "utf8");
+    const names = new Set([...demo.matchAll(/(?:get|set|remove)Item\(\s*'([^']+)'/g)].map((m) => m[1]!));
+    expect(names.size).toBeGreaterThan(3);
+    for (const n of names) expect(n, n).toMatch(/^fitron-demo\./);
+  });
+
+  it("does not depend on a script host: React is in the file", () => {
+    const demo = readFileSync(path.join(root, "public/site/coach-demo.html"), "utf8");
+    expect(demo).not.toMatch(/window\.__resources=\{/);
   });
 });
 

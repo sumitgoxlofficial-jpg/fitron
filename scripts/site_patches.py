@@ -341,6 +341,133 @@ LIVE_DEMO_JS = """<script>/*fitron:live-demo-js*/
 </script>
 """
 
+# The alt text of the AI Trainer card's picture, which is now the coach (see below).
+ALT = "FITRON AI Coach chat on a phone: a member asks for a legs workout and the coach replies with the exercises, sets and reps"
+
+# The live AI Coach demo in the AI Trainer card, the twin of the Gym Accounting one above. The card's phone screenshot becomes
+# a picture of the coach (public/site/coach-demo.webp, made by scripts/coach-demo-poster.mjs) with a "Chat with the AI coach"
+# button that loads the member app prototype (public/site/coach-demo.html, made by scripts/build-coach-demo.py) into the
+# phone, drawn at phone size and scaled to fit; "Full screen" shows it at full size. Its coach answers from /api/coach/demo
+# (src/app/api/coach/demo/route.ts). next.config.ts lets only our own pages frame it.
+COACH_DEMO_OLD = (
+    '<div class="media"><div class="gallery" data-gallery="1">\n'
+    '          <div class="phone glare" data-tilt="1"><div class="screen" style="padding:0;gap:0;background:#0e0d0a">'
+    f'<img data-gallery-img="" src="/site/app-dashboard.webp" alt="{ALT}" loading="lazy" decoding="async" style="display:block;width:100%;height:100%;object-fit:cover;object-position:50% 0"></div></div>\n'
+    '        </div></div>'
+)
+COACH_DEMO_NEW = (
+    '<div class="media"><div class="gallery cd-gallery" data-gallery="1">\n'
+    '          <div class="phone coach-live" id="coachDemo" data-src="/site/coach-demo.html"><div class="screen" style="padding:0;gap:0;background:#f4f1e8">'
+    f'<img data-gallery-img="" src="/site/coach-demo.webp" alt="{ALT}" class="cd-poster" width="560" height="1100" loading="lazy" decoding="async" style="display:block;width:100%;height:100%;object-fit:cover;object-position:50% 0">'
+    '<button type="button" class="cd-play" data-cd-play data-track="demo_request" data-track-from="ai-coach-demo"><span class="ld-play-ring"><svg class="icon"><use href="#i-play"></use></svg></span>'
+    '<span class="ld-play-text">Chat with the AI coach<small>Ask it anything, live</small></span></button></div>'
+    '<button type="button" class="ld-btn cd-exit" data-cd-exit aria-label="Exit full screen"><svg class="icon"><use href="#i-shrink"></use></svg></button></div>\n'
+    '          <div class="cd-tools"><button type="button" class="ld-btn" data-cd-full aria-label="Open the AI coach demo full screen"><svg class="icon"><use href="#i-expand"></use></svg><span>Full screen</span></button>'
+    '<a class="ld-btn" href="/site/coach-demo.html" target="_blank" rel="noopener" aria-label="Open the AI coach demo in a new tab"><svg class="icon"><use href="#i-external"></use></svg></a></div>\n'
+    '          <p class="sc-fine cd-fine">Live demo with a sample member. General guidance, not medical advice.</p>\n'
+    '        </div></div>'
+)
+COACH_CTA_OLD = '<a class="btn btn-ghost" href="/ai-personal-trainer">Explore AI Trainer</a></div>\n      </article>'
+COACH_CTA_NEW = (
+    '<a class="btn btn-ghost" href="/ai-personal-trainer">Explore AI Trainer</a>'
+    '<a class="hero-partner" href="/site/coach-demo.html" target="_blank" rel="noopener" data-cd-open data-track="demo_request" data-track-from="products">Chat with the AI coach</a></div>\n      </article>'
+)
+COACH_DEMO_CSS = (
+    # These come before the card's own rules (.gallery .phone, .twin-card .media .phone) in the page, so they are written
+    # with more specific selectors rather than relying on coming last.
+    '/*fitron:coach-demo*/.twin-card .cd-gallery{grid-template-columns:1fr;justify-items:center;row-gap:12px}'
+    '.twin-card .cd-gallery .phone{width:min(280px,100%)}'
+    '.coach-live .screen{position:relative}'
+    '.coach-live .cd-poster{transition:opacity .5s,filter .4s}'
+    '.coach-live:not(.running):hover .cd-poster{filter:brightness(.8)}'
+    '.cd-frame{position:absolute;top:0;left:0;width:392px;height:var(--cd-h,770px);border:0;background:#f4f1e8;transform:scale(var(--cd-scale,.64));transform-origin:0 0;opacity:0;transition:opacity .5s}'
+    '.coach-live.ready .cd-frame{opacity:1}'
+    '.coach-live.ready .cd-poster{opacity:0}'
+    '.cd-play{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:12px;padding:16px 12px 30px;border:0;background:linear-gradient(180deg,rgba(14,13,10,0) 45%,rgba(14,13,10,.6));color:var(--text);font:600 1rem/1.25 var(--font-body);cursor:pointer;text-align:center}'
+    '.cd-play:hover .ld-play-ring,.cd-play:focus-visible .ld-play-ring{transform:scale(1.08)}'
+    '.coach-live.running .cd-play{display:none}'
+    '.cd-loading{position:absolute;inset:0;z-index:2;display:grid;place-items:center;font:600 .85rem var(--font-body);color:#6b5413;background:rgba(244,241,232,.72)}'
+    '.cd-loading::after{content:"";position:absolute;left:50%;top:calc(50% + 22px);width:90px;height:3px;margin-left:-45px;border-radius:2px;background:linear-gradient(90deg,var(--gold-deep),var(--gold-2));animation:demoLoad 1.6s ease-in-out infinite}'
+    '.coach-live.ready .cd-loading{display:none}'
+    '.cd-tools{display:flex;gap:6px}'
+    '.twin-card .cd-fine{margin:0;text-align:center}'
+    '.coach-live .cd-exit{display:none}'
+    '.twin-card .media .coach-live:fullscreen{width:100%;height:100%;max-width:none;aspect-ratio:auto;padding:0;border:0;border-radius:0;box-shadow:none;background:#f4f1e8;transform:none}'
+    '.coach-live:fullscreen::before,.coach-live:fullscreen::after{display:none}'
+    '.twin-card .media .coach-live:fullscreen .screen{border-radius:0}'
+    '.coach-live:fullscreen .cd-frame{width:100%;height:100%;transform:none}'
+    '.coach-live:fullscreen .cd-poster{display:none}'
+    '.coach-live:fullscreen .cd-exit{display:inline-flex;position:absolute;z-index:3;right:8px;top:50%;translate:0 -50%;width:38px;min-height:38px;padding:0;justify-content:center;opacity:.6;transition:opacity .2s}'
+    '.coach-live:fullscreen .cd-exit:hover,.coach-live:fullscreen .cd-exit:focus-visible{opacity:1}'
+    '@media (prefers-reduced-motion:reduce){.cd-frame,.coach-live .cd-poster{transition:none}.cd-loading::after{animation:none}}'
+)
+COACH_DEMO_JS = """<script>/*fitron:coach-demo-js*/
+(function () {
+  // The live AI Coach demo in the AI Trainer card (#coachDemo): the member app prototype in public/site/coach-demo.html, loaded
+  // on demand, drawn at phone size (392 px wide) and scaled to the phone on the card; "Full screen" shows it at full size.
+  // It keeps its own data in this browser's localStorage under fitron-demo.* names, which nothing else on fitron.in uses.
+  var $ = (s, r) => (r || document).querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
+  const live = $('#coachDemo');
+  if (!live) return;
+  const W = 392;
+  const screen = $('.screen', live), playBtn = $('[data-cd-play]', live), exitBtn = $('[data-cd-exit]', live), fullBtn = $('[data-cd-full]');
+  const canFull = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  const isFull = () => (document.fullscreenElement || document.webkitFullscreenElement) === live;
+  const fit = () => {
+    const k = screen.clientWidth / W;
+    live.style.setProperty('--cd-scale', k.toFixed(4));
+    live.style.setProperty('--cd-h', (screen.clientHeight / k).toFixed(1) + 'px');
+  };
+  let frame = null;
+  const start = () => {
+    if (frame) return;
+    live.classList.add('running');
+    const card = live.closest('[data-tilt]');
+    if (card) { card.removeAttribute('data-tilt'); card.classList.remove('tilting'); card.style.transform = 'none'; }
+    const loading = document.createElement('div');
+    loading.className = 'cd-loading'; loading.textContent = 'Opening the AI coach…';
+    screen.appendChild(loading);
+    frame = document.createElement('iframe');
+    frame.className = 'cd-frame'; frame.title = 'FITRON AI Coach live demo'; frame.src = live.dataset.src;
+    screen.appendChild(frame);
+    fit();
+    let waited = 0;
+    const poll = setInterval(() => {
+      waited += 300; let ready = false;
+      try { const b = frame.contentDocument && frame.contentDocument.body; ready = !!b && b.innerText.length > 80; } catch (e) { ready = true; }
+      if (ready || waited > 20000) { clearInterval(poll); live.classList.add('ready'); }
+    }, 300);
+  };
+  const toggleFull = () => {
+    if (!canFull) { window.open(live.dataset.src, '_blank', 'noopener'); return; }
+    if (isFull()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    // Ask for full screen first, inside the click, then load the demo into it.
+    const req = live.requestFullscreen || live.webkitRequestFullscreen;
+    const r = req.call(live);
+    if (r && r.catch) r.catch(() => window.open(live.dataset.src, '_blank', 'noopener'));
+    start();
+  };
+  // The demo is 3 MB: begin fetching it when a pointer reaches the button, so it opens sooner.
+  playBtn.addEventListener('pointerenter', () => {
+    const l = document.createElement('link');
+    l.rel = 'prefetch'; l.href = live.dataset.src;
+    document.head.appendChild(l);
+  }, { once: true });
+  playBtn.addEventListener('click', () => {
+    // On a phone the scaled phone is too small to type in, so it opens at full size straight away.
+    if (innerWidth < 760) toggleFull(); else { start(); frame.focus(); }
+  });
+  fullBtn.addEventListener('click', toggleFull);
+  exitBtn.addEventListener('click', toggleFull);
+  // "Chat with the AI coach" under the card opens the same demo full screen (its link to the demo page is the no-script fallback).
+  $$('[data-cd-open]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); if (!isFull()) toggleFull(); }));
+  document.addEventListener('fullscreenchange', fit);
+  document.addEventListener('webkitfullscreenchange', fit);
+  if ('ResizeObserver' in window) new ResizeObserver(fit).observe(screen); else addEventListener('resize', fit);
+})();
+</script>
+"""
+
 # Fitron Assistant, the chat in the corner of the page. Its markup, styles and script are real files next to this one
 # (site-assistant.html, .css, .js) so they can be read and checked as what they are; the patch puts them between markers,
 # and when they are already there it replaces what is between them, so a change to a source reaches the page by running
@@ -431,8 +558,6 @@ BOOT_NEW = """const lite = matchMedia('(prefers-reduced-motion: reduce)').matche
 const load3d = () => import('/site/fitron-3d.js').then((m) => m.start(document.getElementById('scene'))).catch((err) => console.warn('[FITRON] 3D logo unavailable, showing the flat logo', err));
 const later = () => ('requestIdleCallback' in window ? requestIdleCallback(load3d, { timeout: 3000 }) : setTimeout(load3d, 500));
 if (!lite) { if (document.readyState === 'complete') later(); else addEventListener('load', later); }"""
-
-ALT = "FITRON AI Trainer app on a phone: day streak, weekly goal, today's workout and today's meals"
 
 # Prices are checked against src/lib/domain/pricing.ts by site-links.test.ts.
 OFFERS = {
@@ -617,9 +742,13 @@ def apply(page):
         page = swap(page, LIVE_DEMO_OLD, LIVE_DEMO_NEW, "Gym Accounting card: live demo")
     for old, new, why in LATE_STEPS:
         page = swap(page, old, new, why)
+    page = swap(page, COACH_DEMO_OLD, COACH_DEMO_NEW, "AI Trainer card: live coach demo")
+    page = swap(page, COACH_CTA_OLD, COACH_CTA_NEW, "AI Trainer card: link to the coach demo")
     page = add(page, '  <symbol id="i-close"', LIVE_DEMO_ICONS, '<symbol id="i-play"', "live demo icons", before=True)
     page = add(page, "</style>", LIVE_DEMO_CSS, "fitron:live-demo*/", "live demo styles", before=True)
     page = add(page, "</body>", LIVE_DEMO_JS, "fitron:live-demo-js", "live demo script", before=True)
+    page = add(page, "</style>", COACH_DEMO_CSS, "fitron:coach-demo*/", "coach demo styles", before=True)
+    page = add(page, "</body>", COACH_DEMO_JS, "fitron:coach-demo-js", "coach demo script", before=True)
     page = put(page, "</style>", ASSISTANT_CSS, "/*fitron:assistant*/", "/*fitron:assistant-end*/", "Fitron Assistant styles")
     page = put(page, "</body>", ASSISTANT_HTML + ASSISTANT_JS, "<!--fitron:assistant-->", "<!--/fitron:assistant-->", "Fitron Assistant chat")
     # The guides for gym owners (src/lib/domain/guides.ts), at the end of the footer links.

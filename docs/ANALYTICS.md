@@ -30,7 +30,7 @@ Some links are named automatically (WhatsApp, e-mail, sign-in, sign-up plans, co
 | `gym_accounting_click` | "Explore Gym Accounting" in the hero |
 | `partner_click` | "Partner With FITRON" in the hero |
 | `partner_lead` | "Become a FITRON Partner", "Talk to Sales", a partner plan, or `/contact?topic=partner` |
-| `demo_request` | A live-demo link or `/contact?topic=demo` |
+| `demo_request` | A live-demo link or button (Gym Accounting, or the AI Coach card's "Chat with the AI coach") or `/contact?topic=demo` |
 | `pricing_view` | The pricing section scrolled into view (once per page view) |
 | `pricing_click` | A plan's button in the pricing section (`plan` = the plan name) |
 | `signin_click` | Any link to `/signin` |

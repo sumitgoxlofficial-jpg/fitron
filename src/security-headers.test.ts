@@ -24,12 +24,14 @@ describe("headers sent with every page", () => {
     expect(h["X-Frame-Options"]).toBe("DENY");
   });
 
-  it("lets only our own pages frame the Gym Accounting live demo, and only that file", async () => {
+  it("lets only our own pages frame the Gym Accounting and AI Coach live demos, and only those files", async () => {
     const rules = await nextConfig.headers!();
     const framed = rules.filter((r) => r.headers.some((h) => h.key === "X-Frame-Options" && h.value !== "DENY"));
-    expect(framed.map((r) => r.source)).toEqual(["/site/gym-demo.html"]);
-    expect(framed[0]!.headers.find((h) => h.key === "X-Frame-Options")!.value).toBe("SAMEORIGIN");
-    // It must come after the rule for every page, so that its value is the one sent.
-    expect(rules.indexOf(framed[0]!)).toBeGreaterThan(rules.findIndex((r) => r.source === "/:path*"));
+    expect(framed.map((r) => r.source)).toEqual(["/site/gym-demo.html", "/site/coach-demo.html"]);
+    for (const rule of framed) {
+      expect(rule.headers.find((h) => h.key === "X-Frame-Options")!.value).toBe("SAMEORIGIN");
+      // It must come after the rule for every page, so that its value is the one sent.
+      expect(rules.indexOf(rule)).toBeGreaterThan(rules.findIndex((r) => r.source === "/:path*"));
+    }
   });
 });
