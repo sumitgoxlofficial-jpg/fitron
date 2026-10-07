@@ -148,6 +148,16 @@ describe("the redesigned home page", () => {
     for (const alt of [...hero.matchAll(/<img[^>]*alt="([^"]*)"/g)].map((m) => m[1]!).filter(Boolean)) expect(alt.length).toBeGreaterThan(30);
   });
 
+  it("frames the hero screenshots as a laptop and a phone, each opening its product's home page, and never hides them on short phones", () => {
+    const hero = html.slice(html.indexOf('id="heroVisual"'), html.indexOf("</section>", html.indexOf('id="heroVisual"')));
+    expect(hero).toMatch(/<a class="duo-laptop" href="\/gym-accounting"/);
+    expect(hero).toMatch(/<a class="duo-phone" href="\/ai-personal-trainer"/);
+    expect(hero).toContain("laptop-screen");
+    expect(hero).toContain("phone-screen");
+    // A rule that hid the visual on phones shorter than 760px removed it from most real phones.
+    expect(html.includes("@media (max-width:900px) and (max-height:760px){.hero-visual{display:none}}")).toBe(false);
+  });
+
   it("says AI answers are general guidance, not medical advice, where the coach is shown", () => {
     expect((/not medical advice/i).test(section("coach"))).toBe(true);
     expect((/not medical/i).test(section("nutrition"))).toBe(true);
