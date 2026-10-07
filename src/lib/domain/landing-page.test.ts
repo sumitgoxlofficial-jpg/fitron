@@ -128,7 +128,7 @@ describe("the redesigned home page", () => {
   it("asks for the hero screenshot first, and sends small screens a smaller file", () => {
     expect(html.indexOf('rel="preload" as="image"')).toBeLessThan(html.indexOf("<style>"));
     const hero = html.slice(html.indexOf('id="heroVisual"'), html.indexOf("</section>", html.indexOf('id="heroVisual"')));
-    expect(hero).toContain("console-dashboard-700.webp 700w");
+    expect(hero).toContain("gym-dashboard-720.webp 720w");
     expect(hero).toContain("app-dashboard-300.webp 300w");
     expect([...hero.matchAll(/ sizes="/g)]).toHaveLength(2);
   });
@@ -144,7 +144,7 @@ describe("the redesigned home page", () => {
   it("shows both products in the hero, from the real screenshots, with alt text", () => {
     const hero = html.slice(html.indexOf('id="heroVisual"'), html.indexOf("</section>", html.indexOf('id="heroVisual"')));
     expect(hero).toContain("/site/app-dashboard.webp");
-    expect(hero).toContain("/site/console-dashboard.webp");
+    expect(hero).toContain("/site/gym-dashboard.webp");
     for (const alt of [...hero.matchAll(/<img[^>]*alt="([^"]*)"/g)].map((m) => m[1]!).filter(Boolean)) expect(alt.length).toBeGreaterThan(30);
   });
 
