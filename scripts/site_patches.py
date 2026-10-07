@@ -694,11 +694,11 @@ def redesign(page):
     page = put(page, "</body>", "<script>\n" + site_src("extras.js") + "</script>\n", "<!--fitron:extras-->", "<!--/fitron:extras-->", "redesign script")
     page = add(page, "</body>", '<script src="/site/analytics.js" defer></script>\n', 'src="/site/analytics.js"', "analytics loader (consent-gated, see public/site/analytics.js)", before=True)
     # The hero's biggest picture is asked for at the very top of the page, before the long inline styles, so it is not the last thing to arrive.
-    page = add(
-        page, '<meta charset="utf-8">',
-        '\n<link rel="preload" as="image" href="/site/console-dashboard.webp" imagesrcset="/site/console-dashboard-700.webp 700w, /site/console-dashboard.webp 1400w" imagesizes="(max-width: 900px) 260px, 380px" fetchpriority="high">',
-        'rel="preload" as="image"', "preload of the hero screenshot",
-    )
+    OLD_PRELOAD = '<link rel="preload" as="image" href="/site/console-dashboard.webp" imagesrcset="/site/console-dashboard-700.webp 700w, /site/console-dashboard.webp 1400w" imagesizes="(max-width: 900px) 260px, 380px" fetchpriority="high">'
+    NEW_PRELOAD = '<link rel="preload" as="image" href="/site/gym-dashboard.webp" imagesrcset="/site/gym-dashboard-720.webp 720w, /site/gym-dashboard.webp 1440w" imagesizes="(max-width: 900px) 92vw, 520px" fetchpriority="high">'
+    page = add(page, '<meta charset="utf-8">', "\n" + NEW_PRELOAD, 'rel="preload" as="image"', "preload of the hero screenshot")
+    # The hero shows the laptop's own 16:10 capture of the dashboard now (the old preload named the cropped screenshot).
+    page = swap(page, OLD_PRELOAD, NEW_PRELOAD, "preload of the hero screenshot: laptop capture")
     page = add(
         page, '<meta name="twitter:card" content="summary_large_image">',
         '\n<meta name="twitter:title" content="FITRON — AI Personal Trainer &amp; Gym Accounting Software">\n<meta name="twitter:description" content="An AI personal trainer from ₹299 a month and gym accounting software from ₹999 a month, in one platform. 7-day free trial.">\n<meta name="twitter:image" content="https://fitron.in/site/og.png">',
@@ -719,6 +719,8 @@ def apply(page):
         if why in SUPERSEDED and "<!--fitron:hero-->" in page:
             continue
         page = swap(page, old, new, why)
+    # The design hid the hero pictures on phones shorter than 760 px, which is most real phones (browser bars eat the height).
+    page = swap(page, "@media (max-width:900px) and (max-height:760px){.hero-visual{display:none}}\n", "", "hero pictures stay on short phones")
     # Premium lists only what the app really gates by tier. Applying this again gives the same list.
     page, n = PREMIUM_LIST.subn(lambda m: m.group(1) + CHECK_ITEM.format("AI Coach: 100 messages a day") + m.group(2), page)
     assert n == 1, "AI Premium list not found"
