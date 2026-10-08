@@ -65,6 +65,9 @@ export function useAiChat() {
           if (e.type === "error") patch((t) => ({ ...t, error: e.message }));
         }
       }
+      // The answer stopped before it said anything (the server's time ran out, the connection dropped): say so instead of
+      // leaving an empty reply.
+      patch((t) => (t.content || t.error || t.proposals?.length ? t : { ...t, error: "Fitron AI didn't answer that time. Try again, or ask a narrower question." }));
     } catch {
       patch((t) => ({ ...t, error: "Couldn't reach Fitron AI. Check the connection and try again." }));
     } finally {
