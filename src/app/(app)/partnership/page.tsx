@@ -2,12 +2,88 @@ import Link from "next/link";
 import { requireFeature, requirePermission } from "@/lib/auth/current";
 import { ensureTrainerCode, partnership } from "@/lib/services/trainer-gym";
 import { todayIso } from "@/lib/services/time";
-import { findPlan, PARTNER_SHARE, rupeesLabel } from "@/lib/domain/pricing";
+import { findPlan, PARTNER_SHARE, rupeesLabel, TRIAL_DAYS } from "@/lib/domain/pricing";
+import { gstInside } from "@/lib/domain/saas";
 import { Badge, Card, Empty, ListHeader, Notice, Stat, TABLE, TD, TH, TR, type Tone, ScrollRegion } from "@/components/ui";
 import { fmtMonthShort, fmtShort, fmtStamp, formatRupees } from "@/lib/format";
 import { appUrl } from "@/lib/services/accounts";
 
 export const metadata = { title: "Gym Partnership · Fitron" };
+
+/** A gym's share, in whole rupees (as paise), of one month of an AI Trainer plan. */
+const monthlyShare = (planKey: string) => Math.round((gstInside(findPlan(planKey)!.price.MONTHLY).base * PARTNER_SHARE) / 100) * 100;
+
+/** How the partnership works, for gyms that have not read the terms: the steps, the split and what a gym can earn. */
+function HowItWorks({ code, pct }: { code: string; pct: number }) {
+  const steps = [
+    ["Share your gym code", `Give members code ${code} or the link above: on WhatsApp, at the front desk, or in your gym group.`],
+    ["Your member trains free", `They get the AI Trainer free for ${TRIAL_DAYS} days and are linked to your gym the moment they enter the code.`],
+    ["They pick a plan", "AI Pro or AI Premium, monthly or yearly, paid straight to FITRON. You never collect any money."],
+    [`You earn ${pct}%, every month`, `Not just once: ${pct}% of every payment they make while linked to your gym, before GST.`],
+  ];
+  const plans = ["ai-pro", "ai-premium"].map((k) => ({ key: k, name: findPlan(k)!.name, price: findPlan(k)!.price.MONTHLY, share: monthlyShare(k) }));
+  const pro = plans[0].share;
+  return (
+    <Card title="How the partnership works">
+      <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {steps.map(([t, d], i) => (
+          <li key={t} className="flex gap-3">
+            <span className="flex size-8 flex-none items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-ink">{i + 1}</span>
+            <div>
+              <div className="font-semibold">{t}</div>
+              <p className="mt-0.5 text-sm text-muted">{d}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="min-w-0">
+          <div className="text-[11px] tracking-[0.08em] text-muted uppercase">Who gets what, before GST</div>
+          <div className="mt-2 flex h-9 overflow-hidden rounded-md text-xs font-semibold whitespace-nowrap sm:text-sm" role="img" aria-label={`Your gym ${pct}%, FITRON ${100 - pct}%`}>
+            <div className="flex items-center justify-center bg-accent text-accent-ink" style={{ width: `${pct}%` }}>
+              Your gym {pct}%
+            </div>
+            <div className="flex flex-1 items-center justify-center bg-surface-2">FITRON {100 - pct}%</div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {plans.map((p) => (
+              <div key={p.key} className="min-w-0 rounded-md border border-line p-3">
+                <div className="text-xs text-muted">
+                  {p.name} · {rupeesLabel(p.price)}/month
+                </div>
+                <div className="mt-1 text-xl font-semibold tabular-nums">≈ {rupeesLabel(p.share)}</div>
+                <div className="text-xs text-muted">you earn per member, per month</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="min-w-0">
+          <div className="text-[11px] tracking-[0.08em] text-muted uppercase">What you could earn on AI Pro</div>
+          <table className={`${TABLE} mt-2`}>
+            <thead>
+              <tr>
+                <th className={TH}>Members</th>
+                <th className={`${TH} text-right`}>A month</th>
+                <th className={`${TH} text-right`}>A year</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[10, 25, 50, 100].map((n) => (
+                <tr key={n} className={TR}>
+                  <td className={TD}>{n}</td>
+                  <td className={`${TD} text-right whitespace-nowrap tabular-nums`}>≈ {rupeesLabel(n * pro)}</td>
+                  <td className={`${TD} text-right font-semibold whitespace-nowrap tabular-nums`}>≈ {rupeesLabel(n * pro * 12)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-3 text-xs text-muted">Members on AI Premium earn you more. FITRON pays each month&apos;s share to your bank account in the first week of the next month. Free for your gym, with no targets or minimums.</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 const ACCESS: Record<string, [string, Tone]> = { ACTIVE: ["Paid", "ok"], TRIAL: ["Free trial", "accent"], LOCKED: ["No plan", "neutral"] };
 
@@ -45,6 +121,8 @@ export default async function PartnershipPage({ searchParams }: PageProps<"/part
         <Stat label={`Paid to FITRON · ${fmtMonthShort(month)}`} value={formatRupees(data.totals.base)} />
         <Stat label={`Your ${pct}% · ${fmtMonthShort(month)}`} value={formatRupees(data.totals.share)} />
       </div>
+
+      <HowItWorks code={code} pct={pct} />
 
       <div className="flex flex-wrap gap-2">
         {months.map((m) => (
