@@ -30,9 +30,11 @@ test.describe("headers", () => {
       expect(scripts, "no eval").not.toContain("'unsafe-eval'");
       expect(directive(policy, "frame-ancestors"), "cannot be framed").toBe("frame-ancestors 'none'");
       expect(directive(policy, "object-src")).toBe("object-src 'none'");
-      // Its own server, and Razorpay's checkout, which a gym opens to pay for its plan.
+      // Its own server, Razorpay's checkout, which a gym opens to pay for its plan, and Meta, whose Connect pop-up links
+      // a gym's WhatsApp number in Settings › WhatsApp.
+      const allowed = ["'self'", "https://*.razorpay.com", "https://www.facebook.com", "https://web.facebook.com"];
       const connect = directive(policy, "connect-src").split(" ").slice(1);
-      expect(connect.filter((c) => c !== "'self'" && c !== "https://*.razorpay.com"), "the page talks to nobody else").toEqual([]);
+      expect(connect.filter((c) => !allowed.includes(c)), "the page talks to nobody else").toEqual([]);
     }
     const nonce = (p: string) => p.match(/'nonce-([^']+)'/)?.[1];
     expect(nonce(policies[0]!)).not.toBe(nonce(policies[1]!));
