@@ -5,7 +5,7 @@ import { claude, type Block, type Msg } from "@/lib/integrations/anthropic";
 import { runTool, TOOL_DEFS } from "./ai-tools";
 import { UserError } from "./errors";
 import { getSetting } from "./settings";
-import { getAiSettings } from "./ai-settings";
+import { AI_OFF_MESSAGE, aiOn, getAiSettings } from "./ai-settings";
 import { sendCampaign } from "./whatsapp";
 import { audit } from "./audit";
 import { getTax } from "./tax";
@@ -15,6 +15,7 @@ import { TOOL_LABEL } from "@/lib/domain/ai-labels";
 import { canUsePermission } from "@/lib/domain/features";
 import { CONFIRM_LABEL, draftExpired, isDraftKind, type DraftKind } from "@/lib/domain/ai-drafts";
 import { todayIso } from "./time";
+import { log } from "@/lib/log";
 
 /** A draft for the user to confirm: a WhatsApp message (members, body = the text) or an accounting action (body = the preview). */
 export type ProposalEvent = { type: "proposal"; id: string; kind: string; summary: string; members: number; body: string; confirm: string };
@@ -39,16 +40,52 @@ async function systemPrompt(u: CurrentUser) {
   return accountingSystem({ gym, user: u.name, role: u.role, branch, today: todayIso(), autoWinback, gst: tax });
 }
 
+/**
+ * Room for one reply. The model may think before it answers, and that thinking counts against this too: at 2,048 a long
+ * think left nothing for the answer, and the user saw an empty reply.
+ */
+const REPLY_TOKENS = 4096;
+/** One question may take this long in all, so the answer arrives before the route's own limit (maxDuration, 120 s) ends it. */
+const TURN_MS = 100_000;
+const SAY = {
+  slow: "That took longer than I can spend on one question. Try a narrower question, for example one month or one member.",
+  long: "That answer ran too long for me to finish. Ask for a shorter answer or a narrower question.",
+  refused: "I can't help with that one. Ask me about your gym's members, money or books.",
+  empty: "I couldn't put an answer together that time. Try asking another way.",
+  steps: "That needed more steps than I can take in one go. Try a narrower question.",
+};
+
 /** One chat turn: calls Claude, runs the tools it asks for (up to 8 rounds), and reports progress. */
 export async function* chat(u: CurrentUser, history: Msg[]): AsyncGenerator<ChatEvent> {
+  const started = Date.now();
   const system = await systemPrompt(u);
   const messages: Msg[] = history.slice(-20);
+  let said = false;
+  const say = (text: string): ChatEvent => ((said = true), { type: "text", text });
   for (let round = 0; round < 8; round++) {
-    const res = await claude({ system, messages, tools: TOOL_DEFS });
+    const left = TURN_MS - (Date.now() - started);
+    if (left < 10_000) {
+      yield say(SAY.slow);
+      yield { type: "done" };
+      return;
+    }
+    const res = await claude({ system, messages, tools: TOOL_DEFS, maxTokens: REPLY_TOKENS, timeoutMs: Math.min(90_000, left) });
+    if (res.stop_reason === "refusal") {
+      yield say(SAY.refused);
+      yield { type: "done" };
+      return;
+    }
     const text = res.content.filter((b): b is Extract<Block, { type: "text" }> => b.type === "text").map((b) => b.text).join("");
-    if (text) yield { type: "text", text };
+    if (text) yield say(text);
+    // Cut off: what it wrote is kept, and a half-written tool call is not run.
+    if (res.stop_reason === "max_tokens") {
+      if (!text) yield say(SAY.long);
+      yield { type: "done" };
+      return;
+    }
     const uses = res.content.filter((b): b is Extract<Block, { type: "tool_use" }> => b.type === "tool_use");
     if (res.stop_reason !== "tool_use" || !uses.length) {
+      if (!said) yield say(SAY.empty);
       yield { type: "done" };
       return;
     }
@@ -60,6 +97,7 @@ export async function* chat(u: CurrentUser, history: Msg[]): AsyncGenerator<Chat
       try {
         out = await runTool(u, t.name, t.input ?? {});
       } catch (e) {
+        if (!(e instanceof UserError)) log.error("ai_chat.tool_failed", e, { tool: t.name });
         out = { error: e instanceof UserError ? e.message : "The tool failed." };
       }
       if (out && typeof out === "object" && "proposal_id" in out) {
@@ -70,7 +108,7 @@ export async function* chat(u: CurrentUser, history: Msg[]): AsyncGenerator<Chat
     }
     messages.push({ role: "user", content: results });
   }
-  yield { type: "text", text: "That needed more steps than I can take in one go. Try a narrower question." };
+  yield say(SAY.steps);
   yield { type: "done" };
 }
 
@@ -80,7 +118,16 @@ async function confirmWhatsApp(u: CurrentUser, p: { id: string; memberIds: strin
   // Claim it first so a double-click can't send twice.
   const claimed = await db.aiProposal.updateMany({ where: { id: p.id, status: "PENDING" }, data: { status: "DONE", doneAt: new Date() } });
   if (!claimed.count) throw new UserError("Already handled.");
-  const r = await sendCampaign(u, p.memberIds, p.body);
+  let r: Awaited<ReturnType<typeof sendCampaign>>;
+  try {
+    r = await sendCampaign(u, p.memberIds, p.body);
+  } catch (e) {
+    // A check failed before anything was sent: let them fix it and press Send again. Any other failure may have sent
+    // some messages, so it stays handled rather than risk sending them twice.
+    if (e instanceof UserError) await db.aiProposal.updateMany({ where: { id: p.id }, data: { status: "PENDING", doneAt: null } });
+    else await db.aiProposal.update({ where: { id: p.id }, data: { result: "Sending stopped partway; check WhatsApp before sending again." } });
+    throw e;
+  }
   const result = `${r.sent} sent${r.failed ? `, ${r.failed} failed` : ""}`;
   await db.aiProposal.update({ where: { id: p.id }, data: { result } });
   await db.$transaction((tx) => audit(tx, { orgId: u.orgId, userId: u.id, action: "ai.proposal.send", entity: "AiProposal", entityId: p.id, after: { summary: p.summary, result } }));
@@ -116,6 +163,8 @@ async function confirmDraft(u: CurrentUser, p: { id: string; kind: DraftKind; su
 export type Confirmed = { kind: "WHATSAPP"; sent: number; failed: number } | ({ kind: "ACTION" } & Executed);
 
 export async function confirmProposal(u: CurrentUser, id: string): Promise<Confirmed> {
+  // Switching Fitron AI off also stops drafts it already made from being confirmed.
+  if (!(await aiOn(u.orgId))) throw new UserError(AI_OFF_MESSAGE);
   const p = await db.aiProposal.findFirst({ where: { id, orgId: u.orgId, userId: u.id } });
   if (!p) throw new UserError("Suggestion not found.");
   if (p.status !== "PENDING") throw new UserError("Already handled.");

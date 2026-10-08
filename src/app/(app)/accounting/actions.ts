@@ -23,7 +23,12 @@ export async function lock(month: string): Promise<void> {
 
 export async function unlock(month: string): Promise<void> {
   const u = await requirePermission("months.unlock");
-  await unlockMonth(u, month);
+  try {
+    await unlockMonth(u, month);
+  } catch (e) {
+    if (e instanceof UserError) back(month, "error", e.message);
+    throw e;
+  }
   revalidatePath("/accounting");
   back(month, "msg", `${monthLabel(month)} is unlocked.`);
 }

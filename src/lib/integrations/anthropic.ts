@@ -16,12 +16,12 @@ export type Block =
   | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } };
 export type Msg = { role: "user" | "assistant"; content: string | Block[] };
 
-export async function claude(req: { system: string; messages: Msg[]; tools: readonly object[]; maxTokens?: number }) {
+export async function claude(req: { system: string; messages: Msg[]; tools: readonly object[]; maxTokens?: number; timeoutMs?: number }) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY!.trim(), "anthropic-version": "2023-06-01" },
     body: JSON.stringify({ model: aiModel(), max_tokens: req.maxTokens ?? 2048, system: req.system, messages: req.messages, ...(req.tools.length ? { tools: req.tools } : {}) }),
-    signal: AbortSignal.timeout(90_000),
+    signal: AbortSignal.timeout(req.timeoutMs ?? 90_000),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
