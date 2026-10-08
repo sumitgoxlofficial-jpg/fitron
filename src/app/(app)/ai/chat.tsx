@@ -133,7 +133,11 @@ export function ChatPanel({ chat, drawer = false }: { chat: ReturnType<typeof us
   const { turns, busy, step, ask } = chat;
   const [text, setText] = useState("");
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [turns, busy]);
+  // A block body, so the effect returns nothing: newer browsers return a promise from scrollIntoView, and an effect that
+  // returned it had React call it as the cleanup on the next answer ("i is not a function").
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" });
+  }, [turns, busy]);
   const submit = () => {
     const q = text;
     setText("");

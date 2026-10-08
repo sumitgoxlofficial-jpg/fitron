@@ -77,3 +77,30 @@ test("a draft that is discarded books nothing", async ({ page }) => {
   expect(await sql(`select 1 from "Invoice" where "memberId" = $1`, [memberId])).toHaveLength(0);
   expect((await sql(`select status from "AiProposal" where id = $1`, [id]))[0]).toMatchObject({ status: "DISMISSED" });
 });
+
+test("asking from the Ask Fitron AI drawer works in browsers whose scrollIntoView returns a promise", async ({ page }) => {
+  // Newer Chrome returns a promise from scroll methods. The chat scrolls to its last message in an effect, and an effect that
+  // returned that promise made React call it as the cleanup on the next answer: "TypeError: i is not a function", and the
+  // whole console showed the error page.
+  await page.addInitScript(() => {
+    const scroll = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element, ...args: Parameters<Element["scrollIntoView"]>) {
+      scroll.apply(this, args);
+      return Promise.resolve() as unknown as void;
+    };
+  });
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await gymWithPlan(page, { name: `Monthly ${unique()}`, months: 1, price: 1000 });
+  await page.route("**/api/ai/chat", (route) => route.fulfill({ contentType: "application/x-ndjson", body: NDJSON([{ type: "text", text: "You have no dues today." }, { type: "done" }]) }));
+  await page.goto("/dashboard");
+  await page.getByRole("button", { name: "Ask Fitron AI" }).click();
+  for (const q of ["Any dues for Asha today?", "And for the rest of the month?"]) {
+    await page.getByLabel("Ask Fitron AI").fill(q);
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByText(q)).toBeVisible();
+  }
+  await expect(page.getByText("You have no dues today.").last()).toBeVisible();
+  await expect(page.getByText("This page hit a problem")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
