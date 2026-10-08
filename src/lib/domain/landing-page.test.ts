@@ -8,7 +8,8 @@ import sitemap from "@/app/sitemap";
 import { NAV } from "@/lib/nav";
 import { isPublicPath } from "@/lib/public-paths";
 import { ASSISTANT_NAME, ASSISTANT_PATH, FACTS, SUGGESTED_QUESTIONS } from "./assistant";
-import { PLANS } from "./pricing";
+import { PARTNER_SHARE, PLANS } from "./pricing";
+import { gstInside } from "./saas";
 import { COACH_DAILY_LIMIT } from "./trainer";
 import { PLAN_FEATURES, PRIORITY_SUPPORT_PLANS, type Feature } from "./features";
 
@@ -167,6 +168,19 @@ describe("the redesigned home page", () => {
     for (const id of ["ai-trainer", "nutrition", "workouts", "coach", "progress"]) expect((/sample|example/i).test(section(id)), id).toBe(true);
     // "Not guaranteed" disclaimers are the opposite of a promise; a guaranteed result or a number of kilos is one.
     expect((/guarantee[ds]? (results|weight|fat|muscle)|lose \d+ ?kg|results in \d+/i).test(text)).toBe(false);
+  });
+
+  it("works out the partner earnings from the real prices and share, and calls them illustrative", () => {
+    const part = section("partner-earnings");
+    const share = (key: string) => Math.round(gstInside(PLANS.find((p) => p.key === key)!.price.MONTHLY).base * PARTNER_SHARE);
+    expect(part).toContain(`data-pro="${share("ai-pro")}"`);
+    expect(part).toContain(`data-premium="${share("ai-premium")}"`);
+    for (const key of ["ai-pro", "ai-premium"]) expect(part, key).toContain(`<span class="rs">₹</span>${Math.round(share(key) / 100)}</b>`);
+    expect(part).toContain(`Your gym ${Math.round(PARTNER_SHARE * 100)}%`);
+    expect((/subject to eligibility, applicable deductions, refunds, chargebacks, verification and the signed partnership agreement/).test(part)).toBe(true);
+    expect((/not guaranteed income/).test(part)).toBe(true);
+    const header = html.slice(html.indexOf('<header class="nav"'), html.indexOf("</header>"));
+    expect(header).toContain('href="#partner-earnings"');
   });
 
   it("calls the revenue share conditional wherever it is promised", () => {

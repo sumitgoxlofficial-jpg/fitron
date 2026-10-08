@@ -28,6 +28,23 @@
     });
   });
 
+  // "What your gym could earn": members × the gym's share of one month of the plan (paise, on the section; the
+  // landing-page test keeps them equal to PLANS and PARTNER_SHARE). Without scripts it shows the figures for 50 on AI Pro.
+  var pe = $('#partner-earnings'), peN = $('#peN');
+  if (pe && peN) {
+    var rupees = function (paise) { return '≈ <span class="rs">₹</span>' + Math.round(paise / 100).toLocaleString('en-IN'); };
+    var calc = function () {
+      var plan = ($('input[name="peplan"]:checked', pe) || {}).value === 'premium' ? 'premium' : 'pro';
+      var n = Number(peN.value) || 0, share = Number(pe.getAttribute('data-' + plan)) || 0;
+      $('#peNOut').textContent = String(n);
+      $('#peMonth').innerHTML = rupees(n * share);
+      $('#peYear').innerHTML = rupees(n * share * 12);
+    };
+    peN.addEventListener('input', calc);
+    $$('input[name="peplan"]', pe).forEach(function (r) { r.addEventListener('change', calc); });
+    calc();
+  }
+
   // The 3D logo (decoration) shows only while the closing call to action is on screen.
   var cta = $('#join');
   if (cta && 'IntersectionObserver' in window) new IntersectionObserver(function (es) { document.body.classList.toggle('logo-on', es[0].isIntersecting); }, { threshold: 0.3, rootMargin: '0px 0px -30% 0px' }).observe(cta);

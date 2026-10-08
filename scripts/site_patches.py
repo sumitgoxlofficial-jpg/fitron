@@ -683,6 +683,7 @@ def redesign(page):
     page = put(page, '<section class="section" id="together"', site_src("showcase.html") + "\n  ", "<!--fitron:showcase-->", "<!--/fitron:showcase-->", "showcase sections")
     page = region(page, r'<div class="together reveal">.*?(?=\s*<div class="result reveal")', site_src("together.html"), "together", "Better together flow")
     page = put(page, '</section>\n\n  <section class="section" id="pricing"', site_src("partner-extras.html"), "<!--fitron:partner-models-->", "<!--/fitron:partner-models-->", "partner models")
+    page = put(page, '\n\n  <section class="section" id="pricing"', site_src("partner-earnings.html"), "<!--fitron:partner-earnings-->", "<!--/fitron:partner-earnings-->", "how the partnership works")
     page = put(page, '      </div>\n      <div class="p-panel p-acc" id="pricing-accounting">', site_src("compare-ai.html"), "<!--fitron:compare-ai-->", "<!--/fitron:compare-ai-->", "AI plan table")
     page = put(page, '<p class="p-fine">*WhatsApp messaging', site_src("compare-gym.html"), "<!--fitron:compare-gym-->", "<!--/fitron:compare-gym-->", "gym plan table")
     page = region(page, r'<div class="faq reveal">.*?</div>(?=\s*</section>)', site_src("faq.html"), "faq", "FAQ")
