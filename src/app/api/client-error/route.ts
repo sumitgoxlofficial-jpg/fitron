@@ -22,6 +22,7 @@ export async function POST(req: Request) {
   log.warn("client.error", undefined, {
     where: typeof b.where === "string" && WHERE.has(b.where) ? b.where : "page",
     message: text(b.message, 300),
+    at: text(b.at, 200),
     digest: text(b.digest, 64),
     path: text(b.path, 200)?.split("?")[0],
     userAgent: req.headers.get("user-agent")?.slice(0, 120),

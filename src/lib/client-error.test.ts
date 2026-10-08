@@ -10,13 +10,15 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("reporting a browser error", () => {
-  it("sends the kind of page, the message and the address without its query, and nothing else", () => {
-    reportClientError(new Error("Cannot read properties of undefined"), "app");
+  it("sends the kind of page, the error, where in the code it broke and the address without its query, and nothing else", () => {
+    const e = new TypeError("Cannot read properties of undefined");
+    e.stack = "TypeError: Cannot read properties of undefined\n    at Shell (https://fitron.in/_next/static/chunks/app.js:1:2345)\n    at more";
+    reportClientError(e, "app");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/api/client-error");
     expect(init.method).toBe("POST");
-    expect(JSON.parse(String(init.body))).toEqual({ where: "app", message: "Cannot read properties of undefined", path: "/members/9" });
+    expect(JSON.parse(String(init.body))).toEqual({ where: "app", message: "TypeError: Cannot read properties of undefined", at: "at Shell (https://fitron.in/_next/static/chunks/app.js:1:2345)", path: "/members/9" });
   });
 
   it("leaves out errors that have a digest: the server has already logged those", () => {
