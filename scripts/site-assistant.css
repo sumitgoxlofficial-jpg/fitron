@@ -14,7 +14,8 @@
 .fa-close{display:grid;place-items:center;flex:none;width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:var(--gold-2);cursor:pointer}
 .fa-close:hover{background:rgba(217,180,90,.12)}
 .fa-close .icon{width:18px;height:18px;stroke-width:2.2}
-.fa-log{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:16px;overflow-y:auto;overscroll-behavior:contain;scroll-behavior:smooth}
+.fa-log{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:16px;overflow-y:auto;overscroll-behavior:contain;scroll-behavior:smooth;scrollbar-width:none}
+.fa-log::-webkit-scrollbar,.fa-input::-webkit-scrollbar{display:none}
 .fa-msg{max-width:88%;padding:10px 14px;border-radius:16px;font-size:.9rem;line-height:1.5;overflow-wrap:anywhere}
 .fa-msg p,.fa-msg ul{margin:0}
 .fa-msg p+p,.fa-msg p+ul,.fa-msg ul+p{margin-top:8px}
@@ -35,7 +36,7 @@
 @keyframes faDot{0%,70%,100%{opacity:.35;transform:none}35%{opacity:1;transform:translateY(-3px)}}
 .fa-foot{flex:none;padding:10px 12px 12px;border-top:1px solid var(--line)}
 .fa-form{display:flex;align-items:flex-end;gap:8px}
-.fa-input{flex:1;min-width:0;min-height:44px;max-height:112px;padding:11px 16px;border-radius:22px;border:1px solid var(--line-2);background:var(--bg);color:var(--text);font:500 max(16px,1rem)/1.4 var(--font-body);resize:none}
+.fa-input{flex:1;min-width:0;min-height:44px;max-height:112px;padding:11px 16px;border-radius:22px;border:1px solid var(--line-2);background:var(--bg);color:var(--text);font:500 max(16px,1rem)/1.4 var(--font-body);resize:none;scrollbar-width:none}
 .fa-input::placeholder{color:var(--dim)}
 .fa-input:focus{border-color:var(--gold)}
 .fa-send{display:grid;place-items:center;flex:none;width:44px;height:44px;border:0;border-radius:50%;background:var(--gold-grad);color:#17140d;cursor:pointer;transition:transform .2s var(--ease),opacity .2s}
