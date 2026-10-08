@@ -1052,6 +1052,38 @@ model VendorPayment {
 // ── Fitron AI ──────────────────────────────────────────────────────────────
 
 /// An action the assistant suggested. Nothing happens until a staff member confirms it.
+/// A saved Fitron AI conversation, one person's own (Fitron AI › history). Files attached in it are read for the answer and
+/// never kept: a message keeps only their names.
+model AiChat {
+  id        String          @id @default(cuid())
+  orgId     String
+  userId    String
+  /// The first question, shortened
+  title     String
+  messages  AiChatMessage[]
+  createdAt DateTime        @default(now()) @db.Timestamptz
+  updatedAt DateTime        @updatedAt @db.Timestamptz
+
+  @@index([orgId, userId, updatedAt])
+}
+
+model AiChatMessage {
+  id          String   @id @default(cuid())
+  chatId      String
+  chat        AiChat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  /// user | assistant
+  role        String
+  content     String
+  /// The names and kinds of the files attached to a question: [{ name, kind }]
+  attachments Json?
+  /// The drafts Fitron AI offered in this answer (ProposalEvent[]), so a reopened chat shows them
+  proposals   Json?
+  error       String?
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  @@index([chatId, createdAt])
+}
+
 model AiProposal {
   id        String    @id @default(cuid())
   orgId     String
