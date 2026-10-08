@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -8,7 +8,7 @@ import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { isPublicPath } from "@/lib/public-paths";
 import { GYM_PAGES } from "./gym-pages";
-import { TRAINER_PAGE as page } from "./trainer-page";
+import { DATA_SAFETY, SCREENSHOTS, TRAINER_PAGE as page } from "./trainer-page";
 
 const root = path.join(__dirname, "../../..");
 const home = readFileSync(path.join(root, "public/site/index.html"), "utf8");
@@ -35,6 +35,7 @@ describe(page.path, () => {
   it("has one main heading and a linkable id on every section", () => {
     expect([...html.matchAll(/<h1[ >]/g)]).toHaveLength(1);
     expect(decode(html.match(/<h1[^>]*>(.*?)<\/h1>/)![1]!)).toBe(page.h1);
+    expect(html.includes('id="screenshots"') && html.includes('id="demo"') && html.includes('id="app-info"')).toBe(true);
     for (const b of page.blocks) expect(html.includes(`id="${b.id}"`), b.id).toBe(true);
   });
 
@@ -46,7 +47,7 @@ describe(page.path, () => {
   });
 
   it("only links to pages that exist", () => {
-    const known = new Set(["/", "/trainer", "/site/coach-demo.html", "/privacy", "/tools/protein-calculator", "/tools/calorie-calculator", ...GYM_PAGES.map((p) => p.path)]);
+    const known = new Set(["/", "/trainer", "/site/coach-demo.html", "/privacy", "/about", "/contact", "/tools/protein-calculator", "/tools/calorie-calculator", ...GYM_PAGES.map((p) => p.path)]);
     const links = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => decode(m[1]!).split(/[?#]/)[0] || "/");
     expect(links.filter((l) => !known.has(l))).toEqual([]);
   });
@@ -60,15 +61,32 @@ describe(page.path, () => {
     expect(home).toContain('"@id": "https://fitron.in/ai-personal-trainer#software"');
   });
 
-  it("shows the AI Coach live demo as a lazy picture with a play button, and says it is a sample, not medical advice", () => {
+  it("shows every app screenshot, each a real file with a description", () => {
+    const gallery = html.slice(html.indexOf('id="screenshots"'), html.indexOf('id="demo"'));
+    for (const shot of SCREENSHOTS) {
+      expect(existsSync(path.join(root, "public/site/trainer", `${shot.id}.webp`)), shot.id).toBe(true);
+      expect(gallery).toContain(`src="/site/trainer/${shot.id}.webp"`);
+      expect(shot.alt.length, shot.id).toBeGreaterThan(30);
+    }
+    expect(new Set(SCREENSHOTS.map((s) => s.id)).size).toBe(SCREENSHOTS.length);
+    for (const b of page.blocks) if ("shot" in b) expect(SCREENSHOTS.some((s) => s.id === b.shot), b.id).toBe(true);
+  });
+
+  it("makes no claim a store listing would need proof for: no ratings, reviews or download counts", () => {
+    const text = decode(html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<[^>]+>/g, " "));
+    expect(text).not.toMatch(/★|\bstars?\b|\bratings?\b|\buser reviews?\b|\bdownloads\b|\d+ ?[kKL]\+/i);
+    expect(DATA_SAFETY.length).toBeGreaterThan(0);
+  });
+
+  it("shows the whole app as a live demo, a lazy picture with a play button, and says it is a sample, not medical advice", () => {
     const fig = html.slice(html.indexOf("<figure"), html.indexOf("</figure>"));
-    expect(fig).toContain('src="/site/coach-demo.webp"');
+    expect(fig).toContain('src="/site/trainer/home.webp"');
     expect(fig).toContain('loading="lazy"');
-    expect(fig).toContain("Chat with the AI coach");
+    expect(fig).toContain("Open the live demo app");
     expect(fig).toMatch(/A sample member, not your data\. General guidance, not medical advice\./);
     // The demo itself (3 MB) is loaded only when it is played, so there is no frame yet, only the link to open it in a tab.
     expect(html.includes("<iframe"), "no frame in the first render").toBe(false);
-    expect(fig).toContain('href="/site/coach-demo.html"');
+    expect(fig).toContain('href="/site/coach-demo.html#home"');
     const alt = fig.match(/alt="([^"]*)"/)?.[1] ?? "";
     expect(alt.length).toBeGreaterThan(30);
   });

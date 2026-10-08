@@ -28,6 +28,16 @@ const DEMOS = {
     opening: "Opening the AI coach…",
     open: "Open the AI coach demo",
   },
+  // The whole member app (the same file), opened on its home screen: every tab works, with a made-up member's data.
+  app: {
+    src: "/site/coach-demo.html#home",
+    width: 392,
+    title: "FITRON AI Trainer live demo app",
+    play: "Open the live demo app",
+    hint: "Every screen works, with a sample member",
+    opening: "Opening the AI Trainer…",
+    open: "Open the AI Trainer demo",
+  },
 } as const;
 export type DemoKind = keyof typeof DEMOS;
 
