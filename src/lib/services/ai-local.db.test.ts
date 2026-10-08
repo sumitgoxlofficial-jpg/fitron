@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { hasDb, makeGym, pick } from "@/test/db";
 import { createMember } from "./members";
@@ -51,6 +51,19 @@ describe.skipIf(!hasDb)("Fitron AI without a model (database)", () => {
     const brief = await aiBrief(admin);
     expect(brief.find((b) => b.icon === "risk")?.title).toBe("1 members at risk of not renewing");
     expect(brief.find((b) => b.icon === "money")?.title).toBe("₹1,180 to collect");
+  });
+
+  it("still gives the rest of the brief when one card's numbers can't be read", async () => {
+    // As on the live site: one query failing used to take the whole Fitron AI page down.
+    const spy = vi.spyOn(db.member, "findMany").mockRejectedValueOnce(new Error("relation does not exist"));
+    try {
+      const brief = await aiBrief(admin);
+      expect(brief.find((b) => b.icon === "risk")).toBeUndefined();
+      expect(brief.find((b) => b.icon === "money")?.title).toBe("₹1,180 to collect");
+      expect(brief.find((b) => b.icon === "trend")).toBeDefined();
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   const say = async (q: string, u = admin) => ((await run(localChat(u, q))).find((e) => e.type === "text") as { text: string }).text;

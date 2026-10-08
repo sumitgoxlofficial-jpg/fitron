@@ -11,6 +11,7 @@ import { getAiSettings } from "./ai-settings";
 import { runTool } from "./ai-tools";
 import { bestAccountingFact, CAPABILITY_SUMMARY } from "@/lib/domain/ai-knowledge";
 import { canUsePermission } from "@/lib/domain/features";
+import { log } from "@/lib/log";
 
 /**
  * Fitron AI without a model (no ANTHROPIC_API_KEY): the prototype's built-in answers (A.aiLocal),
@@ -223,52 +224,76 @@ export async function* localChat(u: CurrentUser, question: string): AsyncGenerat
 
 export type BriefCard = { icon: "risk" | "renew" | "money" | "trend" | "stock" | "autopay" | "lead"; title: string; text: string; action?: { label: string; href?: string; ask?: string } };
 
-/** "Today's brief" on the Fitron AI page (prototype): what needs attention, by what the user may see. */
+/**
+ * "Today's brief" on the Fitron AI page (prototype): what needs attention, by what the user may see. Each card is worked
+ * out on its own, and one that fails is left out and logged, so the page and its chat still open.
+ */
 export async function aiBrief(u: CurrentUser): Promise<BriefCard[]> {
   const today = todayIso();
   const scope = { orgId: u.orgId, branchId: { in: u.branchIds } };
   const out: BriefCard[] = [];
+  const step = async (card: string, fn: () => Promise<void>) => {
+    try {
+      await fn();
+    } catch (e) {
+      log.error("ai_brief.card_failed", e, { card });
+    }
+  };
   if (u.can("members.view")) {
-    const { autoWinback } = await getAiSettings(u.orgId);
-    const rows = (await listMembers(u, { all: true })).rows;
-    const risky = await db.member.findMany({ where: { ...scope, deletedAt: null, walkIn: false, suspended: false, riskScore: { gte: 35 } }, orderBy: { riskScore: "desc" }, select: { name: true, riskReasons: true } });
-    out.push({
-      icon: "risk",
-      title: `${risky.length} members at risk of not renewing`,
-      text: risky.length ? `${risky.slice(0, 3).map((m) => `${m.name.split(" ")[0]} (${(m.riskReasons[0] ?? "low activity").toLowerCase()})`).join(", ")}${risky.length > 3 ? ` and ${risky.length - 3} more.` : "."}` : "Nobody is drifting away right now.",
-      action: risky.length && autoWinback && u.can("whatsapp.send") ? { label: "Review win-back messages", ask: "Which members are at risk?" } : undefined,
+    await step("risk", async () => {
+      const { autoWinback } = await getAiSettings(u.orgId);
+      const risky = await db.member.findMany({ where: { ...scope, deletedAt: null, walkIn: false, suspended: false, riskScore: { gte: 35 } }, orderBy: { riskScore: "desc" }, select: { name: true, riskReasons: true } });
+      out.push({
+        icon: "risk",
+        title: `${risky.length} members at risk of not renewing`,
+        text: risky.length ? `${risky.slice(0, 3).map((m) => `${m.name.split(" ")[0]} (${(m.riskReasons[0] ?? "low activity").toLowerCase()})`).join(", ")}${risky.length > 3 ? ` and ${risky.length - 3} more.` : "."}` : "Nobody is drifting away right now.",
+        action: risky.length && autoWinback && u.can("whatsapp.send") ? { label: "Review win-back messages", ask: "Which members are at risk?" } : undefined,
+      });
     });
-    const soon = rows.filter((r) => r.latestEnd && daysBetween(r.latestEnd, today) >= 0 && daysBetween(r.latestEnd, today) <= 7);
-    const onAutopay = soon.length ? await db.autopayMandate.count({ where: { memberId: { in: soon.map((r) => r.id) }, status: "Active" } }) : 0;
-    out.push({ icon: "renew", title: `${soon.length} renewals due this week`, text: soon.length ? `${onAutopay} will renew by UPI autopay.` : "Nothing due.", action: { label: "Open renewal list", href: "/renewals" } });
-    const owing = rows.filter((r) => r.outstanding > 0).sort((a, b) => b.outstanding - a.outstanding);
-    out.push({
-      icon: "money",
-      title: `${inr(owing.reduce((s, r) => s + r.outstanding, 0))} to collect`,
-      text: `${owing.length} members owe money. The five largest balances make up ${inr(owing.slice(0, 5).reduce((s, r) => s + r.outstanding, 0))}.`,
-      action: owing.length && u.can("whatsapp.send") ? { label: "Send payment reminders", ask: "Draft reminders for pending dues" } : undefined,
+    await step("renewals and dues", async () => {
+      const rows = (await listMembers(u, { all: true })).rows;
+      const soon = rows.filter((r) => r.latestEnd && daysBetween(r.latestEnd, today) >= 0 && daysBetween(r.latestEnd, today) <= 7);
+      const onAutopay = soon.length ? await db.autopayMandate.count({ where: { memberId: { in: soon.map((r) => r.id) }, status: "Active" } }) : 0;
+      const owing = rows.filter((r) => r.outstanding > 0).sort((a, b) => b.outstanding - a.outstanding);
+      out.push(
+        { icon: "renew", title: `${soon.length} renewals due this week`, text: soon.length ? `${onAutopay} will renew by UPI autopay.` : "Nothing due.", action: { label: "Open renewal list", href: "/renewals" } },
+        {
+          icon: "money",
+          title: `${inr(owing.reduce((s, r) => s + r.outstanding, 0))} to collect`,
+          text: `${owing.length} members owe money. The five largest balances make up ${inr(owing.slice(0, 5).reduce((s, r) => s + r.outstanding, 0))}.`,
+          action: owing.length && u.can("whatsapp.send") ? { label: "Send payment reminders", ask: "Draft reminders for pending dues" } : undefined,
+        },
+      );
     });
   }
   if (u.can("accounting.view")) {
-    const from = `${today.slice(0, 7)}-01`;
-    const lastFrom = `${addDays(from, -1).slice(0, 7)}-01`;
-    const sameDay = addDays(lastFrom, daysBetween(today, from));
-    const [now, prev] = await Promise.all([profitAndLoss(u, { from, to: today }), profitAndLoss(u, { from: lastFrom, to: sameDay < from ? sameDay : addDays(from, -1) })]);
-    const pct = prev.totalRevenue ? Math.round(((now.totalRevenue - prev.totalRevenue) / prev.totalRevenue) * 100) : null;
-    out.push({ icon: "trend", title: `Revenue ${pct == null ? "this month" : pct >= 0 ? `up ${pct}%` : `down ${-pct}%`} vs last month`, text: `${inr(now.totalRevenue)} so far against ${inr(prev.totalRevenue)} by this day last month.`, action: { label: "How is this month going?", ask: "How is this month vs last month?" } });
+    await step("revenue", async () => {
+      const from = `${today.slice(0, 7)}-01`;
+      const lastFrom = `${addDays(from, -1).slice(0, 7)}-01`;
+      const sameDay = addDays(lastFrom, daysBetween(today, from));
+      const [now, prev] = await Promise.all([profitAndLoss(u, { from, to: today }), profitAndLoss(u, { from: lastFrom, to: sameDay < from ? sameDay : addDays(from, -1) })]);
+      const pct = prev.totalRevenue ? Math.round(((now.totalRevenue - prev.totalRevenue) / prev.totalRevenue) * 100) : null;
+      out.push({ icon: "trend", title: `Revenue ${pct == null ? "this month" : pct >= 0 ? `up ${pct}%` : `down ${-pct}%`} vs last month`, text: `${inr(now.totalRevenue)} so far against ${inr(prev.totalRevenue)} by this day last month.`, action: { label: "How is this month going?", ask: "How is this month vs last month?" } });
+    });
   }
   if (u.can("products.manage")) {
-    const low = await db.product.findMany({ where: { ...scope, active: true, stock: { not: null }, reorderLevel: { not: null } }, select: { name: true, stock: true, reorderLevel: true } });
-    const need = low.filter((p) => p.stock! <= p.reorderLevel!);
-    if (need.length) out.push({ icon: "stock", title: `${need.length} products low on stock`, text: need.slice(0, 4).map((p) => `${p.name} (${p.stock} left)`).join(", "), action: { label: "Open inventory", href: "/pos#inventory" } });
+    await step("stock", async () => {
+      const low = await db.product.findMany({ where: { ...scope, active: true, stock: { not: null }, reorderLevel: { not: null } }, select: { name: true, stock: true, reorderLevel: true } });
+      const need = low.filter((p) => p.stock! <= p.reorderLevel!);
+      if (need.length) out.push({ icon: "stock", title: `${need.length} products low on stock`, text: need.slice(0, 4).map((p) => `${p.name} (${p.stock} left)`).join(", "), action: { label: "Open inventory", href: "/pos#inventory" } });
+    });
   }
   if (u.can("autopay.manage")) {
-    const failed = await db.autopayMandate.count({ where: { ...scope, status: { in: ["Failed", "Halted"] } } });
-    if (failed) out.push({ icon: "autopay", title: `${failed} autopay debit${failed === 1 ? "" : "s"} failed`, text: "Retry or collect at the desk.", action: { label: "Open UPI autopay", href: "/autopay?f=Attention" } });
+    await step("autopay", async () => {
+      const failed = await db.autopayMandate.count({ where: { ...scope, status: { in: ["Failed", "Halted"] } } });
+      if (failed) out.push({ icon: "autopay", title: `${failed} autopay debit${failed === 1 ? "" : "s"} failed`, text: "Retry or collect at the desk.", action: { label: "Open UPI autopay", href: "/autopay?f=Attention" } });
+    });
   }
   if (u.can("leads.manage")) {
-    const due = await db.lead.count({ where: { ...scope, stage: { notIn: ["Won", "Lost"] }, followUpOn: { lte: fromIso(today) } } });
-    if (due) out.push({ icon: "lead", title: `${due} lead follow-up${due === 1 ? "" : "s"} due`, text: "Call or WhatsApp them today while they're still interested.", action: { label: "Open leads", href: "/leads" } });
+    await step("leads", async () => {
+      const due = await db.lead.count({ where: { ...scope, stage: { notIn: ["Won", "Lost"] }, followUpOn: { lte: fromIso(today) } } });
+      if (due) out.push({ icon: "lead", title: `${due} lead follow-up${due === 1 ? "" : "s"} due`, text: "Call or WhatsApp them today while they're still interested.", action: { label: "Open leads", href: "/leads" } });
+    });
   }
   return out;
 }
