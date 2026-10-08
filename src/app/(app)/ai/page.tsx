@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/auth/current";
 import { aiOn } from "@/lib/services/ai-settings";
 import { aiBrief } from "@/lib/services/ai-local";
 import { todayIso } from "@/lib/services/time";
+import { log } from "@/lib/log";
 import { AiWorkspace } from "./chat";
 
 export const metadata = { title: "Fitron AI · Fitron" };
@@ -13,7 +14,8 @@ const longDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateStrin
 export default async function AiPage() {
   const u = await requirePermission("ai.use");
   if (!(await aiOn(u.orgId))) redirect("/dashboard?ai=off");
-  const brief = await aiBrief(u);
+  // The brief is a summary above the chat: if it can't be worked out, the page and the chat still open.
+  const brief = await aiBrief(u).catch((e) => (log.error("ai_brief.failed", e), []));
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
