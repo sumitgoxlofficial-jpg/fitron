@@ -45,6 +45,15 @@
     calc();
   }
 
+  // The Partner Console live demo (#partnerDemo): the page loads into the phone only when its button is pressed.
+  var pd = $('#partnerDemo');
+  if (pd) $('[data-pd-play]', pd).addEventListener('click', function () {
+    if (pd.classList.contains('running')) return;
+    var f = document.createElement('iframe');
+    f.title = 'FITRON Partner Console live demo'; f.src = pd.getAttribute('data-src');
+    pd.appendChild(f); pd.classList.add('running'); f.focus();
+  });
+
   // The 3D logo (decoration) shows only while the closing call to action is on screen.
   var cta = $('#join');
   if (cta && 'IntersectionObserver' in window) new IntersectionObserver(function (es) { document.body.classList.toggle('logo-on', es[0].isIntersecting); }, { threshold: 0.3, rootMargin: '0px 0px -30% 0px' }).observe(cta);
