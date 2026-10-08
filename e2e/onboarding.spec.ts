@@ -133,6 +133,15 @@ test.describe("first-run setup", () => {
     await expect(page.locator("aside").getByRole("button", { name: /Membership plans|Plans/ })).toHaveCount(0);
   });
 
+  test("on a phone, the setup can be skipped too", async ({ page }) => {
+    await signUp(page, { tag: "phone-skip", setup: "stay" });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/onboarding");
+    await page.getByRole("button", { name: "I'll finish this later" }).click();
+    await page.waitForURL(/\/dashboard/);
+    await expect(page.getByText("Your gym setup isn't finished")).toBeVisible();
+  });
+
   test("a gym that has not finished is sent back to setup, can skip it, and is reminded", async ({ page }) => {
     await signUp(page, { tag: "skip", setup: "stay" });
     await page.goto("/dashboard");

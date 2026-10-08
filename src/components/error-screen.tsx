@@ -41,5 +41,13 @@ export function ErrorScreen({ error, retry, where, home }: { error: Error & { di
   );
 }
 
-/** What failed in the browser, short enough to read on a phone: "TypeError: Cannot read properties of undefined". */
-export const browserDetails = (error: Error) => `${error.name || "Error"}: ${String(error.message || "no message")}`.slice(0, 200);
+/**
+ * What failed in the browser, short enough to read on a phone, and where in the app's own code:
+ * "TypeError: Cannot read properties of undefined @ chunks/0a1b2c.js:1:2345". The place is in the published files, which
+ * a build of the same commit with source maps turns back into a line of our source.
+ */
+export function browserDetails(error: Error) {
+  const what = `${error.name || "Error"}: ${String(error.message || "no message")}`.slice(0, 200);
+  const at = String(error.stack ?? "").match(/\/_next\/static\/([^\s)]+:\d+:\d+)/)?.[1];
+  return at ? `${what} @ ${at.slice(-80)}` : what;
+}
