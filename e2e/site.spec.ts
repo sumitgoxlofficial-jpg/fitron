@@ -115,6 +115,28 @@ test.describe("visitors", () => {
     await expect(page.getByRole("alert").or(page.getByText(/enter|required|check/i)).first()).toBeVisible();
   });
 
+  test("the Gym Accounting live demo opens, and its Fitron AI asks the demo endpoint and still answers without a key", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/site/gym-demo.html");
+    await page.locator("input[type=email]").fill("sumit@powerhausgym.in");
+    await page.locator("input[type=password]").fill("fitron123");
+    await page.locator("input[type=password]").press("Enter");
+    await page.getByRole("button", { name: "Essential only" }).click();
+    // The product tour opens on a first sign-in, a moment after the console.
+    await page.getByRole("button", { name: "Skip tour" }).click({ timeout: 5000 }).catch(() => {});
+    await page.locator("aside button").filter({ hasText: "Fitron AI" }).first().click();
+    const asked = page.waitForResponse("**/api/gym-demo/ai");
+    const box = page.getByPlaceholder("Ask anything about your gym…");
+    await box.fill("Who owes us money?");
+    await box.press("Enter");
+    // No ANTHROPIC_API_KEY here: the endpoint says so and the demo answers from its built-in replies.
+    expect((await asked).status()).toBe(503);
+    await expect(page.locator("main").getByText(/is outstanding across \d+ members/)).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
   test("the legal pages are there", async ({ page }) => {
     for (const [path, heading] of [["/privacy", /privacy/i], ["/terms", /terms/i], ["/refund", /refund|cancellation/i]] as const) {
       await page.goto(path);

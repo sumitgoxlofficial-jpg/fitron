@@ -1,7 +1,7 @@
 // Fitron view models: turns state + derived data into template values.
 (function(){
 const F=window.FC,A=window.FA;if(!F||!A)return;
-const {TODAY,addDays,fd,fds,fym,fyms,inr,num,diff,sum,tag,initials,ymOf,ftime,fts,parse}=F;
+const {TODAY,addDays,fd,fds,fym,fyms,inr,num,diff,sum,tag,initials,ymOf,ftime,fts,parse,nowT,nowTs}=F;
 const V={};
 const ACC='var(--color-accent)',INK='var(--color-text)',PAPER='var(--color-bg)';
 const bindS=(c,key,extra)=>({value:c.state[key]==null?'':String(c.state[key]),onChange:e=>c.setState({[key]:e.target.value,...(extra||{})})});
