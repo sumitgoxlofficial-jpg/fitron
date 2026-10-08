@@ -9,5 +9,8 @@ sessions
 media
 coverage
 tests
-docker
+docker/nginx
+docker/init-https.sh
+docker/certbot
+docker/letsencrypt
 *.md
