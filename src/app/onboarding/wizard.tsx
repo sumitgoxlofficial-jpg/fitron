@@ -158,6 +158,10 @@ export function Wizard({ steps, initialForm, initialIndex }: { steps: StepKey[];
       <main className="flex min-w-0 flex-col px-5 pt-8 pb-6 sm:px-10 lg:px-16 lg:pt-14">
         <div className="flex w-full max-w-[720px] flex-1 flex-col gap-6">
           <div>
+            {/* The side column with "I'll finish this later" is hidden below the lg breakpoint, so phones get their own. */}
+            <form action={skipAction} className="mb-3 flex justify-end lg:hidden">
+              <button className="text-xs text-muted underline underline-offset-2 hover:text-fg">I&apos;ll finish this later</button>
+            </form>
             <div className="text-[11px] tracking-[0.12em] text-accent uppercase">Set up your gym</div>
             <h1 className="mt-1 mb-1.5 text-[clamp(28px,3.4vw,38px)] leading-[1.1]">{info.title}</h1>
             <p className="max-w-[600px] text-[15px] text-fg/75">{info.sub}</p>

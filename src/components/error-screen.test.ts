@@ -28,4 +28,10 @@ describe("the error screen", () => {
   it("keeps the browser's details short", () => {
     expect(browserDetails(new Error("x".repeat(500)))).toHaveLength(200);
   });
+
+  it("adds where in the published code it broke, so a build of the same commit can name the source line", () => {
+    const e = new TypeError("i is not a function");
+    e.stack = "TypeError: i is not a function\n    at a (https://fitron.in/_next/static/chunks/0f3c2a9e1b.js:1:48213)\n    at b (https://fitron.in/_next/static/chunks/main.js:2:10)";
+    expect(browserDetails(e)).toBe("TypeError: i is not a function @ chunks/0f3c2a9e1b.js:1:48213");
+  });
 });
