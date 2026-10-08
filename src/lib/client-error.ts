@@ -14,7 +14,7 @@ export function reportClientError(error: Error & { digest?: string }, where: "pa
       method: "POST",
       keepalive: true,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ where, message: String(error.message).slice(0, 300), path: location.pathname }),
+      body: JSON.stringify({ where, message: `${error.name || "Error"}: ${String(error.message)}`.slice(0, 300), at: String(error.stack ?? "").split("\n").find((l) => /^\s+at /.test(l))?.trim().slice(0, 200), path: location.pathname }),
     }).catch(() => {});
   } catch {
     // Reporting is best effort; the visitor already has the error page.
