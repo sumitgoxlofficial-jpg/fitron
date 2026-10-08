@@ -336,7 +336,7 @@ export async function linkStatusAction(): Promise<LinkStatus> {
   if (missing) return { state: "offline", text: missing };
   let st: Awaited<ReturnType<typeof connectorStatus>>;
   try {
-    st = await connectorStatus(u.orgId);
+    st = await connectorStatus(u.orgId, { start: true, gymName: u.orgName });
   } catch (e) {
     return { state: "offline", text: connectorProblem(e) };
   }
@@ -356,7 +356,7 @@ export async function linkStatusAction(): Promise<LinkStatus> {
     return { state: "ready", number, text: "Linked." };
   }
   if (st.qr) return { state: "qr", qr: st.qr, text: "" };
-  return { state: "waiting", text: st.state === "authenticating" ? "Scanned. Finishing link…" : "Connector is starting WhatsApp…", problem: st.error ?? undefined };
+  return { state: "waiting", text: st.state === "reconnecting" ? "Reconnecting to WhatsApp…" : "Connector is starting WhatsApp… the QR code appears here in a moment.", problem: st.error ?? undefined };
 }
 
 /** Settings › Help & support › Raise a ticket: saved, audited and emailed to support. */
