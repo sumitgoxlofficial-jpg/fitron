@@ -51,7 +51,7 @@ export default function SignInChoice() {
               <div className="s-dev-body">
                 <span className="s-dev-cam" aria-hidden="true" />
                 <div className="s-dev-pscreen">
-                  <Image src="/site/phone-home.webp" alt="FITRON AI Trainer app on a phone" width={488} height={987} sizes="130px" />
+                  <Image src="/site/app-home.webp" alt="FITRON AI Trainer app on a phone" width={488} height={987} sizes="130px" />
                 </div>
               </div>
             </div>
