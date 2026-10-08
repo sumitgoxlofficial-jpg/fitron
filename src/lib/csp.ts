@@ -72,7 +72,8 @@ export function buildCsp({ tier, nonce, dev = false, analytics = analyticsId() !
     d["connect-src"] = ["'self'", ...(tier === "trainer" ? [RAZORPAY] : []), ...(ga ? GA_CONNECT : []), ...(dev ? ["ws:", "wss:"] : [])];
     // The trainer's page has an iframe whose address is a {{placeholder}} until its template fills it in, which the browser
     // first tries as a same-origin address (our own X-Frame-Options refuses it); 'self' keeps that out of the reports.
-    // The website shows the Gym Accounting and AI Coach live demos (public/site/gym-demo.html, coach-demo.html) in frames on the home page.
+    // The website shows the Gym Accounting, AI Coach and Partner Console live demos (public/site/gym-demo.html, coach-demo.html,
+    // partner-demo.html) in frames on the home page.
     d["frame-src"] = tier === "trainer" ? ["'self'", ...YOUTUBE, RAZORPAY] : ["'self'"];
     d["media-src"] = ["'self'", "blob:", ...(tier === "trainer" ? ["https:"] : [])];
   }

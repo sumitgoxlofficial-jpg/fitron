@@ -183,6 +183,17 @@ describe("the redesigned home page", () => {
     expect(header).toContain('href="#partner-earnings"');
   });
 
+  it("offers the Partner Console demo, built for gym partners only, with the real share", () => {
+    const part = section("partner-earnings");
+    expect(part).toContain('data-src="/site/partner-demo.html"');
+    const demo = readFileSync(path.join(root, "public/site/partner-demo.html"), "utf8");
+    const tpl = JSON.parse(demo.match(/<script type="__bundler\/template">\s*([\s\S]*?)\s*<\/script>/)![1]!) as string;
+    expect(tpl).toContain("role: 'gym', screen: 'dash',");
+    expect(tpl).toContain("[['gym','Gym partner','barbell']]");
+    expect(tpl).not.toContain("['owner','Owner'");
+    expect(tpl).toContain(`const G0 = ${Math.round(PARTNER_SHARE * 100)};`);
+  });
+
   it("calls the revenue share conditional wherever it is promised", () => {
     const part = section("partnership");
     expect(part.includes("70%")).toBe(true);
