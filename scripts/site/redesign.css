@@ -181,3 +181,34 @@ body.logo-on #scene{opacity:1!important}
 /* The assistant is a small round button on phones. */
 @media (max-width:640px){body .fa-launcher{padding:8px}body .fa-launcher span{display:none}}
 img[src="/site/fitron-ring.png"]{object-fit:cover}
+
+/* How the partnership works (scripts/site/partner-earnings.html) */
+.pe-steps{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.pe-steps li{position:relative;display:flex;flex-direction:column;gap:6px;padding:22px;border-radius:20px;background:rgba(255,255,255,.035);border:1px solid var(--line)}
+.pe-n{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#efd79a,#d9b45a 55%,#a9791f);color:#1a1408;font-weight:800;font-size:.95rem;margin-bottom:6px}
+.pe-steps h3{font-size:1.1rem}
+.pe-steps p{font-size:.92rem;color:var(--muted)}
+.pe-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+.pe-card{display:flex;flex-direction:column;padding:24px;border-radius:20px;background:rgba(255,255,255,.035);border:1px solid var(--line);min-width:0}
+.pe-card h3{font-size:1.2rem}
+.pe-sub{font-size:.9rem;color:var(--dim);margin-top:4px}
+.pe-bar{display:flex;height:44px;border-radius:12px;overflow:hidden;margin-top:18px;font-weight:700;font-size:.9rem;white-space:nowrap}
+.pe-you{flex:0 0 70%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#efd79a,#d9b45a 55%,#a9791f);color:#1a1408}
+.pe-us{flex:1;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);color:var(--muted)}
+.pe-plans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+.pe-plans>div{display:flex;flex-direction:column;gap:2px;padding:14px;border-radius:14px;border:1px solid var(--line);min-width:0}
+.pe-plans span{font-size:.84rem;color:var(--muted)}
+.pe-plans b{font-size:1.6rem;color:var(--gold-2);font-variant-numeric:tabular-nums}
+.pe-plans small{font-size:.78rem;color:var(--dim)}
+.pe-row{display:flex;align-items:baseline;justify-content:space-between;margin-top:18px;font-size:.92rem;color:var(--muted)}
+.pe-row output{font-size:1.4rem;font-weight:700;color:var(--gold-2);font-variant-numeric:tabular-nums}
+#peN{width:100%;accent-color:#d9b45a;min-height:36px;margin-top:4px}
+.pe-seg{margin-top:8px;align-self:flex-start}
+.pe-out{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+.pe-out>div{display:flex;flex-direction:column;gap:2px;padding:14px;border-radius:14px;background:rgba(217,180,90,.08);border:1px solid var(--line-2);min-width:0}
+.pe-out span{font-size:.84rem;color:var(--muted)}
+.pe-out b{font-size:1.5rem;color:var(--gold-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pe-cta{margin-top:26px;justify-content:center}
+#partner-earnings .pm-fine{margin-inline:auto;text-align:center}
+@media (max-width:1000px){.pe-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.pe-grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:560px){.pe-steps{grid-template-columns:minmax(0,1fr)}.pe-card{padding:18px}.pe-plans b{font-size:1.35rem}.pe-out b{font-size:1.25rem}}
