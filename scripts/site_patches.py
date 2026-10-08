@@ -498,6 +498,9 @@ ASSISTANT_JS = "<script>\n" + source("site-assistant.js") + "</script>\n"
 # On a phone the cookie banner and the WhatsApp button float above the open menu and cover its lower links.
 MENU_CSS = "/*fitron:menu-over-banner*/body.menu-open .consent,body.menu-open .wa-float{opacity:0;visibility:hidden;pointer-events:none}"
 
+# The page scrolls without a visible scrollbar, as the Fitron Assistant chat does.
+SCROLLBAR_CSS = "/*fitron:no-page-scrollbar*/html{scrollbar-width:none}html::-webkit-scrollbar{display:none}"
+
 # While the cookie banner is open, the WhatsApp button (bottom left) sits under it: completely at phone widths, where the
 # banner spans the screen and the button shrinks to its icon, and partly up to about 1100 px, where the banner is centred
 # but wide. The button waits until the visitor has chosen. (:has() needs a current browser; in an older one the rule is
@@ -729,6 +732,7 @@ def apply(page):
     page, n = re.subn(r'(<img data-gallery-img="" src="[^"]+") alt="[^"]*"', lambda m: f'{m.group(1)} alt="{ALT}"', page)
     assert n == 1 and f'alt="{ALT}"' in page, "AI Trainer screenshot not found"
     page = add(page, "</style>", MENU_CSS, "fitron:menu-over-banner", "menu over banner", before=True)
+    page = add(page, "</style>", SCROLLBAR_CSS, "fitron:no-page-scrollbar", "no page scrollbar", before=True)
     page = add(page, "</style>", WA_BANNER_CSS, "fitron:wa-under-banner", "WhatsApp button under the cookie banner", before=True)
     page = add(page, "</style>", HERO_CSS, "fitron:hero-phone", "hero on phones", before=True)
     page = add(page, "</style>", TABS_CSS, "fitron:tabs-phone", "pricing tabs on phones", before=True)
