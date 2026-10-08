@@ -11,7 +11,8 @@ The export is the whole member app with fake data. The demo is that app, opened 
      of /api/coach, which needs a signed-in member. Without an answer from it the app uses its built-in replies.
   2. Everything it keeps in localStorage gets a "fitron-demo." name, because the real AI Trainer app (public/trainer)
      runs on the same origin and uses "fitron.chats", "fitron.avatar" and so on. Nothing in the demo may reach those.
-  3. It opens signed in on the Coach screen, as the persona, instead of on the sign-in page.
+  3. It opens signed in on the Coach screen (or the screen named after "#" in its address), as the persona, instead of on
+     the sign-in page.
 
 It is also made smaller: the icon font ships as woff2 only (not also woff, ttf and svg) and three large PNGs become WebP,
 which takes the file from 8 MB to about 3 MB. The meal and theme pictures are not in the file: they are the ones in
@@ -43,11 +44,18 @@ PERSONA = [
     ("state:'', city:'', budget:'',", "state:'Maharashtra', city:'Pune', budget:'₹6,000 – ₹10,000',"),
 ]
 
+# The screens the demo can be opened on (coach-demo.html#workout); anything else opens the Coach.
+SCREENS = ["home", "planner", "workout", "food", "progress", "habits", "coach", "review", "profile", "settings", "subscription", "onboard", "pickTheme"]
+FIRST_SCREEN = "(() => { try { const h = window.location.hash.slice(1); return %s.includes(h) ? h : 'coach'; } catch (e) { return 'coach'; } })()" % json.dumps(SCREENS).replace('"', "'")
+
 # localStorage keys the app uses, and the demo's own names for them.
 STORAGE = {
     "aif-look-v2": "fitron-demo.look",
-    **{f"fitron.{k}": f"fitron-demo.{k}" for k in ("avatar", "bg", "chats", "coachPrefs", "content", "favs", "groc")},
+    **{f"fitron.{k}": f"fitron-demo.{k}" for k in ("avatar", "bg", "chats", "coachCount", "coachPrefs", "content", "dndSetup", "favs", "groc", "ref", "trialEnds", "trialUsed")},
 }
+
+
+UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 
 
 def once(text, old, new, why):
@@ -68,19 +76,25 @@ def read_bundle(path):
 
 def shrink(manifest, template):
     """Drops the font formats nobody needs and turns the big PNGs into WebP. Returns the new manifest and template."""
-    by_prefix = lambda p: next(k for k in manifest if k.startswith(p))
+
+    def uuid_of(pattern, what):
+        # The files' ids change with every export, so each is found by where the page uses it.
+        found = set(re.findall(pattern, template, re.S))
+        assert len(found) == 1, f"{what}: expected one file, found {len(found)}"
+        key = found.pop()
+        assert key in manifest, f"{what}: {key} is not in the export"
+        return key
 
     # The icon font: woff2 is supported by every browser that can run the app, so the woff, ttf and svg copies go.
-    for prefix, fmt in (("dc15b0e7", "woff"), ("199b0ca4", "truetype"), ("e1d2862e", "svg")):
-        key = by_prefix(prefix)
+    for fmt in ("woff", "truetype", "svg"):
+        key = uuid_of(r'url\("(%s)(?:#[^"]*)?"\) format\("%s"\)' % (UUID, fmt), f"icon font ({fmt})")
         pat = re.compile(r',\s*url\("%s(?:#[^"]*)?"\) format\("%s"\)' % (re.escape(key), fmt), re.I)
         assert len(pat.findall(template)) == 1, f"font {fmt}: expected one @font-face source"
         template = pat.sub("", template)
         assert key not in template
         del manifest[key]
 
-    def webp(prefix, width, quality):
-        key = by_prefix(prefix)
+    def webp(key, width, quality):
         img = Image.open(io.BytesIO(base64.b64decode(manifest[key]["data"])))
         if img.width > width:
             img = img.resize((width, round(img.height * width / img.width)), Image.LANCZOS)
@@ -88,9 +102,12 @@ def shrink(manifest, template):
         img.save(buf, "WEBP", quality=quality, method=6)
         manifest[key] = {"mime": "image/webp", "compressed": False, "data": base64.b64encode(buf.getvalue()).decode()}
 
-    webp("e347b823", 320, 88)  # the logo: 1024 px, shown at 120 px or less, 15 times
-    webp("87c86c79", 852, 62)  # the coach screen's background texture, drawn at 420 px under a 55% wash
-    webp("ab4b9df5", 768, 74)  # the picture beside the sign-up questions
+    # the logo: 1024 px, shown at 120 px or less, many times
+    webp(uuid_of(r'\.thinking-logo img\{content:url\("(%s)"\)' % UUID, "logo"), 320, 88)
+    # the coach screen's background texture, drawn at 420 px under a 55% wash
+    webp(uuid_of(r'url\("(%s)"\);background-size:auto,4[26]0px' % UUID, "background texture"), 852, 62)
+    # the picture beside the sign-up questions
+    webp(uuid_of(r'class="ob-panel-pic">\s*<sc-if[^>]*><img src="(%s)"' % UUID, "sign-up picture"), 768, 74)
     return manifest, template
 
 
@@ -115,11 +132,15 @@ def patch(t):
     t, n = re.subn(r"<script>window\.__resources=\{[^<]*\};</script>\n?", "", t)
     assert n == 1, "the export's own window.__resources script is not there as expected"
     assert "window.__resources=" not in t.replace(" ", "")
+    # the notification icon is a picture the export names but does not ship; the AI Trainer app has the same logo
+    t = t.replace("'assets/app/fitron-logo-gold.jpg'", "'assets/brand/fitron-logo.jpg'")
     t = re.sub(r"""(['"(])assets/""", r"\1/trainer/assets/", t)
     for path in sorted(set(re.findall(r"/trainer/assets/[A-Za-z0-9_./-]+", t))):
         assert os.path.exists(os.path.join(PUBLIC, path.lstrip("/"))), f"{path} is not in public/"
     # 3. signed in on the Coach screen, as the persona
-    t = once(t, "device: 'mobile', screen: 'login',", "device: 'mobile', screen: 'coach',", "first screen")
+    # (or on the screen the address names after "#", e.g. coach-demo.html#home: the full app demo and the screenshots on
+    # /ai-personal-trainer use that)
+    t = once(t, "device: 'mobile', screen: 'login',", "device: 'mobile', screen: " + FIRST_SCREEN + ",", "first screen")
     for old, new in PERSONA:
         t = once(t, old, new, f"persona: {old}")
     # the terms and privacy links go to this site's own pages
