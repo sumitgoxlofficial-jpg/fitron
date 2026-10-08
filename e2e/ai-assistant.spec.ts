@@ -104,3 +104,46 @@ test("asking from the Ask Fitron AI drawer works in browsers whose scrollIntoVie
   await expect(page.getByText("This page hit a problem")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test("chats are saved to History, reopen, and delete; a file can be attached to a question", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await gymWithPlan(page, { name: `Monthly ${unique()}`, months: 1, price: 1000 });
+  await page.goto("/ai");
+
+  // A question through the real route (no model key here, so the built-in answers reply) is saved as a chat.
+  const q = `How many members are active ${unique()}?`;
+  await page.getByLabel("Ask Fitron AI").fill(q);
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("button", { name: "Send" })).toBeDisabled();
+  await expect(page.getByText(q)).toBeVisible();
+
+  // A file goes with the next question; only its name stays in the chat.
+  await page.getByLabel("Attach a PDF, photo, Excel or Word file").click();
+  await page.locator('input[type="file"]').setInputFiles({ name: "dues.csv", mimeType: "text/csv", buffer: Buffer.from("member,due\nAsha,1180") });
+  await expect(page.getByRole("button", { name: "Remove dues.csv" })).toBeVisible();
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText("Reading attached files needs Fitron AI's model")).toBeVisible();
+  await expect(page.getByText("dues.csv")).toBeVisible();
+
+  // New chat clears the screen; History brings the saved one back.
+  await page.getByRole("button", { name: "New chat" }).click();
+  await expect(page.getByText(q)).toHaveCount(0);
+  await page.getByRole("button", { name: "History" }).click();
+  const saved = new RegExp(`^${q.replace(/[?]/g, "\\?")}`);
+  await page.getByRole("button", { name: saved }).click();
+  await expect(page.getByText(q)).toBeVisible();
+  await expect(page.getByText("dues.csv")).toBeVisible();
+
+  // Delete asks first, then removes it for good.
+  await page.getByRole("button", { name: "History" }).click();
+  await page.getByRole("button", { name: `Delete chat: ${q}` }).click();
+  await expect(page.getByText("Delete this chat?")).toBeVisible();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByRole("button", { name: saved })).toHaveCount(0);
+  await expect(page.getByText("No saved chats yet.")).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "History" }).click();
+  await expect(page.getByText("No saved chats yet.")).toBeVisible();
+  expect(errors).toEqual([]);
+});
