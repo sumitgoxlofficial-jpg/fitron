@@ -14,7 +14,7 @@ const PAGE = 15;
 const FILTERS = [
   ["", "All"],
   ["PAID", "Paid"],
-  ["PARTIALLY_PAID", "Partially paid"],
+  ["PARTIALLY_PAID", "Part paid"],
   ["UNPAID", "Unpaid"],
   ["OVERDUE", "Overdue"],
   ["CANCELLED", "Cancelled"],

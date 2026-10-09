@@ -70,9 +70,9 @@ export const MORE: Record<string, Def> = {
         const pl = await profitAndLoss(u, monthPeriod(m));
         rows.push({ month: monthLabel(m), revenue: pl.totalRevenue, expenses: pl.totalExpenses, dep: pl.depreciation, net: pl.net, margin: pl.totalRevenue ? share(pl.net, pl.totalRevenue) : 0 });
       }
-      return { columns: [col("month", "Month"), col("revenue", "Revenue", "money"), col("expenses", "Operating expenses", "money"), col("dep", "Depreciation", "money"), col("net", "Net profit", "money"), col("margin", "Margin", "pct")], rows, totals: { revenue: sum(rows, "revenue"), expenses: sum(rows, "expenses"), dep: sum(rows, "dep"), net: sum(rows, "net") } };
+      return { columns: [col("month", "Month"), col("revenue", "Revenue", "money"), col("expenses", "Operating expenses", "money"), col("dep", "Depreciation", "money"), col("net", "Net profit (invoiced)", "money"), col("margin", "Margin", "pct")], rows, totals: { revenue: sum(rows, "revenue"), expenses: sum(rows, "expenses"), dep: sum(rows, "dep"), net: sum(rows, "net") } };
     },
-    "Accrual basis · invoiced revenue minus operating expenses and depreciation; asset purchases are capitalised",
+    "Based on invoices: revenue is counted on the invoice date, not when paid, so an annual plan counts in full in the month sold · minus operating expenses and depreciation; asset purchases are capitalised",
   ),
   "rev-month": monthly("Revenue by month", "accounting.view", async (u) => {
     const ms = months12();

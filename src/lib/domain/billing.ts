@@ -55,6 +55,10 @@ export type PaymentLike = { amount: number; status: "SUCCESS" | "REVERSED" };
 
 export type InvoiceStatus = "CANCELLED" | "PAID" | "PARTIALLY_PAID" | "UNPAID";
 
+/** One name for each state everywhere: "Part paid" in sentences, "PART PAID" on tags and exports. */
+export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = { PAID: "Paid", PARTIALLY_PAID: "Part paid", UNPAID: "Unpaid", CANCELLED: "Cancelled" };
+export const INVOICE_STATUS_TAG: Record<InvoiceStatus, string> = { PAID: "PAID", PARTIALLY_PAID: "PART PAID", UNPAID: "UNPAID", CANCELLED: "CANCELLED" };
+
 export type InvoiceState = {
   paid: number;
   balance: number;

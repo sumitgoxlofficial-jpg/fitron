@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { CurrentUser } from "@/lib/auth/current";
-import { formatInr } from "@/lib/domain/billing";
+import { formatInr, INVOICE_STATUS_LABEL, invoiceState } from "@/lib/domain/billing";
 import { addDays } from "@/lib/domain/dates";
 import { memberScope } from "./members";
 import { unreadCount } from "./notifications";
@@ -58,6 +58,7 @@ export async function globalSearch(u: CurrentUser, raw: string): Promise<SearchH
   if (q.length < 2) return [];
   const branch = { orgId: u.orgId, branchId: { in: u.branchIds } };
   const ci = { contains: q, mode: "insensitive" as const };
+  const today = todayIso();
   const [members, invoices, payments] = await Promise.all([
     u.can("members.view")
       ? db.member.findMany({
@@ -68,7 +69,7 @@ export async function globalSearch(u: CurrentUser, raw: string): Promise<SearchH
         })
       : [],
     u.can("invoices.view")
-      ? db.invoice.findMany({ where: { ...branch, number: ci }, orderBy: { date: "desc" }, take: 4, select: { id: true, number: true, total: true, status: true, member: { select: { name: true } } } })
+      ? db.invoice.findMany({ where: { ...branch, number: ci }, orderBy: { date: "desc" }, take: 4, select: { id: true, number: true, total: true, status: true, dueDate: true, member: { select: { name: true } }, payments: { select: { amount: true, status: true } } } })
       : [],
     u.can("invoices.view")
       ? db.payment.findMany({
@@ -81,7 +82,12 @@ export async function globalSearch(u: CurrentUser, raw: string): Promise<SearchH
   ]);
   return [
     ...members.map((m) => ({ kind: "member" as const, title: m.name, sub: `${m.code} · ${m.phone}`, href: `/members/${m.id}` })),
-    ...invoices.map((i) => ({ kind: "invoice" as const, title: i.number, sub: `${i.member?.name ?? ""} · ${formatInr(i.total)} · ${i.status === "CANCELLED" ? "Cancelled" : "Issued"}`, href: `/invoices/${i.id}` })),
+    ...invoices.map((i) => ({
+      kind: "invoice" as const,
+      title: i.number,
+      sub: `${i.member?.name ?? ""} · ${formatInr(i.total)} · ${INVOICE_STATUS_LABEL[invoiceState({ total: i.total, cancelled: i.status === "CANCELLED", dueDate: toIso(i.dueDate) }, i.payments as { amount: number; status: "SUCCESS" | "REVERSED" }[], today).status]}`,
+      href: `/invoices/${i.id}`,
+    })),
     ...payments.map((p) => ({ kind: "payment" as const, title: p.code + (p.txnRef ? ` · ${p.txnRef}` : ""), sub: `${p.member.name} · ${formatInr(p.amount)} · ${p.invoice.number}`, href: `/invoices/${p.invoiceId}` })),
   ];
 }
