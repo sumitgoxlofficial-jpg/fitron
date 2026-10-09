@@ -1132,12 +1132,14 @@ model DeviceCommand {
   /// The number the device echoes back when it reports the result
   cmdNo      Int
   command    String
-  /// PENDING | SENT | DONE | FAILED
+  /// PENDING | SENT | DONE | FAILED | EXPIRED
   status     String    @default("PENDING")
   returnCode String?
   createdAt  DateTime  @default(now()) @db.Timestamptz
   sentAt     DateTime? @db.Timestamptz
   ackAt      DateTime? @db.Timestamptz
+  /// Door-open commands are dropped (status EXPIRED) if the device has not collected them by this time
+  expiresAt  DateTime? @db.Timestamptz
 
   @@unique([deviceId, cmdNo])
   @@index([deviceId, status])
