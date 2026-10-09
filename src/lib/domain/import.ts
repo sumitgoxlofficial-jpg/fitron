@@ -32,6 +32,7 @@ export const IMPORTS: Record<ImportKind, { label: string; blurb: string; fields:
       ["city", "City", false, ["city", "town"]],
       ["pin", "PIN code", false, ["pin", "pincode", "pin code", "postal code", "zip"]],
       ["notes", "Notes", false, ["notes", "remarks", "comment", "comments"]],
+      ["consent", "Privacy consent", false, ["consent", "consent date", "privacy consent", "dpdp consent", "consented", "consent given"]],
     ],
     sample:
       'Member ID,Name,Mobile,Gender,Plan,Duration,Start Date,Expiry Date,Fees,Paid,Balance,Address,City\nM-101,Ravi Kumar,9876543210,Male,Gold Quarterly,3,01-07-2026,30-09-2026,4500,4500,0,"Qr. 12/B, Sector 4",Bokaro\nM-102,Sita Devi,9123456780,Female,Monthly,1,15-09-2026,14-10-2026,1500,1000,500,Chas,Bokaro\n',
@@ -306,6 +307,10 @@ export type Ctx = {
   defaultMonths?: number;
 };
 
+/** A plan the import creates starts inactive, so a ₹0 or guessed price can't be sold until an admin sets it (bug 10). */
+export const newPlanWarning = (planName: string, amount: number) =>
+  `Plan "${planName}" will be created as inactive at ₹${(amount / 100).toLocaleString("en-IN")}; set its price and activate it in Plans before selling`;
+
 export type CheckedRow = { n: number; errors: string[]; warnings: string[]; data: Record<string, unknown>; raw: Record<string, string> };
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -348,14 +353,19 @@ export function checkRows(kind: ImportKind, rows: Record<string, string>[], ctx:
       if (!months) months = Math.max(1, Math.round((new Date(end).getTime() - new Date(start).getTime()) / (30.4 * 86_400_000)));
       const plan = ctx.plans.find((p) => p.name.toLowerCase() === g("plan").toLowerCase());
       const planName = plan?.name ?? (g("plan") || (months === 12 ? "Yearly" : months === 6 ? "Half-yearly" : months === 3 ? "Quarterly" : months === 1 ? "Monthly" : `${months} months`));
-      if (!plan) warnings.push(`Plan "${planName}" will be created`);
       const amount = parsePaise(g("amount")) ?? plan?.price ?? 0;
+      if (!plan) warnings.push(newPlanWarning(planName, amount));
       const paidRaw = parsePaise(g("paid"));
       const dueRaw = parsePaise(g("due"));
       const paid = Math.min(amount, Math.max(0, paidRaw ?? (dueRaw != null ? amount - dueRaw : amount)));
       const invDate = start <= ctx.today ? start : ctx.today;
       if (ctx.lockedMonths.has(invDate.slice(0, 7))) errors.push(lockMsg(invDate));
       const dob = parseDate(g("dob"));
+      // "yes", "true", "1" or a date mean the member gave consent; a date says when. Anything else leaves it unrecorded.
+      const consentRaw = g("consent");
+      const consentDate = consentRaw ? parseDate(consentRaw) : "";
+      const consentAt = consentDate || (/^(yes|y|true|1|given|done|ok)$/i.test(consentRaw) ? ctx.today : null);
+      if (consentRaw && !consentAt) warnings.push(`Consent "${consentRaw}" not understood; left unrecorded`);
       data = {
         name: g("name"),
         phone,
@@ -375,6 +385,7 @@ export function checkRows(kind: ImportKind, rows: Record<string, string>[], ctx:
         city: g("city") || null,
         pin: g("pin").replace(/\D/g, "") || null,
         notes: g("notes") || null,
+        consentAt,
       };
     }
 

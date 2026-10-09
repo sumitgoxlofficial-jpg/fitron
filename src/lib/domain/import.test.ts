@@ -83,7 +83,7 @@ describe("row checks", () => {
     );
     expect(rows[0]!.errors).toEqual([]);
     expect(rows[0]!.data).toMatchObject({ phone: "9876543210", months: 3, start: "2026-07-01", end: "2026-09-30", amount: 450000, paid: 400000, planId: null, planName: "Gold Quarterly" });
-    expect(rows[0]!.warnings[0]).toMatch(/will be created/);
+    expect(rows[0]!.warnings[0]).toBe('Plan "Gold Quarterly" will be created as inactive at ₹4,500; set its price and activate it in Plans before selling');
     expect(rows[1]!.errors).toEqual(["Already a member (skipped)"]);
     expect(rows[2]!.errors).toEqual(["Repeated in this file"]);
     expect(rows[3]!.data).toMatchObject({ planId: "p1", start: "2026-09-15", end: "2026-10-14", amount: 150000, paid: 150000 });
@@ -99,6 +99,20 @@ describe("row checks", () => {
     expect(one.warnings).toContain("No expiry or duration; 1 month assumed");
     expect(one.data).toMatchObject({ months: 1, end: "2026-07-31" });
     expect(checkRows("members", [row], ctx())[0]!.warnings).toContain("No expiry or duration; 1 month assumed");
+  });
+
+  it("members: a consent column of yes/true/1 or a date records privacy consent; anything else leaves it unrecorded", () => {
+    const base = { name: "Ravi", phone: "9123456781", start: "01-07-2026", months: "1" };
+    const of = (consent: string) => checkRows("members", [{ ...base, consent }], ctx())[0]!;
+    expect(of("").data.consentAt).toBeNull();
+    expect(of("yes").data.consentAt).toBe("2026-09-28");
+    expect(of("TRUE").data.consentAt).toBe("2026-09-28");
+    expect(of("1").data.consentAt).toBe("2026-09-28");
+    expect(of("15-07-2026").data.consentAt).toBe("2026-07-15");
+    const odd = of("maybe");
+    expect(odd.data.consentAt).toBeNull();
+    expect(odd.errors).toEqual([]);
+    expect(odd.warnings).toContain('Consent "maybe" not understood; left unrecorded');
   });
 
   it("payments match a member by phone, old ID or a unique name; locked months are refused", () => {

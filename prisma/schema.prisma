@@ -273,6 +273,8 @@ model Member {
   /// RFID card number pushed to door devices as USERINFO Card=
   cardNo             String?
   biometricConsentAt DateTime?         @db.Timestamptz
+  /// When the member agreed to the gym's privacy notice (DPDP). Null = no consent recorded yet.
+  consentAt          DateTime?         @db.Timestamptz
   memberships        Membership[]
   attendance         Attendance[]
   bookings           Booking[]
@@ -383,6 +385,9 @@ model Invoice {
   total         Int
   gstType       String?
   gstRate       Decimal?      @db.Decimal(5, 2)
+  /// Who issued it, as it was when the invoice was made: {name, tagline, address, phone, email, gstin, sac, instagram, logoKey}.
+  /// Written once so a later change in Settings never alters an old invoice. Null on invoices from before this was kept.
+  seller        Json?
   /// ISSUED | CANCELLED. Paid state is computed from payments, never stored.
   status        String
   cancelReason  String?

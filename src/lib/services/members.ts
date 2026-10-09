@@ -36,6 +36,8 @@ export type MemberRow = {
   gender: string;
   area: string | null;
   branchId: string;
+  /** When the privacy-notice consent was recorded; null shows "No consent" so staff can fix it. */
+  consentAt: Date | null;
   planName: string | null;
   /** Start of the membership planName was taken from. */
   planStart: string | null;
@@ -111,7 +113,7 @@ export async function listMembers(
   const members = await db.member.findMany({
     where,
     orderBy: { name: "asc" },
-    select: { id: true, code: true, name: true, phone: true, gender: true, area: true, branchId: true, suspended: true },
+    select: { id: true, code: true, name: true, phone: true, gender: true, area: true, branchId: true, suspended: true, consentAt: true },
   });
   const today = todayIso();
   const sums = await summarize(members.map((m) => m.id), today);
@@ -147,13 +149,18 @@ export async function getMember(u: CurrentUser, id: string) {
   };
 }
 
-const toData = (i: MemberInput) => ({
-  ...i,
-  dob: i.dob ? fromIso(i.dob) : null,
-  whatsapp: i.whatsapp ?? null,
-  email: i.email ?? null,
-  trainerId: i.trainerId ?? null,
-});
+/** The row fields from the form input. `consent` is a tick, not a column: createMember and updateMember turn it into consentAt. */
+const toData = (input: MemberInput) => {
+  const i = { ...input };
+  delete i.consent;
+  return {
+    ...i,
+    dob: i.dob ? fromIso(i.dob) : null,
+    whatsapp: i.whatsapp ?? null,
+    email: i.email ?? null,
+    trainerId: i.trainerId ?? null,
+  };
+};
 
 async function assertPhoneFree(tx: Prisma.TransactionClient, orgId: string, phone: string, exceptId?: string) {
   const clash = await tx.member.findFirst({
@@ -163,10 +170,12 @@ async function assertPhoneFree(tx: Prisma.TransactionClient, orgId: string, phon
   if (clash) throw new UserError(`This phone number already belongs to ${clash.name} (${clash.code}).`, "phone");
 }
 
-export async function createMember(u: CurrentUser, input: MemberInput, opts: { leadId?: string } = {}) {
+/** `consent` ticked on the member form: the privacy-notice consent is recorded now (DPDP). `consentAt` sets an exact time (imports). */
+export async function createMember(u: CurrentUser, input: MemberInput, opts: { leadId?: string; consentAt?: Date } = {}) {
   const branchId = writeBranch(u);
   if (!branchId) throw new UserError("Pick a branch first.");
   const prefix = (await getSetting<{ memberPrefix?: string }>(u.orgId, "numbering"))?.memberPrefix ?? "FT-";
+  const consentAt = opts.consentAt ?? (input.consent ? new Date() : null);
   try {
     return await db.$transaction(async (tx) => {
       await assertPhoneFree(tx, u.orgId, input.phone);
@@ -174,7 +183,7 @@ export async function createMember(u: CurrentUser, input: MemberInput, opts: { l
       await assertMemberRoom(tx, u.orgId);
       const n = await nextNumber(tx, u.orgId, "member");
       const m = await tx.member.create({
-        data: { ...toData(input), code: `${prefix}${n}`, orgId: u.orgId, branchId, createdById: u.id },
+        data: { ...toData(input), consentAt, code: `${prefix}${n}`, orgId: u.orgId, branchId, createdById: u.id },
       });
       await audit(tx, { orgId: u.orgId, userId: u.id, action: "member.create", entity: "Member", entityId: m.id, after: m });
       if (opts.leadId) await markLeadWon(tx, u, opts.leadId, m.id);
@@ -192,7 +201,8 @@ export async function updateMember(u: CurrentUser, id: string, input: MemberInpu
   try {
     return await db.$transaction(async (tx) => {
       await assertPhoneFree(tx, u.orgId, input.phone, id);
-      const after = await tx.member.update({ where: { id }, data: toData(input) });
+      // Consent, once given, stays: the form only ever adds the date for a member who had none.
+      const after = await tx.member.update({ where: { id }, data: { ...toData(input), ...(input.consent && !before.consentAt ? { consentAt: new Date() } : {}) } });
       await audit(tx, { orgId: u.orgId, userId: u.id, action: "member.update", entity: "Member", entityId: id, before, after });
       return after;
     });
@@ -200,6 +210,18 @@ export async function updateMember(u: CurrentUser, id: string, input: MemberInpu
     if (isUniqueViolation(e)) throw new UserError("This phone number is already registered.", "phone");
     throw e;
   }
+}
+
+/** Records that the member agreed to the privacy notice (e.g. on paper at the desk). A no-op when a date is already there. */
+export async function recordConsent(u: CurrentUser, id: string, at = new Date()) {
+  const before = await db.member.findFirst({ where: { ...memberScope(u), id, walkIn: false } });
+  if (!before) throw new UserError("Member not found.");
+  if (before.consentAt) return before;
+  return db.$transaction(async (tx) => {
+    const after = await tx.member.update({ where: { id }, data: { consentAt: at } });
+    await audit(tx, { orgId: u.orgId, userId: u.id, action: "member.consent", entity: "Member", entityId: id, before: { consentAt: null }, after: { consentAt: at } });
+    return after;
+  });
 }
 
 export async function setSuspended(u: CurrentUser, id: string, suspended: boolean) {
