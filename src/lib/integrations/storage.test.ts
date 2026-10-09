@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { signV4, sniffType } from "./storage";
+import { afterEach, describe, expect, it } from "vitest";
+import { signV4, sniffType, storageProblem } from "./storage";
+
+const S3 = ["S3_ENDPOINT", "S3_BUCKET", "S3_REGION", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "VERCEL"];
+const saved = Object.fromEntries(S3.map((k) => [k, process.env[k]]));
+const setEnv = (v: Record<string, string>) => {
+  for (const k of S3) delete process.env[k];
+  Object.assign(process.env, v);
+};
 
 describe("storage", () => {
   it("signs S3 requests exactly as AWS's published example", () => {
@@ -22,5 +29,33 @@ describe("storage", () => {
     expect(sniffType(Buffer.from("%PDF-1.7\n"))?.mime).toBe("application/pdf");
     expect(sniffType(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]))?.mime).toBe("image/jpeg");
     expect(sniffType(Buffer.from("<html><script>"))).toBeNull();
+  });
+
+  describe("storageProblem", () => {
+    afterEach(() => {
+      for (const k of S3) {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k]!;
+      }
+    });
+
+    it("is quiet when a bucket is fully set up or a disk server has no S3 at all", () => {
+      setEnv({ S3_ENDPOINT: "https://x", S3_BUCKET: "b", S3_ACCESS_KEY_ID: "k", S3_SECRET_ACCESS_KEY: "s" });
+      expect(storageProblem()).toBeNull();
+      setEnv({});
+      expect(storageProblem()).toBeNull();
+    });
+
+    it("names the missing bucket keys when the set-up is half done", () => {
+      setEnv({ S3_ENDPOINT: "https://x", S3_BUCKET: "b" });
+      const p = storageProblem();
+      expect(p).toContain("S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY are missing");
+      expect(p).toContain("Files cannot be saved");
+    });
+
+    it("says there is no disk on Vercel without a bucket", () => {
+      setEnv({ VERCEL: "1" });
+      expect(storageProblem()).toContain("no disk for files");
+    });
   });
 });

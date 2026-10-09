@@ -112,7 +112,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(140px,1fr))]">
             {[
               s.kind === "TRIAL" ? ["Trial ends", fmtDate(s.until)] : s.kind === "PAID" ? ["Paid until", fmtDate(s.until)] : s.kind === "GRACE" ? ["Read-only from", fmtDate(s.readOnlyFrom)] : s.kind === "LAPSED" ? ["Locked since", fmtDate(s.since)] : ["Plan", "Custom"],
-              ["Members", `${members}${terms.memberLimit !== null ? ` of ${terms.memberLimit}` : ""}`],
+              ["Active members", `${members}${terms.memberLimit !== null ? ` of ${terms.memberLimit}` : ""}`],
               ["Branches", String(branches.length)],
               ["Total paid", formatInr(paidTotal)],
             ].map(([k, v]) => (
@@ -122,6 +122,12 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
               </div>
             ))}
           </div>
+          <p className="m-0 text-[13px] text-muted">
+            Active members are members with a current plan, which is what the plan limit counts.{" "}
+            <Link href="/members" className="font-semibold text-accent">
+              See members
+            </Link>
+          </p>
           {terms.custom ? (
             <p className="text-sm">FITRON set up your gym by hand, so it has no member limit and {terms.includedBranches} branches are included. Extra branches are paid below. Write to hello@fitron.in to move to a listed plan.</p>
           ) : (

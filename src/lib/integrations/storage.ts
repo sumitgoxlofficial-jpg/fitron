@@ -2,6 +2,8 @@ import "server-only";
 import { createHash, createHmac } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { UserError } from "@/lib/services/errors";
+import { log } from "@/lib/log";
 
 // Private file storage. With S3_* set it uses any S3-compatible bucket (AWS S3, Cloudflare R2,
 // DigitalOcean Spaces, MinIO); otherwise files go to a folder on the server (STORAGE_DIR, default
@@ -18,6 +20,24 @@ function s3Config(): S3Config | null {
 }
 
 export const storageMode = () => (s3Config() ? "S3" : "DISK");
+
+const S3_KEYS = ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"] as const;
+
+/**
+ * Why files cannot be saved right now, in words a gym owner can act on, or null when storage looks usable.
+ * Exported for the Backup tab and the Go live checklist, so the problem shows before anyone tries an upload.
+ */
+export function storageProblem(): string | null {
+  if (s3Config()) return null;
+  const set = S3_KEYS.filter((k) => env(k));
+  const missing = S3_KEYS.filter((k) => !env(k));
+  if (set.length) return `File storage is half set up: the bucket settings ${set.join(", ")} are there but ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} missing on the server. Files cannot be saved until all four are set. Ask whoever hosts Fitron (or support) to add them.`;
+  if (env("VERCEL")) return "File storage is not set up: this server has no disk for files, and no S3_* bucket settings are set. Ask whoever hosts Fitron (or support) to connect a bucket (deploy/VERCEL.md).";
+  return null;
+}
+
+/** The message shown when a write to the server's folder fails: the disk is full, read-only, or this host has none. */
+const DISK_WRITE_FAILED = "Could not save the file: the server's file storage is full or not writable. Ask whoever hosts Fitron (or support) to check the storage folder or connect a bucket.";
 
 const sha256 = (b: string | Uint8Array) => createHash("sha256").update(b).digest("hex");
 const hmac = (k: Buffer | string, s: string) => createHmac("sha256", k).update(s).digest();
@@ -70,9 +90,16 @@ const diskPath = (key: string) => {
 export async function putObject(key: string, body: Uint8Array, contentType: string) {
   const c = s3Config();
   if (c) return void (await s3(c, "PUT", key, body, contentType));
+  const problem = storageProblem();
+  if (problem) throw new UserError(problem);
   const p = diskPath(key);
-  await mkdir(path.dirname(p), { recursive: true });
-  await writeFile(p, body);
+  try {
+    await mkdir(path.dirname(p), { recursive: true });
+    await writeFile(p, body);
+  } catch (e) {
+    log.error("storage.write_failed", e, { key });
+    throw new UserError(DISK_WRITE_FAILED);
+  }
 }
 
 export async function getObject(key: string): Promise<Uint8Array> {

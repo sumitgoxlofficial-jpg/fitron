@@ -40,6 +40,17 @@ describe.skipIf(!hasDb)("dashboard (database)", () => {
     expect(d.series.at(-1)!.active).toBe(2);
   });
 
+  it("counts new members by join date and memberships by sale date, not by the plan's start date", async () => {
+    const admin = pick(await gym.user("Super Admin"), gym.a.id);
+    const d = await dashboardData(admin, "month");
+    // All three were added and sold today, even though "Long Gone" started 50 days back and is already expired.
+    expect(d.kpis).toMatchObject({ newMembers: 3, newMemberships: 3, renewals: 0, newMembersLast: 0, newMembershipsLast: 0, renewalsLast: 0, joinedBy: "join date", soldBy: "sale date" });
+    expect(d.series.at(-1)).toMatchObject({ newCount: 3, renewCount: 0 });
+    expect(d.series.slice(0, -1).every((s) => s.newCount === 0 && s.renewCount === 0)).toBe(true);
+    const t = await dashboardData(admin, "today");
+    expect(t.kpis).toMatchObject({ newMembers: 3, newMemberships: 3 });
+  });
+
   it("counts every member for the accountant, and gives the front desk its own cards", async () => {
     const acct = pick(await gym.user("Accountant"), gym.a.id);
     expect((await dashboardData(acct, "month")).hero.active).toBe(2);

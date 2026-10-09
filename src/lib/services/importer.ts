@@ -67,14 +67,37 @@ export async function previewImport(u: CurrentUser, kind: ImportKind, rows: stri
   return checkRows(kind, toRecords(kind, rows, map), await context(u, branchId));
 }
 
-const CHUNK = 100;
+/**
+ * Rows per transaction. Every audit row takes the organisation's advisory lock for the rest of its transaction, so a
+ * big chunk holds up every other save in the gym (member saves timed out behind a 100-row chunk). Small chunks hand
+ * the lock back often.
+ */
+const CHUNK = 10;
 
-/** Re-checks every row, then imports the valid ones in batches. Returns how many were imported. */
-export async function commitImport(u: CurrentUser, kind: ImportKind, rows: string[][], map: Record<string, number>, fileName: string) {
+/** A later call of a commit split into parts by the import page: `index` of `of`, 1-based. */
+export type ImportPart = { index: number; of: number };
+
+export type ImportOptions = {
+  /** "These members gave consent on paper when they joined": every imported member whose row has no consent value gets today's date. */
+  consentOnPaper?: boolean;
+};
+
+export type ImportResult = { made: number; skipped: number; plansCreated: number; /** Names of plans created inactive at the row's price; an admin sets the price and activates them. */ plansInactive: string[] };
+
+/**
+ * Re-checks every row, then imports the valid ones in small transactions. Returns how many were imported.
+ * The import page sends a big file in parts (`part`), each its own call, so the browser can show progress and no
+ * single request runs long; a part whose rows were all imported by an earlier part comes back with `made: 0`
+ * rather than an error, so a resumed or repeated part is harmless.
+ */
+export async function commitImport(u: CurrentUser, kind: ImportKind, rows: string[][], map: Record<string, number>, fileName: string, part?: ImportPart, options: ImportOptions = {}): Promise<ImportResult> {
   const branchId = writeBranch(u);
   if (!branchId) throw new UserError("Pick a branch first. Imported records go to one branch.");
   const checked = checkRows(kind, toRecords(kind, rows, map), await context(u, branchId)).filter((r) => r.errors.length === 0);
-  if (!checked.length) throw new UserError("No valid rows to import.");
+  if (!checked.length) {
+    if (part) return { made: 0, skipped: rows.length, plansCreated: 0, plansInactive: [] };
+    throw new UserError("No valid rows to import.");
+  }
   await assertBranchWritable(db, u.orgId, branchId);
   if (kind === "members") {
     const plan = await gymPlan(u.orgId);
@@ -88,27 +111,37 @@ export async function commitImport(u: CurrentUser, kind: ImportKind, rows: strin
   const tax = await getTax(u.orgId);
   const pre = await prefixes(u.orgId);
   const memberPrefix = (await getSetting<{ memberPrefix?: string }>(u.orgId, "numbering"))?.memberPrefix ?? "FT-";
-  const plansMade = new Map<string, string>();
+  const plansMade = new Map<string, { id: string; name: string }>();
   let made = 0;
 
   for (let i = 0; i < checked.length; i += CHUNK) {
-    const part = checked.slice(i, i + CHUNK);
+    const slice = checked.slice(i, i + CHUNK);
     await db.$transaction(
       async (tx) => {
-        for (const r of part) {
-          await writeRow(tx, u, kind, branchId, r, { source, tax, pre, memberPrefix, plansMade });
+        for (const r of slice) {
+          await writeRow(tx, u, kind, branchId, r, { source, tax, pre, memberPrefix, plansMade, consentAt: options.consentOnPaper ? new Date() : null });
           made++;
         }
       },
-      { timeout: 120_000, maxWait: 20_000 },
+      { timeout: 60_000, maxWait: 20_000 },
     );
   }
 
+  const plansInactive = [...plansMade.values()].map((p) => p.name);
   await db.$transaction(async (tx) => {
-    await audit(tx, { orgId: u.orgId, userId: u.id, action: `import.${kind}`, entity: "Import", entityId: kind, after: { file: fileName, rows: rows.length, imported: made, plansCreated: plansMade.size } });
+    await audit(tx, {
+      orgId: u.orgId,
+      userId: u.id,
+      action: `import.${kind}`,
+      entity: "Import",
+      entityId: kind,
+      after: { file: fileName, ...(part ? { part: `${part.index}/${part.of}` } : {}), rows: rows.length, imported: made, plansCreated: plansMade.size, plansInactive },
+    });
   });
-  await putSetting(u, "migration", { done: { ...(mig.done ?? {}), [kind]: { n: (mig.done?.[kind]?.n ?? 0) + made, at: new Date().toISOString() } } });
-  return { made, skipped: rows.length - made, plansCreated: plansMade.size };
+  // The step counter adds up across parts; a re-read of the setting per call keeps two parts from clobbering each other.
+  const latest = await getMigration(u.orgId);
+  await putSetting(u, "migration", { done: { ...(latest.done ?? {}), [kind]: { n: (latest.done?.[kind]?.n ?? 0) + made, at: new Date().toISOString() } } });
+  return { made, skipped: rows.length - made, plansCreated: plansMade.size, plansInactive };
 }
 
 async function writeRow(
@@ -117,18 +150,22 @@ async function writeRow(
   kind: ImportKind,
   branchId: string,
   r: CheckedRow,
-  o: { source: string; tax: Awaited<ReturnType<typeof getTax>>; pre: { invoice: string; payment: string }; memberPrefix: string; plansMade: Map<string, string> },
+  o: { source: string; tax: Awaited<ReturnType<typeof getTax>>; pre: { invoice: string; payment: string }; memberPrefix: string; plansMade: Map<string, { id: string; name: string }>; consentAt?: Date | null },
 ) {
   const d = r.data as Record<string, never>;
   if (kind === "members") {
     let planId: string | null = d.planId;
     if (!planId) {
       const key = String(d.planName).toLowerCase();
-      planId = o.plansMade.get(key) ?? null;
+      planId = o.plansMade.get(key)?.id ?? null;
       if (!planId) {
-        const p = await tx.membershipPlan.create({ data: { orgId: u.orgId, name: d.planName, months: d.months, price: d.amount, regFee: 0, gstApplicable: false, kind: "Membership", description: "Created during migration", features: [] } });
+        // A plan the file names but the gym hasn't set up: created inactive at the row's amount (often ₹0), so it
+        // can't be sold until an admin sets the price and activates it in Plans (bug 10).
+        const p = await tx.membershipPlan.create({
+          data: { orgId: u.orgId, name: d.planName, months: d.months, price: d.amount, regFee: 0, gstApplicable: false, kind: "Membership", status: "INACTIVE", description: "Created during migration · set the price and activate before selling", features: [] },
+        });
         await audit(tx, { orgId: u.orgId, userId: u.id, action: "plan.create", entity: "MembershipPlan", entityId: p.id, after: p });
-        o.plansMade.set(key, p.id);
+        o.plansMade.set(key, { id: p.id, name: p.name });
         planId = p.id;
       }
     }
@@ -151,6 +188,8 @@ async function writeRow(
         source: "Other",
         notes: [d.notes, `Migrated from ${o.source}${d.oldId ? ` (ID ${d.oldId})` : ""}`].filter(Boolean).join(" · "),
         tags: [],
+        // The row's own consent date wins; else the import-time "gave consent on paper" tick; else none is recorded.
+        consentAt: d.consentAt ? fromIso(d.consentAt) : (o.consentAt ?? null),
         createdById: u.id,
       },
     });

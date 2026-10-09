@@ -42,13 +42,18 @@ export function PhotoUpload({ hasPhoto, action }: { hasPhoto: boolean; action: (
 
   const send = (fd: FormData) =>
     start(async () => {
+      let r: FormState;
       try {
-        const r = await action(undefined, fd);
-        setState(r);
-        if (r?.ok) router.refresh();
+        r = await action(undefined, fd);
       } catch {
+        // The action itself failed to run (the request never got through, or the server crashed): the only case
+        // where "check your connection" is the honest advice. A rule the server could explain comes back as `r`.
         setState({ message: "The photo couldn't be saved. Check your connection and try again, or pick a smaller photo." });
+        return;
       }
+      // The server's own words (storage not set up, wrong file type, too large…) are shown as they are.
+      setState(r?.ok || r?.message ? r : { message: "The photo couldn't be saved. Try again, or pick a smaller photo." });
+      if (r?.ok) router.refresh();
     });
 
   const pick = async (input: HTMLInputElement) => {

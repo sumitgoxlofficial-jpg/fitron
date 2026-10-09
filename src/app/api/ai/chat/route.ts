@@ -6,14 +6,16 @@ import { localChat } from "@/lib/services/ai-local";
 import { rateLimit } from "@/lib/rate-limit";
 import { log } from "@/lib/log";
 import { UserError } from "@/lib/services/errors";
-import { chatFor, saveTurn } from "@/lib/services/ai-chats";
-import { AttachmentError, attachmentBlocks, kindOf } from "@/lib/files/read-attachment";
+import { ATTACHMENT_TEXT_CAP, chatFor, chatHistory, saveTurn, type ChatAttachment } from "@/lib/services/ai-chats";
+import { AttachmentError, attachmentBlocks, attachmentRecord, kindOf } from "@/lib/files/read-attachment";
 import { readCapped } from "../../trainer/_lib/http";
 import { aiUser } from "../_lib/access";
 
 // Fitron AI chat. Streams newline-delimited JSON events: the chat it is saved in, tool progress, text, proposals, done.
-// A question can bring up to three files (PDF, photo, Excel, Word, CSV). They are read for this answer only and never
-// stored; the chat keeps their names.
+// A question can bring up to three files (PDF, photo, Excel, Word, CSV). Their bytes are read for this answer only and
+// never stored; the chat keeps their names and the text read from a CSV, Excel or Word file, so a later question can
+// still refer to it. The model's history is the chat as saved here (with each draft's current state), not what the
+// browser sends: the browser's copy is only used to check the question.
 export const maxDuration = 120;
 
 const MAX_FILES = 3;
@@ -57,10 +59,12 @@ export async function POST(req: Request) {
 
   // The files, read now: a file that can't be read is said before anything is saved.
   let fileBlocks: Block[];
-  let files: { name: string; kind: string }[];
+  let files: ChatAttachment[];
   try {
     files = attachments.map((a) => ({ name: a.name, kind: kindOf(a) }));
-    fileBlocks = attachments.flatMap(attachmentBlocks);
+    const read = attachments.map((a) => attachmentBlocks(a));
+    fileBlocks = read.flat();
+    files = attachments.map((a, i) => attachmentRecord(a, read[i]!, ATTACHMENT_TEXT_CAP));
   } catch (e) {
     if (e instanceof AttachmentError) return Response.json({ error: e.message }, { status: 400 });
     throw e;
@@ -73,14 +77,12 @@ export async function POST(req: Request) {
     if (e instanceof UserError) return Response.json({ error: e.message }, { status: 404 });
     throw e;
   }
+  // Earlier turns come from the saved chat (what was read from files, and what became of each draft), then the files
+  // and the question of this turn.
+  const earlier: Msg[] = parsed.data.chatId ? await chatHistory(u, saved.id) : [];
   await saveTurn(saved.id, { role: "user", content: question, attachments: files });
-
-  // The model reads the files with the last question; earlier turns are the conversation's text.
   const asked = question || "Read the attached file and tell me what it shows for the gym's accounts.";
-  const history: Msg[] = [
-    ...messages.slice(0, -1).filter((m) => m.content),
-    { role: "user", content: fileBlocks.length ? [...fileBlocks, { type: "text", text: asked }] : asked },
-  ];
+  const history: Msg[] = [...earlier, { role: "user", content: fileBlocks.length ? [...fileBlocks, { type: "text", text: asked }] : asked }];
 
   const enc = new TextEncoder();
   const stream = new ReadableStream({

@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth/current";
 import { getInvoice } from "@/lib/services/billing";
-import { getGymProfile } from "@/lib/services/settings";
-import { getTax } from "@/lib/services/tax";
+import { sellerOf } from "@/lib/services/invoice-seller";
 import { todayIso } from "@/lib/services/time";
 import { Badge, Card, LinkButton, Notice, ScrollRegion } from "@/components/ui";
 import { PrintButton } from "@/components/print-button";
 import { gymLogoUrl } from "@/components/gym-logo";
 import { FilePdfIcon } from "@phosphor-icons/react/dist/ssr";
 import { fmtDate, formatInr, formatRupees, initials } from "@/lib/format";
+import { INVOICE_STATUS_TAG } from "@/lib/domain/billing";
 import { CancelInvoice, CollectForm, ReversePayment } from "./invoice-forms";
 
 const cx2 = (...c: (string | false)[]) => c.filter(Boolean).join(" ");
@@ -42,17 +42,19 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
   const { created } = await searchParams;
   const inv = await getInvoice(u, id);
   if (!inv) notFound();
-  const [profile, tax] = await Promise.all([getGymProfile(u.orgId), getTax(u.orgId)]);
-  // What the PDF prints as "From": a branch's own GSTIN wins over the gym-level one.
+  // "From" is the seller as it was when the invoice was made; a later Settings change never alters it.
+  const profile = await sellerOf(inv);
   const cancelled = inv.status === "CANCELLED";
   const half = inv.gstType === "CGST+SGST";
-  const gstin = inv.branch.gstin || tax.gstin;
   const rate = Number(inv.gstRate ?? 0);
+  const gstin = profile.gstin;
   const paid = inv.balance <= 0 && !cancelled;
   const statusBg = cancelled ? "#aa0b56" : paid ? "#146c43" : inv.paid > 0 ? "#8a6612" : "#aa0b56";
-  const statusLabel = cancelled ? "CANCELLED" : paid ? "PAID" : inv.paid > 0 ? "PART PAID" : "UNPAID";
+  const statusLabel = INVOICE_STATUS_TAG[inv.status];
   const logo = gymLogoUrl(profile.logoKey);
   const okPays = inv.payments;
+  // Remount the money forms when a payment is reversed, so the collect box shows the new balance and no stale notice.
+  const moneyKey = `${inv.balance}-${inv.payments.filter((p) => p.status === "REVERSED").length}`;
   const totals: [string, string, boolean?, string?][] = [
     ["Subtotal", money(inv.subtotal)],
     ["Discount", `− ${money(inv.discount)}`],
@@ -111,9 +113,9 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
             <div className="text-[13.5px] leading-[1.6]">
               <strong>{profile.name}</strong>
               <br />
-              <span className="whitespace-pre-line">{profile.address || inv.branch.address}</span>
+              <span className="whitespace-pre-line">{profile.address}</span>
               <br />
-              {[profile.phone || inv.branch.phone, profile.email].filter(Boolean).join(" · ")}
+              {[profile.phone, profile.email].filter(Boolean).join(" · ")}
               {gstin && (
                 <>
                   <br />
@@ -258,7 +260,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
       <div className="mt-2 flex flex-col gap-4 print:hidden">
         {!cancelled && inv.balance > 0 && u.can("payments.collect") && (
           <Card title="Collect payment" className="scroll-mt-24" id="collect">
-            <CollectForm invoiceId={inv.id} balance={inv.balance} today={todayIso()} />
+            <CollectForm key={`collect-${inv.payments.filter((p) => p.status === "REVERSED").length}`} invoiceId={inv.id} balance={inv.balance} today={todayIso()} />
           </Card>
         )}
         {inv.payments.some((p) => p.status === "SUCCESS") && !cancelled && u.can("payments.reverse") && (
@@ -277,7 +279,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
                     {p.txnRef ? ` · Ref ${p.txnRef}` : ""}
                   </div>
                   {p.status === "REVERSED" && <div className="text-muted">Reason: {p.reverseReason}</div>}
-                  {p.status === "SUCCESS" && <ReversePayment paymentId={p.id} invoiceId={inv.id} />}
+                  {p.status === "SUCCESS" && <ReversePayment key={moneyKey} paymentId={p.id} invoiceId={inv.id} />}
                 </li>
               ))}
             </ul>
@@ -285,7 +287,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
         )}
         {!cancelled && u.can("invoices.cancel") && (
           <Card>
-            <CancelInvoice invoiceId={inv.id} />
+            <CancelInvoice key={moneyKey} invoiceId={inv.id} />
           </Card>
         )}
       </div>

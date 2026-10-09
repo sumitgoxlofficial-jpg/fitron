@@ -415,7 +415,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               </span>
             </div>
             <p className="max-w-[720px] text-[13px] leading-[1.6] text-muted">
-              Live mode uses your own Razorpay account: set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET and RAZORPAY_WEBHOOK_SECRET on the server and add /api/webhooks/razorpay as a webhook in the Razorpay dashboard. Members approve once in any UPI
+              Live mode uses your own Razorpay account. To switch it on, send your Razorpay key and webhook secret to whoever hosts Fitron (or contact support), who adds them to the server; then add /api/webhooks/razorpay as a webhook in the Razorpay dashboard. Members approve once in any UPI
               app; Razorpay sends the NPCI pre-debit notice, charges on the renewal date and retries; Fitron records each renewal automatically.
             </p>
           </Panel>

@@ -11,7 +11,7 @@ export function CollectForm({ invoiceId, balance, today }: { invoiceId: string; 
   const e = state?.errors ?? {};
   const sent = state?.ok ? undefined : (state?.values as Record<string, string> | undefined);
   return (
-    <form action={action} key={state?.nonce} className="flex flex-col gap-3">
+    <form action={action} key={`${state?.nonce}-${balance}`} className="flex flex-col gap-3">
       {state?.message && <Notice tone={state.ok ? "ok" : "alert"}>{state.message}</Notice>}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Amount (₹)" error={e.amount}>
