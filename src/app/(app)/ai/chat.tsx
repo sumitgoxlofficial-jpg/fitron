@@ -27,6 +27,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { cx } from "@/components/ui";
+import { MarkdownLite } from "@/components/markdown-lite";
 import type { BriefCard } from "@/lib/services/ai-local";
 import { TOOL_LABEL } from "@/lib/domain/ai-labels";
 import { dismissProposalAction, sendProposalAction } from "./actions";
@@ -37,6 +38,8 @@ type Turn = { role: "user" | "assistant"; content: string; attachments?: FileTag
 type ChatSummary = { id: string; title: string; updatedAt: string };
 /** A file picked for the next question, read in the browser as base64 (photos shrunk first). */
 type Picked = { name: string; type: string; data: string };
+/** A question asked while the previous answer was still coming. */
+type Queued = { question: string; files: Picked[] };
 
 const SUGGESTIONS = [
   "Who owes us money?",
@@ -50,7 +53,7 @@ const SUGGESTIONS = [
 const GREETING: Turn = {
   role: "assistant",
   content:
-    "Hi! I'm your accounting assistant. I read your gym's live books and can answer questions on GST, invoices, payments, expenses, profit and cash. I can also prepare invoices, membership sales, payments and expenses. You check each one and press Confirm; nothing is saved until you do. You can attach a bill, photo, PDF, Excel or Word file too.",
+    "Hi! I'm your accounting assistant. I read your gym's live books and can answer questions on GST, invoices, payments, expenses, profit and cash. I can also prepare invoices, membership sales, payments and expenses: each comes as a card you check and then press its button (Create invoice, Sell membership, Record payment, Record expense…); nothing is saved until you do. You can attach a bill, photo, PDF, Excel or Word file too.",
 };
 
 /** What the file picker offers; the server reads the same kinds (src/lib/files/read-attachment.ts). */
@@ -103,6 +106,16 @@ export function useAiChat() {
   const [files, setFiles] = useState<Picked[]>([]);
   const [fileError, setFileError] = useState("");
   const [chats, setChats] = useState<ChatSummary[] | null>(null);
+  // Questions asked while an answer is still coming: kept here and sent one by one once it ends, never dropped.
+  const [queued, setQueued] = useState<Queued[]>([]);
+  const queue = useRef<Queued[]>([]);
+  const busyRef = useRef(false);
+  // The chat a queued question goes into: the one the first answer created, even though that closure never saw it.
+  const chatIdRef = useRef<string | null>(null);
+  const setChat = (id: string | null) => {
+    chatIdRef.current = id;
+    setChatId(id);
+  };
 
   async function addFiles(list: FileList | null) {
     setFileError("");
@@ -120,23 +133,40 @@ export function useAiChat() {
   }
   const removeFile = (i: number) => setFiles((fs) => fs.filter((_, j) => j !== i));
 
-  async function ask(q: string) {
+  /** Asks a question (with the files picked so far). While an answer is still coming it is queued and sent after. */
+  function ask(q: string) {
     const question = q.trim();
-    if ((!question && !files.length) || busy) return;
+    if (!question && !files.length) return;
     const sending = files;
-    const tags = sending.map((f) => ({ name: f.name, kind: fileKind(f.name, f.type) }));
-    const history = [...turns.slice(1).filter((t) => !t.error && t.content), { role: "user" as const, content: question }];
-    setTurns((ts) => [...ts, { role: "user", content: question, attachments: tags }, { role: "assistant", content: "", proposals: [] }]);
     setFiles([]);
     setFileError("");
+    if (busyRef.current) {
+      queue.current = [...queue.current, { question, files: sending }];
+      setQueued(queue.current);
+      return;
+    }
+    void send(question, sending);
+  }
+  function unqueue(i: number) {
+    queue.current = queue.current.filter((_, j) => j !== i);
+    setQueued(queue.current);
+  }
+
+  async function send(question: string, sending: Picked[]) {
+    const tags = sending.map((f) => ({ name: f.name, kind: fileKind(f.name, f.type) }));
+    busyRef.current = true;
     setBusy(true);
     setStep(sending.length ? "Reading your file…" : "Reading your books…");
+    let id = chatIdRef.current;
+    setTurns((ts) => [...ts, { role: "user", content: question, attachments: tags }, { role: "assistant", content: "", proposals: [] }]);
     const patch = (f: (t: Turn) => Turn) => setTurns((ts) => [...ts.slice(0, -1), f(ts[ts.length - 1]!)]);
     try {
+      // The server keeps the conversation (with what it read from files and what became of each draft), so only the
+      // question goes up; it continues the saved chat named by chatId.
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chatId: chatId ?? undefined, messages: history.slice(-20).map(({ role, content }) => ({ role, content })), attachments: sending }),
+        body: JSON.stringify({ chatId: id ?? undefined, messages: [{ role: "user", content: question }], attachments: sending }),
       });
       if (!res.ok || !res.body) {
         const j = await res.json().catch(() => ({}));
@@ -157,7 +187,8 @@ export function useAiChat() {
           if (!line.trim()) continue;
           const e = JSON.parse(line);
           if (e.type === "chat") {
-            setChatId(e.id);
+            id = e.id;
+            setChat(e.id);
             setChats(null); // the history list is out of date now
           }
           if (e.type === "text") patch((t) => ({ ...t, content: t.content ? `${t.content}\n\n${e.text}` : e.text }));
@@ -172,9 +203,20 @@ export function useAiChat() {
     } catch {
       patch((t) => ({ ...t, error: "Couldn't reach Fitron AI. Check the connection and try again." }));
     } finally {
+      busyRef.current = false;
       setBusy(false);
       setStep("");
+      const next = queue.current.shift();
+      setQueued([...queue.current]);
+      if (next) void send(next.question, next.files);
     }
+  }
+
+  /** Cards retired by the server when another was confirmed (the same action for the same member) stop working on screen too. */
+  function retire(ids: string[], why: string) {
+    if (!ids.length) return;
+    const gone = new Set(ids);
+    setTurns((ts) => ts.map((t) => (t.proposals?.some((p) => gone.has(p.id)) ? { ...t, proposals: t.proposals!.map((p) => (gone.has(p.id) ? { ...p, status: "DISMISSED", result: why } : p)) } : t)));
   }
 
   async function loadChats() {
@@ -183,17 +225,17 @@ export function useAiChat() {
     setChats(j?.chats ?? []);
   }
   async function openChat(id: string) {
-    if (busy) return;
+    if (busyRef.current) return;
     const res = await fetch(`/api/ai/chats/${encodeURIComponent(id)}`).catch(() => null);
     const j = res?.ok ? await res.json().catch(() => null) : null;
     if (!j) return loadChats();
-    setChatId(j.id);
+    setChat(j.id);
     setTurns([GREETING, ...j.turns]);
     setFiles([]);
   }
   function newChat() {
-    if (busy) return;
-    setChatId(null);
+    if (busyRef.current) return;
+    setChat(null);
     setTurns([GREETING]);
     setFiles([]);
     setFileError("");
@@ -204,7 +246,7 @@ export function useAiChat() {
     if (id === chatId) newChat();
   }
 
-  return { turns, busy, step, ask, chatId, files, fileError, addFiles, removeFile, chats, loadChats, openChat, newChat, removeChat };
+  return { turns, busy, step, ask, queued, unqueue, retire, chatId, files, fileError, addFiles, removeFile, chats, loadChats, openChat, newChat, removeChat };
 }
 
 const FILE_ICON = { pdf: FilePdfIcon, image: ImageIcon, excel: FileXlsIcon, word: FileDocIcon, text: FileTextIcon } as const;
@@ -273,13 +315,18 @@ function ChatHistory({ chat, onClose }: { chat: ReturnType<typeof useAiChat>; on
   );
 }
 
-function ProposalButtons({ p }: { p: Proposal }) {
+function ProposalButtons({ p, onRetired }: { p: Proposal; onRetired: (ids: string[], why: string) => void }) {
   const [sent, send, sending] = useActionState(sendProposalAction.bind(null, p.id), undefined);
   const [dropped, drop, dropping] = useActionState(dismissProposalAction.bind(null, p.id), undefined);
   const chip = "inline-flex items-center rounded-full border border-line bg-bg px-3 py-1.5 text-[13px] font-semibold hover:bg-fg/7 disabled:opacity-45";
   const whatsapp = p.kind === "WHATSAPP";
+  useEffect(() => {
+    if (sent?.ok && sent.retired?.length) onRetired(sent.retired, `No longer available: "${p.summary}" was confirmed instead.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sent]);
+  // Not open any more: say what became of it (saved, discarded, retired by another card, or failed a check).
   if (p.status && p.status !== "PENDING" && !sent && !dropped)
-    return <div className="mt-2.5 text-[13px] text-muted">{p.status === "DONE" ? (p.result ?? "Done.") : whatsapp ? "Not sent." : "Discarded. Nothing was saved."}</div>;
+    return <div className={cx("mt-2.5 text-[13px]", p.status !== "DONE" && p.result ? "text-alert" : "text-muted")}>{p.status === "DONE" ? (p.result ?? "Done.") : (p.result ?? (whatsapp ? "Not sent." : "Discarded. Nothing was saved."))}</div>;
   if (sent?.message)
     return (
       <div className={cx("mt-2.5 text-[13px]", sent.ok ? "text-ok" : "text-alert")}>
@@ -301,6 +348,7 @@ function ProposalButtons({ p }: { p: Proposal }) {
   if (dropped?.ok) return <div className="mt-2.5 text-[13px] text-muted">{whatsapp ? "Not sent." : "Discarded. Nothing was saved."}</div>;
   return (
     <div className="mt-2.5 flex flex-col gap-2">
+      {p.result && <div className="text-[13px] text-alert">{p.result}</div>}
       {whatsapp ? (
         <details className="text-[13px] text-muted">
           <summary className="cursor-pointer">Message to {p.members} member{p.members === 1 ? "" : "s"}</summary>
@@ -327,7 +375,7 @@ function ProposalButtons({ p }: { p: Proposal }) {
 
 /** The chat column: history, messages, suggestion chips, attachments and the input. `drawer` is the panel behind "Ask Fitron AI". */
 export function ChatPanel({ chat, drawer = false }: { chat: ReturnType<typeof useAiChat>; drawer?: boolean }) {
-  const { turns, busy, step, ask, files, fileError, addFiles, removeFile } = chat;
+  const { turns, busy, step, ask, queued, unqueue, retire, files, fileError, addFiles, removeFile } = chat;
   const [text, setText] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const end = useRef<HTMLDivElement>(null);
@@ -363,7 +411,8 @@ export function ChatPanel({ chat, drawer = false }: { chat: ReturnType<typeof us
             <div
               key={i}
               className={cx(
-                "max-w-[86%] px-[15px] py-[11px] text-sm leading-[1.55] whitespace-pre-wrap [overflow-wrap:anywhere]",
+                "max-w-[86%] px-[15px] py-[11px] text-sm leading-[1.55] [overflow-wrap:anywhere]",
+                t.role === "user" && "whitespace-pre-wrap",
                 drawer ? "rounded-[18px] border border-line-soft text-[14.5px]" : "rounded-2xl shadow-sm",
                 t.role === "user" ? "self-end bg-fg text-bg" : cx("self-start", drawer ? "bg-surface" : "bg-bg"),
               )}
@@ -375,9 +424,9 @@ export function ChatPanel({ chat, drawer = false }: { chat: ReturnType<typeof us
                   ))}
                 </div>
               )}
-              {t.content}
+              {t.role === "assistant" ? <MarkdownLite text={t.content} /> : t.content}
               {t.error && <span className="text-alert">{t.error}</span>}
-              {t.proposals?.map((p) => <ProposalButtons key={p.id} p={p} />)}
+              {t.proposals?.map((p) => <ProposalButtons key={p.id} p={p} onRetired={retire} />)}
             </div>
           ))}
           {busy && (
@@ -386,6 +435,16 @@ export function ChatPanel({ chat, drawer = false }: { chat: ReturnType<typeof us
               {step}
             </div>
           )}
+          {queued.map((q, i) => (
+            <div key={i} className="flex max-w-[86%] items-center gap-2 self-end rounded-2xl border border-dashed border-fg/30 px-[15px] py-[9px] text-[13px] text-muted">
+              <span className="min-w-0 flex-1 truncate">
+                <span className="font-semibold">Queued</span> · sent when this reply finishes: {q.question || q.files.map((f) => f.name).join(", ")}
+              </span>
+              <button type="button" onClick={() => unqueue(i)} aria-label="Remove from queue" className="grid h-6 w-6 flex-none place-items-center rounded-full hover:bg-fg/10">
+                <XIcon size={12} weight="bold" />
+              </button>
+            </div>
+          ))}
           <div ref={end} />
         </div>
       )}
@@ -437,7 +496,7 @@ export function ChatPanel({ chat, drawer = false }: { chat: ReturnType<typeof us
             maxLength={4000}
             className="min-w-0 flex-1 border-0 bg-transparent py-2 text-[15px] text-fg outline-0 placeholder:text-fg/55"
           />
-          <button disabled={busy || (!text.trim() && !files.length)} aria-label="Send" className={cx("grid flex-none place-items-center bg-accent text-accent-ink hover:bg-accent-hover disabled:opacity-45", drawer ? "h-10 w-10 rounded-full" : "rounded-[10px] px-3.5 py-2.5")}>
+          <button disabled={!text.trim() && !files.length} aria-label={busy ? "Send after this reply" : "Send"} title={busy ? "Sent when the current reply finishes" : undefined} className={cx("grid flex-none place-items-center bg-accent text-accent-ink hover:bg-accent-hover disabled:opacity-45", drawer ? "h-10 w-10 rounded-full" : "rounded-[10px] px-3.5 py-2.5")}>
             {drawer ? <ArrowUpIcon size={18} weight="bold" /> : <PaperPlaneTiltIcon size={18} weight="duotone" />}
           </button>
         </form>

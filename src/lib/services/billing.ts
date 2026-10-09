@@ -13,9 +13,11 @@ import { assertMonthOpen } from "./locks";
 import { memberScope } from "./members";
 import { nextNumber } from "./sequence";
 import { getSetting } from "./settings";
+import { sellerFor } from "./invoice-seller";
 import { getTax, type TaxSetting } from "./tax";
 import { fromIso, toIso, todayIso } from "./time";
 import { assertBranchWritable } from "./saas";
+import { fmtDate } from "@/lib/format";
 
 type Tx = Prisma.TransactionClient;
 
@@ -49,8 +51,10 @@ export async function writeInvoice(
   // The lines carry the invoice's own tax, split so they add back up to it (rule 3).
   const itemTax = lineTaxes(a.lines, t.tax);
   const n = await nextNumber(tx, u.orgId, "invoice");
-  const br = await tx.branch.findFirst({ where: { orgId: u.orgId, id: a.branchId }, select: { invoicePrefix: true } });
+  const br = await tx.branch.findFirst({ where: { orgId: u.orgId, id: a.branchId }, select: { invoicePrefix: true, gstin: true, address: true, phone: true } });
   const prefix = br?.invoicePrefix || a.prefix;
+  // The seller details as they stand now, kept on the invoice for good: a later Settings change never alters it.
+  const seller = await sellerFor(tx, u.orgId, br ?? { gstin: null, address: "", phone: "" }, tax);
   return tx.invoice.create({
     data: {
       orgId: u.orgId,
@@ -62,6 +66,7 @@ export async function writeInvoice(
       ...t,
       gstType: t.tax > 0 ? tax.type : null,
       gstRate: t.tax > 0 ? tax.rate : null,
+      seller,
       status: "ISSUED",
       createdById: u.id,
       items: {
@@ -118,6 +123,22 @@ export async function suggestedStart(memberId: string, today = todayIso()) {
 }
 
 /**
+ * A valid membership of this member whose dates overlap [start, end], or null. Selling over dates a member has already
+ * paid for would bill them twice for the same days, so a sale must start after it (suggestedStart gives that day).
+ */
+export async function overlappingMembership(memberId: string, start: string, end: string, tx: Pick<Tx, "membership"> = db) {
+  const m = await tx.membership.findFirst({
+    where: { memberId, status: "VALID", startDate: { lte: fromIso(end) }, endDate: { gte: fromIso(start) } },
+    orderBy: { endDate: "desc" },
+    include: { plan: { select: { name: true } } },
+  });
+  return m && { plan: m.plan.name, start: toIso(m.startDate), end: toIso(m.endDate) };
+}
+
+export const overlapMessage = (member: string, o: { plan: string; start: string; end: string }) =>
+  `${member} already has ${o.plan} covering ${fmtDate(o.start)} to ${fmtDate(o.end)}; the new plan would overlap it. Start it on ${fmtDate(addDays(o.end, 1))} or pick dates after that.`;
+
+/**
  * Rule 1: a sale or renewal always creates a new Membership + Invoice (+ Payment if collected now),
  * in one transaction. Nothing is overwritten.
  */
@@ -150,6 +171,11 @@ export async function sellMembership(u: CurrentUser, memberId: string, input: Se
 
   return db.$transaction(async (tx) => {
     await assertMonthOpen(tx, u, member.branchId, today);
+    // Checked inside the transaction with the member row locked, so two sales confirmed at once (two AI cards, two
+    // tabs) can't both go through.
+    await tx.$queryRaw`SELECT id FROM "Member" WHERE id = ${memberId} FOR UPDATE`;
+    const clash = await overlappingMembership(memberId, input.startDate, endDate, tx);
+    if (clash) throw new UserError(overlapMessage(member.name, clash), "startDate");
     const invoice = await writeInvoice(tx, u, { branchId: member.branchId, memberId, date: today, dueDate: today, lines, prefix: p.invoice, tax });
     const msNo = await nextNumber(tx, u.orgId, "membership", 1);
     const membership = await tx.membership.create({

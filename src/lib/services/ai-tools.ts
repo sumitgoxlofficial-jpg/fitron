@@ -89,7 +89,7 @@ export const TOOL_DEFS = [
   {
     name: "draft_invoice",
     description:
-      "Prepare a GST invoice (bill) for a member for the user to confirm. Nothing is saved until they press Confirm. Amounts are rupees BEFORE GST; GST is added from the gym's setting for each taxable line. For a membership use draft_membership_sale instead.",
+      "Prepare a GST invoice (bill) for a member for the user to confirm. Nothing is saved until they press the card's \"Create invoice\" button. Amounts are rupees BEFORE GST; GST is added from the gym's setting for each taxable line. For a membership use draft_membership_sale instead.",
     input_schema: {
       type: "object",
       properties: {

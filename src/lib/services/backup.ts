@@ -176,7 +176,7 @@ export async function createBackup(actor: Actor, kind: BackupKind, now = new Dat
     await putObject(storageKey, bytes, "application/json");
   } catch (e) {
     if (e instanceof UserError) throw e;
-    console.error("backup.write_failed", { orgId: actor.orgId, error: e instanceof Error ? e.message : String(e) });
+    log.error("backup.write_failed", e, { orgId: actor.orgId });
     throw new UserError(STORAGE_FULL);
   }
   const fileName = backupFileName(x.gymName, now);

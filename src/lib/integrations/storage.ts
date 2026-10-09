@@ -3,6 +3,7 @@ import { createHash, createHmac } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { UserError } from "@/lib/services/errors";
+import { log } from "@/lib/log";
 
 // Private file storage. With S3_* set it uses any S3-compatible bucket (AWS S3, Cloudflare R2,
 // DigitalOcean Spaces, MinIO); otherwise files go to a folder on the server (STORAGE_DIR, default
@@ -96,7 +97,7 @@ export async function putObject(key: string, body: Uint8Array, contentType: stri
     await mkdir(path.dirname(p), { recursive: true });
     await writeFile(p, body);
   } catch (e) {
-    console.error("storage.write_failed", { key, error: e instanceof Error ? e.message : String(e) });
+    log.error("storage.write_failed", e, { key });
     throw new UserError(DISK_WRITE_FAILED);
   }
 }
