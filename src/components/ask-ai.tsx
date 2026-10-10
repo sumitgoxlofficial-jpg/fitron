@@ -23,7 +23,7 @@ export function AskAi() {
           className="fixed right-5 bottom-4 z-40 max-lg:bottom-[84px] inline-flex items-center gap-2 rounded-[22px] bg-accent py-[11px] pr-[18px] pl-2.5 text-sm font-semibold whitespace-nowrap text-accent-ink shadow-lg hover:bg-accent-hover print:hidden"
         >
           {/* always the dark disc: a transparent gold mark would vanish on this gold button */}
-          <Image src="/fitron-mark.png" alt="" width={26} height={26} className="-my-1 rounded-full" />
+          <Image src="/fitron-mark-v2.png" alt="" width={26} height={26} className="-my-1 rounded-full" />
           Ask Fitron AI
         </button>
       )}
