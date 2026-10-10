@@ -211,6 +211,8 @@ export async function addMember(page: Page, name: string): Promise<string> {
   await page.getByLabel("Mobile number").fill(`9${String(Math.floor(Math.random() * 1e9)).padStart(9, "0")}`);
   await page.getByLabel("Gender").selectOption({ index: 1 });
   await page.getByLabel("How did you hear about us?").selectOption({ index: 1 });
+  // A new member cannot be saved without their privacy consent.
+  await page.getByRole("checkbox", { name: /^Privacy consent/ }).check();
   await page.getByRole("button", { name: "Add member" }).click();
   await page.waitForURL(/\/members\/(?!new$)[^/?]+$/);
   return new URL(page.url()).pathname.split("/").pop()!;
