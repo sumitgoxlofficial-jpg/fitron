@@ -6,6 +6,7 @@ import { MessageLogService } from "../services/MessageLogService.js";
 import { REDIS_KEYS, type SendJob } from "../types/index.js";
 import { deriveKey } from "../utils/encryption.js";
 import { BaileysProvider } from "../whatsapp/BaileysProvider.js";
+import { WwebjsProvider } from "../whatsapp/WwebjsProvider.js";
 import { WhatsAppManager } from "../whatsapp/WhatsAppManager.js";
 import type { WhatsAppProvider } from "../whatsapp/provider.js";
 import type { Container } from "./container.js";
@@ -15,7 +16,8 @@ export type WorkerRuntime = { manager: WhatsAppManager; worker: Worker<SendJob>;
 /** Starts the process that owns WhatsApp sockets and consumes the send queue. */
 export async function startWorker(c: Container, provider?: WhatsAppProvider): Promise<WorkerRuntime> {
   const e = env();
-  const prov = provider ?? new BaileysProvider(deriveKey(e.SESSION_ENCRYPTION_KEY));
+  const prov = provider ?? (e.WA_ENGINE === "wwebjs" ? new WwebjsProvider({ executablePath: e.CHROMIUM_PATH || undefined }) : new BaileysProvider(deriveKey(e.SESSION_ENCRYPTION_KEY)));
+  c.logger.info({ engine: prov.name }, "WhatsApp engine");
   const workerSub = createRedis("worker-sub");
   const { EventBus } = await import("../whatsapp/events.js");
   const bus = new EventBus(c.redis, workerSub);

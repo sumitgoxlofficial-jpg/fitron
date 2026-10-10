@@ -1,6 +1,7 @@
 import type { Logger } from "../utils/logger.js";
 
-// The connector talks to WhatsApp through this interface only. BaileysProvider is the real one; tests use a mock.
+// The connector talks to WhatsApp through this interface only. BaileysProvider and WwebjsProvider are the real ones
+// (WA_ENGINE picks); tests use a mock.
 
 export type CloseReason = "loggedOut" | "replaced" | "restartRequired" | "badSession" | "timedOut" | "other";
 
