@@ -50,49 +50,61 @@ async function ownMember(u: CurrentUser, memberId: string) {
   return m;
 }
 
-/** One member's balance reminder. Returns false when they were reminded recently (no repeat within the de-dup window). */
-export async function remindDue(u: CurrentUser, memberId: string, invoiceNumber?: string) {
+/** How one reminder went: what the provider did with it (Logged when WhatsApp is not linked), or null when it was skipped as a repeat. */
+export type ReminderOutcome = { status: string; error: string | null } | null;
+/** A bulk reminder's tally. `notLinked`: saved in Fitron but not sent, because WhatsApp is not linked. `error`: the first failure's reason. */
+export type ReminderTally = { sent: number; skipped: number; failed: number; notLinked: number; error?: string };
+
+const outcome = (m: { status: string; error: string | null } | null): ReminderOutcome => (m ? { status: m.status, error: m.error } : null);
+
+function count(t: ReminderTally, r: ReminderOutcome) {
+  if (!r) t.skipped++;
+  else if (r.status === "Logged") t.notLinked++;
+  else if (r.status === "Failed") {
+    t.failed++;
+    t.error ??= r.error ?? undefined;
+  } else t.sent++;
+}
+
+/** One member's balance reminder. Null when they were reminded recently (no repeat within the de-dup window). */
+export async function remindDue(u: CurrentUser, memberId: string, invoiceNumber?: string): Promise<ReminderOutcome> {
   await ownMember(u, memberId);
-  return !!(await sendTemplate({ orgId: u.orgId, memberId, key: "due", userId: u.id, vars: invoiceNumber ? { invoice_number: invoiceNumber } : undefined }));
+  return outcome(await sendTemplate({ orgId: u.orgId, memberId, key: "due", userId: u.id, vars: invoiceNumber ? { invoice_number: invoiceNumber } : undefined }));
 }
 
 /** "Remind all overdue": one reminder per member with an overdue invoice, oldest first. */
-export async function remindAllOverdue(u: CurrentUser) {
+export async function remindAllOverdue(u: CurrentUser): Promise<ReminderTally> {
   const { list } = await listReceivables(u, "overdue");
   const seen = new Set<string>();
-  let sent = 0;
-  let skipped = 0;
+  const t: ReminderTally = { sent: 0, skipped: 0, failed: 0, notLinked: 0 };
   for (const inv of [...list].sort((a, b) => b.overdueDays - a.overdueDays)) {
     if (seen.has(inv.member.id)) continue;
     seen.add(inv.member.id);
-    if (await sendTemplate({ orgId: u.orgId, memberId: inv.member.id, key: "due", userId: u.id, vars: { invoice_number: inv.number } })) sent++;
-    else skipped++;
+    count(t, outcome(await sendTemplate({ orgId: u.orgId, memberId: inv.member.id, key: "due", userId: u.id, vars: { invoice_number: inv.number } })));
   }
-  return { sent, skipped };
+  return t;
 }
 
 /** One member's renewal reminder, with the template for how soon the membership ends. */
-export async function remindRenewal(u: CurrentUser, memberId: string) {
+export async function remindRenewal(u: CurrentUser, memberId: string): Promise<ReminderOutcome> {
   await ownMember(u, memberId);
   const end = (await summarize([memberId])).get(memberId)?.latestEnd;
   if (!end) throw new UserError("This member has no membership to renew.");
-  return !!(await sendTemplate({ orgId: u.orgId, memberId, key: expiryKey(daysBetween(end, todayIso())), userId: u.id }));
+  return outcome(await sendTemplate({ orgId: u.orgId, memberId, key: expiryKey(daysBetween(end, todayIso())), userId: u.id }));
 }
 
 /** "Remind all": renewal reminders for everyone in the shown list. */
-export async function remindRenewals(u: CurrentUser, memberIds: string[]) {
-  let sent = 0;
-  let skipped = 0;
+export async function remindRenewals(u: CurrentUser, memberIds: string[]): Promise<ReminderTally> {
+  const t: ReminderTally = { sent: 0, skipped: 0, failed: 0, notLinked: 0 };
   for (const id of memberIds) {
     try {
-      if (await remindRenewal(u, id)) sent++;
-      else skipped++;
+      count(t, await remindRenewal(u, id));
     } catch (e) {
       if (!(e instanceof UserError)) throw e;
-      skipped++;
+      t.skipped++;
     }
   }
-  return { sent, skipped };
+  return t;
 }
 
 /** Each member's last renewal reminder (which one, when, and how it went), for the Renewals table. */
