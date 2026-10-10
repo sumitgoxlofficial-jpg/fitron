@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { BrandMark } from "@/components/logo";
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import {
@@ -547,7 +547,7 @@ export function AiWorkspace({ brief, today }: { brief: BriefCard[]; today: strin
       </section>
       <section className="flex min-h-[560px] flex-col overflow-hidden rounded-lg bg-surface">
         <div className="flex items-center gap-2.5 border-b border-line px-[18px] py-3.5">
-          <Image src="/fitron-mark.png" alt="" width={30} height={30} className="rounded-full" />
+          <BrandMark size={30} className="rounded-full" />
           <div>
             <div className="text-sm font-semibold">Chat with Fitron AI</div>
             <div className="text-xs text-muted">Accounting, GST, invoices and billing · asks before saving</div>

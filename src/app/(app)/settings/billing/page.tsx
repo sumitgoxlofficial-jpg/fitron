@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { BrandMark } from "@/components/logo";
 import Link from "next/link";
 import { requirePermission } from "@/lib/auth/current";
 import { db } from "@/lib/db";
@@ -101,7 +101,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/settings
         <section className="flex flex-col gap-3.5 rounded-lg border border-t-2 border-line border-t-accent bg-surface px-[22px] py-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <Image src="/fitron-mark.png" alt="" width={44} height={44} className="size-11 object-contain" />
+              <BrandMark size={44} className="size-11 object-contain" />
               <div>
                 <div className={KICKER}>Your Fitron plan</div>
                 <div className="mt-0.5 text-[22px] font-semibold">{terms.custom ? "Set up by FITRON" : `${plan.name} · ${plan.cycle === "YEARLY" ? "yearly" : "monthly"}`}</div>
