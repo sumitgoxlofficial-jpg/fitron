@@ -314,8 +314,27 @@ export function describeAudit(e: DescribeInput): string {
   if (fn) return fn(c);
   if (e.action.startsWith("autopay.")) return `Updated autopay mandate ${c.ref || c.id}`;
   if (e.action.startsWith("export.")) return `Exported ${e.action.slice(7)}`;
-  if (e.action.startsWith("import.")) return `Imported ${str(a.rows) || "0"} ${e.action.slice(7)} from ${str(a.file) || "a file"}`;
+  if (e.action.startsWith("import.")) return importSentence(e.action.slice(7), a);
   return fallbackSentence(e.action, e.entity, c.ref || c.id);
+}
+
+const IMPORT_NOUNS: Record<string, [string, string]> = { members: ["member", "members"], payments: ["payment", "payments"], expenses: ["expense", "expenses"], products: ["product", "products"], assets: ["asset", "assets"] };
+
+/**
+ * "Imported 40 members from members.csv". A file sent in parts writes one entry per part: each says its own count and
+ * which part it was, and the last one also gives the total for the whole file. Older entries carry only `rows`.
+ */
+function importSentence(kind: string, a: Record<string, unknown>) {
+  const [one, many] = IMPORT_NOUNS[kind] ?? [kind, kind];
+  const n = (v: unknown) => Number(v ?? 0);
+  const count = (v: number) => `${v.toLocaleString("en-IN")} ${v === 1 ? one : many}`;
+  const file = str(a.file) || "a file";
+  const part = str(a.part).match(/^(\d+)\/(\d+)$/);
+  const made = a.imported != null ? n(a.imported) : n(a.rows);
+  const skipped = a.rows != null && a.total != null ? n(a.rows) - n(a.total) : 0;
+  if (!part || part[2] === "1") return `Imported ${count(a.total != null ? n(a.total) : made)} from ${file}${skipped > 0 ? ` (${skipped} skipped)` : ""}`;
+  const tail = a.total != null ? `; ${count(n(a.total))} from this file in all${skipped > 0 ? `, ${skipped} skipped` : ""}` : "";
+  return `Imported ${count(made)} from ${file} (part ${part[1]} of ${part[2]}${tail})`;
 }
 
 export function fallbackSentence(action: string, entity: string, ref: string) {

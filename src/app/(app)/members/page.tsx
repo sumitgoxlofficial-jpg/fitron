@@ -20,6 +20,7 @@ const STATUS_OPTS = [
   ["", "All statuses"],
   ["ACTIVE", "Active"],
   ["EXPIRING_SOON", "Expiring soon"],
+  ["UPCOMING", "Starts later"],
   ["EXPIRED", "Expired"],
   ["NO_PLAN", "No plan"],
   ["PAYMENT_PENDING", "Payment pending"],

@@ -1702,3 +1702,13 @@ model PersonalRecord {
 
   @@index([memberId, lift])
 }
+
+/// A private file kept in the database, used only on a host with no disk and no S3 bucket
+/// (src/lib/integrations/storage.ts). The key is the same storage key a bucket would use.
+model StoredFile {
+  key         String   @id
+  body        Bytes
+  contentType String
+  size        Int
+  createdAt   DateTime @default(now()) @db.Timestamptz
+}

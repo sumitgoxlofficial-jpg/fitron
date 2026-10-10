@@ -2,7 +2,8 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { Badge, Button, Field, Input, Notice, Select, ScrollRegion } from "@/components/ui";
-import { autoMap, IMPORTS, MAX_ROWS, parseCsv, type CheckedRow, type ImportKind } from "@/lib/domain/import";
+import { useConfirm } from "@/components/confirm-dialog";
+import { autoMap, countOf, IMPORTS, MAX_ROWS, parseCsv, type CheckedRow, type ImportKind } from "@/lib/domain/import";
 import { commitAction, openingAction, previewAction, sourceAction } from "./actions";
 
 type Loaded = { fileName: string; headers: string[]; rows: string[][] };
@@ -22,6 +23,7 @@ export function ImportWizard({ kind }: { kind: ImportKind }) {
   const [consentOnPaper, setConsentOnPaper] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [pending, start] = useTransition();
+  const [ask, dialog] = useConfirm();
 
   const load = (f: File) => {
     setError("");
@@ -64,7 +66,7 @@ export function ImportWizard({ kind }: { kind: ImportKind }) {
       setProgress({ done: 0, total });
       for (let i = 0; i < of; i++) {
         const rows = okRows.slice(i * PART, (i + 1) * PART);
-        const r = await commitAction({ kind, fileName: file!.fileName, rows, map, consentOnPaper }, { index: i + 1, of });
+        const r = await commitAction({ kind, fileName: file!.fileName, rows, map, consentOnPaper }, { index: i + 1, of, fileRows: file!.rows.length });
         if (!r.ok) {
           setProgress(null);
           return setError(`${r.message}${made ? ` ${made} row${made === 1 ? " was" : "s were"} imported before that; check the rows and import the file again, imported rows are skipped.` : ""}`);
@@ -77,7 +79,7 @@ export function ImportWizard({ kind }: { kind: ImportKind }) {
       }
       setProgress(null);
       setDone(
-        `Imported ${made} ${spec.label.toLowerCase()}${skipped ? `; ${skipped} row${skipped === 1 ? "" : "s"} skipped` : ""}${plansCreated ? `; ${plansCreated} plan${plansCreated === 1 ? "" : "s"} created inactive (${plansInactive.join(", ")}) — set the price and activate in Plans before selling` : ""}.`,
+        `Imported ${countOf(kind, made)}${skipped ? `; ${skipped} row${skipped === 1 ? "" : "s"} skipped` : ""}${plansCreated ? `; ${plansCreated} plan${plansCreated === 1 ? "" : "s"} created inactive (${plansInactive.join(", ")}) — set the price and activate in Plans before selling` : ""}.`,
       );
       setFile(null);
       setChecked(null);
@@ -89,6 +91,7 @@ export function ImportWizard({ kind }: { kind: ImportKind }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {dialog}
       {done && <Notice tone="ok">{done}</Notice>}
       {error && <Notice tone="alert">{error}</Notice>}
       {progress && (
@@ -160,8 +163,9 @@ export function ImportWizard({ kind }: { kind: ImportKind }) {
               <Button
                 variant="primary"
                 disabled={pending || valid === 0}
-                onClick={() => {
-                  if (window.confirm(`Import ${valid} ${spec.label.toLowerCase()}? Rows with problems are skipped.`)) commit();
+                onClick={async () => {
+                  const bad = checked.length - valid;
+                  if (await ask({ title: `Import ${countOf(kind, valid)}?`, message: bad ? `${bad} row${bad === 1 ? " has" : "s have"} problems and will be skipped.` : undefined, label: "Import" })) commit();
                 }}
               >
                 {pending ? "Importing…" : `Import ${valid} row${valid === 1 ? "" : "s"}`}

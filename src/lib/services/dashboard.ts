@@ -24,6 +24,8 @@ export type DashMember = {
   branchId: string;
   planName: string | null;
   daysLeft: number | null;
+  /** A membership covers today. A member whose plan starts later isn't active yet. */
+  current: boolean;
   /** Price after discount of the latest membership, the renewal value. */
   curFinal: number;
   curMonths: number;
@@ -71,6 +73,7 @@ async function loadMembers(u: CurrentUser, today: string) {
       branchId: m.branchId,
       planName: plan?.name ?? null,
       daysLeft: latest ? daysBetween(toIso(latest.endDate), today) : null,
+      current: !!covering,
       curFinal: latest ? latest.price - latest.discount : 0,
       curMonths: latest?.plan.months || 1,
       // Join date: when the member was added to Fitron (IST), not the first plan's start, which may be backdated.
@@ -86,6 +89,9 @@ async function loadMembers(u: CurrentUser, today: string) {
   });
   return { rows, memberships };
 }
+
+/** Active: a membership covers today and the member isn't suspended. A plan that starts next week doesn't count yet. */
+const isActive = (m: DashMember) => m.current && !m.suspended;
 
 const riskLevel = (score: number | null) => (score === null ? null : score >= 60 ? "High risk" : score >= 40 ? "Medium risk" : null);
 
@@ -123,7 +129,7 @@ export async function dashboardData(u: CurrentUser, period: PeriodKey, custom: {
     }),
   ]);
 
-  const active = M.filter((m) => m.daysLeft !== null && m.daysLeft >= 0 && !m.suspended);
+  const active = M.filter(isActive);
   const exp7 = M.filter((m) => m.daysLeft !== null && m.daysLeft >= 0 && m.daysLeft <= 7);
   const expired = M.filter((m) => m.daysLeft !== null && m.daysLeft < 0);
   const open = recv?.list ?? [];
@@ -256,7 +262,7 @@ async function branchComparison(
     return {
       id: b.id,
       name: b.name,
-      active: mine.filter((m) => m.daysLeft !== null && m.daysLeft >= 0 && !m.suspended).length,
+      active: mine.filter(isActive).length,
       total: mine.length,
       today: checkins.find((c) => c.branchId === b.id)?._count ?? 0,
       exp7: mine.filter((m) => m.daysLeft !== null && m.daysLeft >= 0 && m.daysLeft <= 7).length,

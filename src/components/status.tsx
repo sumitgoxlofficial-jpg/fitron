@@ -6,6 +6,7 @@ export const STATUS_LABEL: Record<MembershipStatus, string> = {
   EXPIRING_SOON: "Expiring soon",
   PAYMENT_PENDING: "Payment pending",
   EXPIRED: "Expired",
+  UPCOMING: "Starts later",
   NO_PLAN: "No plan",
   SUSPENDED: "Suspended",
 };

@@ -20,7 +20,7 @@ const payload = z.object({
 });
 type Payload = z.infer<typeof payload>;
 
-const partSchema = z.object({ index: z.number().int().min(1), of: z.number().int().min(1) });
+const partSchema = z.object({ index: z.number().int().min(1), of: z.number().int().min(1), fileRows: z.number().int().min(0).max(5000).optional() });
 
 export type PreviewResult = { ok: true; rows: CheckedRow[] } | { ok: false; message: string };
 export type CommitResult = { ok: true; made: number; skipped: number; plansCreated: number; plansInactive: string[] } | { ok: false; message: string };
@@ -41,7 +41,7 @@ export async function previewAction(input: Payload): Promise<PreviewResult> {
  * Imports the rows sent, which the import page sends in parts (`part` = index of total) so it can show progress
  * and no single request runs long. Pages are revalidated once, after the last part.
  */
-export async function commitAction(input: Payload, part?: { index: number; of: number }): Promise<CommitResult> {
+export async function commitAction(input: Payload, part?: { index: number; of: number; fileRows?: number }): Promise<CommitResult> {
   const u = await requirePermission("import.run");
   const p = payload.safeParse(input);
   const pt = part === undefined ? undefined : partSchema.safeParse(part);

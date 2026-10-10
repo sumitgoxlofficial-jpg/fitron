@@ -191,7 +191,10 @@ export async function chargeGst(page: Page, rate = "18") {
   await page.getByLabel("Charge GST on invoices").check();
   await page.getByLabel("GST rate (%)").fill(rate);
   await page.getByLabel("Tax type").selectOption("CGST+SGST");
+  // GST is only charged with a GSTIN to print on the invoice.
+  await page.getByLabel("GSTIN").fill("20ABCDE1234F1Z5");
   await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Saved. Changes are recorded in the audit log.")).toBeVisible();
   await expect(page.getByLabel("Charge GST on invoices")).toBeChecked();
 }
 

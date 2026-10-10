@@ -31,7 +31,8 @@ import { ticketInput } from "@/lib/validation/support";
 import { raiseTicket, resolveTicket } from "@/lib/services/support";
 
 const back = (params: Record<string, string>) => redirect(`/settings?${new URLSearchParams(params)}`);
-const firstError = (e: z.ZodError) => e.issues.map((i) => `${String(i.path[0] ?? "")}: ${i.message}`)[0] ?? "Check the form.";
+/** The first problem, as the person reads it: the message alone, never the field's internal name ("name: …"). */
+const firstError = (e: z.ZodError) => e.issues[0]?.message ?? "Check the form.";
 
 async function save<T extends z.ZodType>(schema: T, fd: FormData, section: string, fn: (v: z.infer<T>) => Promise<void>, extra: Record<string, string> = {}) {
   const parsed = schema.safeParse(Object.fromEntries(fd));
@@ -134,11 +135,12 @@ export async function makeTrainerCode() {
   back({ saved: "gym" });
 }
 
-export async function saveTax(fd: FormData) {
+/** Settings › Billing & GST. Answers on the form itself, so a missing GSTIN shows beside the field and the GST tick stays. */
+export async function saveTax(_: FormState, fd: FormData): Promise<FormState> {
   const u = await requirePermission("settings.manage");
-  await save(taxInput, fd, "tax", async (v) => {
-    await saveTaxSettings(u, v);
-  });
+  const r = await formAction(fd, taxInput, (v) => saveTaxSettings(u, v), "Saved. Changes are recorded in the audit log.");
+  if (r?.ok) revalidatePath("/", "layout");
+  return r;
 }
 
 export async function saveNumbering(fd: FormData) {

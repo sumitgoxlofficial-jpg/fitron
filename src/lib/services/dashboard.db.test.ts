@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { addDays } from "@/lib/domain/dates";
 import { hasDb, makeGym, pick } from "@/test/db";
-import { createMember } from "./members";
+import { createMember, listMembers } from "./members";
 import { createExpense } from "./expenses";
 import { freezeMembership, unfreezeMembership } from "./freeze";
 import { createPlan } from "./plans";
@@ -89,5 +89,22 @@ describe.skipIf(!hasDb)("dashboard (database)", () => {
     const r = (await dashboardData(desk, "month")).branches!;
     expect(r.map((x) => [x.expenses, x.net, x.collected, x.due])).toEqual(d.branches!.map((x) => [x.expenses, x.net, x.collected, x.due]));
     expect((await dashboardData(await gym.user("Receptionist", [gym.a.id]), "month")).branches).toBeNull();
+  });
+});
+
+describe.skipIf(!hasDb)("dashboard active members (database)", () => {
+  it("doesn't count a member whose plan starts later as active, and lists them as Starts later", async () => {
+    const gym = await makeGym();
+    const admin = pick(await gym.user("Super Admin"), gym.a.id);
+    const today = todayIso();
+    const plan = await createPlan(admin, { name: "Monthly", kind: "Membership", months: 1, price: 150000, regFee: 0, discount: 0, gstApplicable: false, features: [] });
+    const now = await createMember(admin, { name: "Training Now", gender: "Female", phone: "9876512001", source: "Walk-in", tags: [] });
+    const later = await createMember(admin, { name: "Starts Next Week", gender: "Male", phone: "9876512002", source: "Walk-in", tags: [] });
+    await sellMembership(admin, now.id, { planId: plan.id, startDate: addDays(today, -3), discount: 0, includeRegFee: false, payAmount: 150000, payMethod: "UPI" });
+    await sellMembership(admin, later.id, { planId: plan.id, startDate: addDays(today, 7), discount: 0, includeRegFee: false, payAmount: 150000, payMethod: "UPI" });
+    const d = await dashboardData(admin, "month");
+    expect(d.hero).toMatchObject({ active: 1, total: 2 });
+    const { rows } = await listMembers(admin, {});
+    expect(Object.fromEntries(rows.map((r) => [r.name, r.status]))).toEqual({ "Training Now": "ACTIVE", "Starts Next Week": "UPCOMING" });
   });
 });

@@ -67,3 +67,13 @@ describe("defaultPricingCategory", () => {
     expect(defaultPricingCategory({ gender: null, tags: null }, all)).toBe("Standard");
   });
 });
+
+describe("a plan that hasn't started", () => {
+  it("is UPCOMING, not ACTIVE, when no membership covers today", () => {
+    expect(membershipStatus({ ...base, latestEnd: "2026-12-31", current: false })).toBe("UPCOMING");
+    expect(membershipStatus({ ...base, latestEnd: "2026-12-31", current: true })).toBe("ACTIVE");
+    // Suspension and expiry still win.
+    expect(membershipStatus({ ...base, suspended: true, latestEnd: "2026-12-31", current: false })).toBe("SUSPENDED");
+    expect(membershipStatus({ ...base, latestEnd: "2026-09-01", current: false })).toBe("EXPIRED");
+  });
+});
