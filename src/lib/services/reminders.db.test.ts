@@ -36,14 +36,15 @@ describe.skipIf(!hasDb)("reminders (database)", () => {
 
   it("sends a due reminder once, then skips repeats within the window", async () => {
     const desk = await gym.user("Receptionist", [gym.a.id]);
-    expect(await remindDue(desk, owing)).toBe(true);
-    expect(await remindDue(desk, owing)).toBe(false);
-    expect(await remindAllOverdue(desk)).toEqual({ sent: 0, skipped: 1 });
+    // Demo mode (WhatsApp not linked): the reminder is logged, not sent, and the desk is told so.
+    expect(await remindDue(desk, owing)).toEqual({ status: "Logged", error: null });
+    expect(await remindDue(desk, owing)).toBeNull();
+    expect(await remindAllOverdue(desk)).toEqual({ sent: 0, skipped: 1, failed: 0, notLinked: 0 });
   });
 
   it("sends the right renewal reminder and reports it as the last one", async () => {
     const desk = await gym.user("Receptionist", [gym.a.id]);
-    expect(await remindRenewal(desk, ending)).toBe(true);
+    expect(await remindRenewal(desk, ending)).toMatchObject({ status: "Logged" });
     const last = (await lastRenewalReminders([ending])).get(ending);
     const end = (await summarize([ending])).get(ending)!.latestEnd!;
     expect(last?.templateKey).toBe(expiryKey(daysBetween(end, todayIso())));
@@ -53,10 +54,20 @@ describe.skipIf(!hasDb)("reminders (database)", () => {
   it("sends the 15-day reminder to a member whose membership ends in 15 days", async () => {
     const desk = await gym.user("Receptionist", [gym.a.id]);
     expect(daysBetween((await summarize([fortnight])).get(fortnight)!.latestEnd!, todayIso())).toBe(15);
-    expect(await remindRenewal(desk, fortnight)).toBe(true);
+    expect(await remindRenewal(desk, fortnight)).toMatchObject({ status: "Logged" });
     const msg = await db.whatsAppMessage.findFirst({ where: { memberId: fortnight }, orderBy: { sentAt: "desc" } });
     expect(msg).toMatchObject({ templateKey: "exp15", status: "Logged" });
     expect(msg!.body).toContain("15 days from now");
     expect((await lastRenewalReminders([fortnight])).get(fortnight)?.templateKey).toBe("exp15");
+  });
+
+  it("doesn't count a reminder only logged before WhatsApp was linked as a repeat, and reports a failed send", async () => {
+    const desk = await gym.user("Receptionist", [gym.a.id]);
+    // The due reminder above was logged in demo mode. Now the gym links a phone, but the connector isn't reachable here.
+    await db.setting.upsert({ where: { orgId_key: { orgId: desk.orgId, key: "whatsapp" } }, create: { orgId: desk.orgId, key: "whatsapp", value: { mode: "connector" } }, update: { value: { mode: "connector" } } });
+    const r = await remindDue(desk, owing);
+    expect(r?.status).toBe("Failed");
+    expect(r?.error).toBeTruthy();
+    expect(await remindAllOverdue(desk)).toMatchObject({ sent: 0, skipped: 0, failed: 1, notLinked: 0 });
   });
 });

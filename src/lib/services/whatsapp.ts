@@ -175,7 +175,9 @@ export async function prepareMessage(o: SendOpts & { holdUntil?: Date | null }) 
   if (member.walkIn || member.erasedAt) return null;
   if (!o.force && REMINDER_KEYS.includes(o.key)) {
     const since = new Date(Date.now() - settings.dedupDays * 86_400_000);
-    const recent = await db.whatsAppMessage.findFirst({ where: { memberId: o.memberId, templateKey: o.key, sentAt: { gte: since }, status: { not: "Failed" } } });
+    // Once WhatsApp is linked, a reminder that was only logged while it was not (demo) doesn't count: it never reached the member.
+    const unsent = settings.mode === "demo" ? ["Failed"] : ["Failed", "Logged"];
+    const recent = await db.whatsAppMessage.findFirst({ where: { memberId: o.memberId, templateKey: o.key, sentAt: { gte: since }, status: { notIn: unsent } } });
     if (recent) return null;
   }
   const to = waNumber(member.whatsapp ?? member.phone);
