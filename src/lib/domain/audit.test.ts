@@ -45,6 +45,13 @@ import { AUDIT_MODULES, changedFields, changeSummary, deviceLabel, describeAudit
 describe("audit change detail", () => {
   it("rates a remote door opening high and names the device", () => {
     expect(severityOf("device.open-door", "Device")).toBe("High");
+    // A file imported in parts: each part says its own count and part, the last also the file's total.
+    expect(describeAudit({ action: "import.members", entity: "Import", entityId: "members", after: { file: "m.csv", part: "1/2", rows: 40, imported: 20 } })).toBe("Imported 20 members from m.csv (part 1 of 2)");
+    expect(describeAudit({ action: "import.members", entity: "Import", entityId: "members", after: { file: "m.csv", part: "2/2", rows: 40, imported: 20, total: 40 } })).toBe("Imported 20 members from m.csv (part 2 of 2; 40 members from this file in all)");
+    expect(describeAudit({ action: "import.payments", entity: "Import", entityId: "payments", after: { file: "p.csv", part: "1/1", rows: 30, imported: 28, total: 28 } })).toBe("Imported 28 payments from p.csv (2 skipped)");
+    expect(describeAudit({ action: "import.expenses", entity: "Import", entityId: "expenses", after: { file: "e.csv", rows: 1, imported: 1, total: 1 } })).toBe("Imported 1 expense from e.csv");
+    // Entries written before the import said how many it brought in read as they always did.
+    expect(describeAudit({ action: "import.members", entity: "Import", entityId: "members", after: { file: "old.csv", rows: 12 } })).toBe("Imported 12 members from old.csv");
     expect(describeAudit({ action: "device.open-door", entity: "Device", entityId: "dev1", after: { name: "Main door", serial: "ABC123", branch: "Andheri" } })).toBe("Opened the door remotely on device Main door (Andheri)");
     expect(describeAudit({ action: "device.open-door", entity: "Device", entityId: "dev1" })).toBe("Opened the door remotely on device dev1");
     expect(describeAudit({ action: "device.sync", entity: "Device", entityId: "dev1", after: { name: "Main door", members: 12, allowed: 10, removed: 2, commands: 14 } })).toBe("Synced device Main door: 10 of 12 members loaded, 2 removed (14 commands)");

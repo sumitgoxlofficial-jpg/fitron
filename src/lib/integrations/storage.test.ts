@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { signV4, sniffType, storageProblem } from "./storage";
+import { signV4, sniffType, storageDetail, storageMode, storageProblem } from "./storage";
 
 const S3 = ["S3_ENDPOINT", "S3_BUCKET", "S3_REGION", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "VERCEL"];
 const saved = Object.fromEntries(S3.map((k) => [k, process.env[k]]));
@@ -46,16 +46,20 @@ describe("storage", () => {
       expect(storageProblem()).toBeNull();
     });
 
-    it("names the missing bucket keys when the set-up is half done", () => {
+    it("tells the gym in plain words when the bucket is half set up, without the server's setting names", () => {
       setEnv({ S3_ENDPOINT: "https://x", S3_BUCKET: "b" });
       const p = storageProblem();
-      expect(p).toContain("S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY are missing");
-      expect(p).toContain("Files cannot be saved");
+      expect(p).toContain("can't be saved");
+      expect(p).not.toMatch(/S3_|ACCESS_KEY|SECRET/);
+      expect(storageDetail(), "the host still learns which keys are missing").toContain("S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY missing");
     });
 
-    it("says there is no disk on Vercel without a bucket", () => {
+    it("keeps files in the database on Vercel without a bucket, so nothing is blocked", () => {
       setEnv({ VERCEL: "1" });
-      expect(storageProblem()).toContain("no disk for files");
+      expect(storageMode()).toBe("DATABASE");
+      expect(storageProblem()).toBeNull();
+      setEnv({ VERCEL: "1", S3_ENDPOINT: "https://x", S3_BUCKET: "b", S3_ACCESS_KEY_ID: "k", S3_SECRET_ACCESS_KEY: "s" });
+      expect(storageMode()).toBe("S3");
     });
   });
 });

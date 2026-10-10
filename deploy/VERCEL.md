@@ -22,7 +22,7 @@ If sign-up or sign-in shows **"This page hit a problem on our side"**, the datab
 
    FITRON has not yet been run through Supabase's transaction pooler. If sign-in then shows an error that mentions a *prepared statement*, put the session pooler address in `DATABASE_URL` as well and set `DATABASE_POOL_MAX` to `2` until it is looked at.
 4. **The certificate.** Supabase's connections use its own certificate authority, so a plain `sslmode=require` is refused ("unable to verify the first certificate"). In the project's database settings (SSL configuration) download the certificate, open the file in a text editor, and copy **all** of its text, including the `BEGIN CERTIFICATE` and `END CERTIFICATE` lines. That text is `DATABASE_CA`.
-5. **Files.** Vercel has no disk to keep uploads on, so a bucket is required: **Storage › New bucket**, for example `fitron-files`, kept **private**. Under **Storage › S3 Configuration** note the region and make an access key. See step 11 of [README.md](README.md) for what each setting is.
+5. **Files.** Vercel has no disk to keep uploads on, so connect a bucket. Until one is set, FITRON keeps backups, photos and documents in the database (a file of at most 50 MB each), which works but makes the database grow: **Storage › New bucket**, for example `fitron-files`, kept **private**. Under **Storage › S3 Configuration** note the region and make an access key. See step 11 of [README.md](README.md) for what each setting is.
 
 ## 2. Vercel settings
 

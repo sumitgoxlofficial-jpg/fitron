@@ -1,6 +1,6 @@
 import { daysBetween, type IsoDate } from "./dates";
 
-export type MembershipStatus = "SUSPENDED" | "NO_PLAN" | "EXPIRED" | "EXPIRING_SOON" | "PAYMENT_PENDING" | "ACTIVE";
+export type MembershipStatus = "SUSPENDED" | "NO_PLAN" | "EXPIRED" | "UPCOMING" | "EXPIRING_SOON" | "PAYMENT_PENDING" | "ACTIVE";
 
 export const EXPIRING_SOON_DAYS = 7;
 
@@ -8,17 +8,21 @@ export const EXPIRING_SOON_DAYS = 7;
  * Rule 4: status comes from dates and balance, checked in this order.
  * `latestEnd` is the latest end date across the member's non-cancelled memberships; a member who was never sold
  * one is NO_PLAN (shown as "No plan"), not EXPIRED. For door access both are treated alike (access.ts entryBlock).
+ * `current` says whether a membership covers today; when it is false and a plan still ends in the future, that plan
+ * hasn't started yet and the member is UPCOMING ("Starts later"), not an active member. Left out, it isn't checked.
  */
 export function membershipStatus(input: {
   suspended: boolean;
   latestEnd: IsoDate | null;
   outstanding: number;
   today: IsoDate;
+  current?: boolean;
 }): MembershipStatus {
   if (input.suspended) return "SUSPENDED";
   if (!input.latestEnd) return "NO_PLAN";
   const daysLeft = daysBetween(input.latestEnd, input.today);
   if (daysLeft < 0) return "EXPIRED";
+  if (input.current === false) return "UPCOMING";
   if (daysLeft <= EXPIRING_SOON_DAYS) return "EXPIRING_SOON";
   if (input.outstanding > 0) return "PAYMENT_PENDING";
   return "ACTIVE";

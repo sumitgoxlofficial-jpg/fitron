@@ -41,7 +41,7 @@ import { trainerStatusFor } from "@/lib/services/trainer-gym";
 import { findPlan } from "@/lib/domain/pricing";
 import { openFreeze } from "@/lib/services/freeze";
 import { todayIso, toIso } from "@/lib/services/time";
-import { addDays, daysBetween } from "@/lib/domain/dates";
+import { addDays, ageOn, daysBetween } from "@/lib/domain/dates";
 import { FREEZE_REASONS } from "@/lib/domain/freeze";
 import { InvoiceStatusBadge } from "@/components/invoice-status";
 import { MemberStatus } from "@/components/status";
@@ -162,7 +162,7 @@ export default async function MemberPage({ params, searchParams }: PageProps<"/m
     ...(risk ? ([["Fitron AI", risk, "text-alert-700"]] as [string, string, string][]) : []),
   ];
 
-  const age = m.dob ? Math.floor(daysBetween(today, toIso(m.dob)) / 365.25) : null;
+  const age = m.dob ? ageOn(toIso(m.dob), today) : null;
   const sections: { title: string; rows: [string, ReactNode][] }[] = [
     {
       title: "Personal",

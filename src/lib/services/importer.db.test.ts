@@ -99,6 +99,39 @@ ${lines.join("\n")}`);
     expect(t).toMatchObject({ category: "Cardio equipment", accDepCarried: 8_600_000, depFrom: today.slice(0, 7), expenseId: null });
   });
 
+  it("an imported payment settles the member's unpaid invoice instead of becoming a sale of its own", async () => {
+    const m = csv("members", `Name,Mobile,Plan,Duration,Start Date,Fees,Paid\nDue Member,9876520001,Gold Quarterly,3,${d(start)},3000,0\nNo Paid Column,9876520002,Gold Quarterly,3,${d(start)},2000,`);
+    expect((await commitImport(admin, "members", m.rows, m.map, "dues.csv")).made).toBe(2);
+    const due = await db.member.findFirstOrThrow({ where: { orgId: gym.org.id, phone: "9876520001" } });
+    const blank = await db.member.findFirstOrThrow({ where: { orgId: gym.org.id, phone: "9876520002" } });
+    // A blank "Amount paid" is not "paid in full": the due stays visible.
+    expect(await getMemberBalance(blank.id)).toBe(200000);
+    // The join date is the plan's start, not the day of the import.
+    expect(due.createdAt.toISOString().slice(0, 10)).toBe(start);
+
+    const invoicesBefore = await db.invoice.count({ where: { memberId: due.id } });
+    const pay = csv("payments", `Mobile,Date,Amount,Mode\n9876520001,${d(today)},2000,Cash\n9876520001,${d(today)},1500,UPI`);
+    const preview = await previewImport(admin, "payments", pay.rows, pay.map);
+    expect(preview.map((r) => r.warnings)).toEqual([["Settles ₹2,000 of unpaid invoices"], ["Settles ₹1,000 of unpaid invoices; ₹500 recorded as a separate receipt"]]);
+    expect((await commitImport(admin, "payments", pay.rows, pay.map, "history.csv")).made).toBe(2);
+    // ₹3,000 of the ₹3,500 cleared the plan invoice; only the extra ₹500 is a new invoice.
+    expect(await db.invoice.count({ where: { memberId: due.id } })).toBe(invoicesBefore + 1);
+    expect(await getMemberBalance(due.id)).toBe(0);
+    const extra = await db.invoice.findFirstOrThrow({ where: { memberId: due.id }, orderBy: { createdAt: "desc" } });
+    expect(extra.total).toBe(50000);
+    const audit = await db.auditLog.findFirstOrThrow({ where: { orgId: gym.org.id, action: "import.payments", after: { path: ["file"], equals: "history.csv" } } });
+    expect(audit.after).toMatchObject({ imported: 2, total: 2 });
+  });
+
+  it("a file sent in parts ends with an audit entry giving the whole file's count", async () => {
+    const lines = Array.from({ length: 4 }, (_, i) => `Total Member ${i},987653000${i},Monthly,1,${d(start)},1000,1000`);
+    const { rows, map } = csv("members", `Name,Mobile,Plan,Duration,Start Date,Fees,Paid\n${lines.join("\n")}`);
+    await commitImport(admin, "members", rows.slice(0, 2), map, "total.csv", { index: 1, of: 2, fileRows: 4 });
+    await commitImport(admin, "members", rows.slice(2), map, "total.csv", { index: 2, of: 2, fileRows: 4 });
+    const last = await db.auditLog.findFirstOrThrow({ where: { orgId: gym.org.id, action: "import.members", after: { path: ["part"], equals: "2/2" }, AND: { after: { path: ["file"], equals: "total.csv" } } } });
+    expect(last.after).toMatchObject({ imported: 2, total: 4, rows: 4 });
+  });
+
   it("the cash and bank books start from the opening balances", async () => {
     await setOpening(admin, { cash: 500000, bank: 2000000, asOf: addDays(today, -1) });
     const bank = await ledger(admin, "Bank Transfer", { from: today, to: today });

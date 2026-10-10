@@ -59,8 +59,9 @@ export async function summarize(memberIds: string[], today = todayIso()) {
       select: { memberId: true, total: true, dueDate: true, payments: { select: { amount: true, status: true } } },
     }),
   ]);
-  const out = new Map<string, { latestEnd: string | null; planName: string | null; planStart: string | null; outstanding: number }>();
-  for (const id of memberIds) out.set(id, { latestEnd: null, planName: null, planStart: null, outstanding: 0 });
+  /** `current`: a membership covers today. A member whose only plan starts later is not current. */
+  const out = new Map<string, { latestEnd: string | null; planName: string | null; planStart: string | null; outstanding: number; current: boolean }>();
+  for (const id of memberIds) out.set(id, { latestEnd: null, planName: null, planStart: null, outstanding: 0, current: false });
   const covering = new Set<string>();
   for (const m of memberships) {
     const s = out.get(m.memberId)!;
@@ -70,6 +71,7 @@ export async function summarize(memberIds: string[], today = todayIso()) {
     if (start <= today && end >= today) {
       s.planName = m.plan.name;
       s.planStart = start;
+      s.current = true;
       covering.add(m.memberId);
     } else if (!covering.has(m.memberId) && (!s.latestEnd || end >= s.latestEnd)) {
       s.planName = m.plan.name;
@@ -122,7 +124,7 @@ export async function listMembers(
     return {
       ...m,
       ...s,
-      status: membershipStatus({ suspended: m.suspended, latestEnd: s.latestEnd, outstanding: s.outstanding, today }),
+      status: membershipStatus({ suspended: m.suspended, latestEnd: s.latestEnd, outstanding: s.outstanding, today, current: s.current }),
     };
   });
   // DUE: any balance owed; RISK (Fitron AI score) is filtered in the query.
@@ -145,7 +147,7 @@ export async function getMember(u: CurrentUser, id: string) {
     ...m,
     ...s,
     trainerName: trainer?.name ?? null,
-    status: membershipStatus({ suspended: m.suspended, latestEnd: s.latestEnd, outstanding: s.outstanding, today }),
+    status: membershipStatus({ suspended: m.suspended, latestEnd: s.latestEnd, outstanding: s.outstanding, today, current: s.current }),
   };
 }
 

@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { CurrentUser } from "@/lib/auth/current";
-import { formatInr, INVOICE_STATUS_LABEL, invoiceState } from "@/lib/domain/billing";
+import { balanceDue, formatInr, INVOICE_STATUS_LABEL, invoiceState } from "@/lib/domain/billing";
 import { addDays } from "@/lib/domain/dates";
 import { memberScope } from "./members";
 import { unreadCount } from "./notifications";
@@ -47,7 +47,7 @@ async function openInvoices(u: CurrentUser) {
   if (!invoices.length) return 0;
   const paid = await db.payment.groupBy({ by: ["invoiceId"], where: { invoiceId: { in: invoices.map((i) => i.id) }, status: "SUCCESS" }, _sum: { amount: true } });
   const byInvoice = new Map(paid.map((p) => [p.invoiceId, p._sum.amount ?? 0]));
-  return invoices.filter((i) => i.total - (byInvoice.get(i.id) ?? 0) > 0).length;
+  return invoices.filter((i) => balanceDue(i.total, byInvoice.get(i.id) ?? 0) > 0).length;
 }
 
 export type SearchHit = { kind: "member" | "invoice" | "payment"; title: string; sub: string; href: string };
