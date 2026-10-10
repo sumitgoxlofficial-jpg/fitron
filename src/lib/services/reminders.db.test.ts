@@ -4,8 +4,8 @@ import { addDays, daysBetween } from "@/lib/domain/dates";
 import { hasDb, makeGym, pick } from "@/test/db";
 import { createMember, summarize } from "./members";
 import { createPlan } from "./plans";
-import { sellMembership } from "./billing";
-import { expiryKey, lastRenewalReminders, remindAllOverdue, remindDue, remindRenewal, renewalAmounts } from "./reminders";
+import { cancelInvoice, sellMembership } from "./billing";
+import { expiryKey, lastRenewalReminders, remindAllOverdue, remindDue, remindRenewal, renewalAmounts, sendInvoiceWhatsApp } from "./reminders";
 import { todayIso } from "./time";
 
 describe.skipIf(!hasDb)("reminders (database)", () => {
@@ -69,5 +69,55 @@ describe.skipIf(!hasDb)("reminders (database)", () => {
     expect(r?.status).toBe("Failed");
     expect(r?.error).toBeTruthy();
     expect(await remindAllOverdue(desk)).toMatchObject({ sent: 0, skipped: 0, failed: 1, notLinked: 0 });
+  });
+});
+
+describe.skipIf(!hasDb)("send an invoice on WhatsApp (database)", () => {
+  let gymA: Awaited<ReturnType<typeof makeGym>>;
+  let gymB: Awaited<ReturnType<typeof makeGym>>;
+  let invoiceA: string;
+  let invoiceB: string;
+
+  beforeAll(async () => {
+    gymA = await makeGym();
+    gymB = await makeGym();
+    for (const [g, set] of [
+      [gymA, (id: string) => (invoiceA = id)],
+      [gymB, (id: string) => (invoiceB = id)],
+    ] as const) {
+      const admin = pick(await g.user("Super Admin"), g.a.id);
+      const plan = await createPlan(admin, { name: "Monthly", kind: "Membership", months: 1, price: 150000, regFee: 0, discount: 0, gstApplicable: false, features: [] });
+      const m = await createMember(admin, { name: "Invoice Member", gender: "Female", phone: g === gymA ? "9876522101" : "9876522102", source: "Walk-in", tags: [] });
+      set((await sellMembership(admin, m.id, { planId: plan.id, startDate: todayIso(), discount: 0, includeRegFee: false, payAmount: 0 })).invoice.id);
+    }
+  });
+
+  it("sends the invoice with its PDF to the invoice's own member", async () => {
+    const desk = await gymA.user("Receptionist", [gymA.a.id]);
+    // Not linked (demo mode): saved with the PDF attached, and the desk is told it was not sent.
+    expect(await sendInvoiceWhatsApp(desk, invoiceA)).toEqual({ status: "Logged", error: null });
+    const msg = await db.whatsAppMessage.findFirst({ where: { attachment: `invoice:${invoiceA}` }, orderBy: { sentAt: "desc" }, include: { member: true } });
+    expect(msg).toMatchObject({ orgId: desk.orgId, templateKey: "invoice", status: "Logged" });
+    expect(msg!.member!.name).toBe("Invoice Member");
+  });
+
+  it("another gym's invoice is not found, and nothing is recorded for it", async () => {
+    const deskA = await gymA.user("Receptionist", [gymA.a.id]);
+    await expect(sendInvoiceWhatsApp(deskA, invoiceB)).rejects.toThrow("Invoice not found.");
+    expect(await db.whatsAppMessage.count({ where: { attachment: `invoice:${invoiceB}` } })).toBe(0);
+  });
+
+  it("a second press moments after a real send is not sent again", async () => {
+    const desk = await gymA.user("Receptionist", [gymA.a.id]);
+    // As if the first press had gone out through a linked phone.
+    await db.whatsAppMessage.updateMany({ where: { attachment: `invoice:${invoiceA}` }, data: { status: "Sent" } });
+    expect(await sendInvoiceWhatsApp(desk, invoiceA)).toBeNull();
+    expect(await db.whatsAppMessage.count({ where: { attachment: `invoice:${invoiceA}` } })).toBe(1);
+  });
+
+  it("a cancelled invoice is not sent", async () => {
+    const admin = pick(await gymB.user("Super Admin"), gymB.a.id);
+    await cancelInvoice(admin, invoiceB, "Entered by mistake");
+    await expect(sendInvoiceWhatsApp(admin, invoiceB)).rejects.toThrow("cancelled");
   });
 });

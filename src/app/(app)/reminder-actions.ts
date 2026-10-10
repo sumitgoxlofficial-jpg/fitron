@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/current";
-import { remindAllOverdue, remindDue, remindRenewal, remindRenewals, type ReminderOutcome, type ReminderTally } from "@/lib/services/reminders";
+import { remindAllOverdue, remindDue, remindRenewal, remindRenewals, sendInvoiceWhatsApp, type ReminderOutcome, type ReminderTally } from "@/lib/services/reminders";
 import { UserError } from "@/lib/services/errors";
 
 /** Back to the list, with the result shown at the top. Only same-app paths. */
@@ -25,8 +25,8 @@ const summary = (r: ReminderTally) => {
 };
 
 /** What happened to one reminder, in words for the desk. */
-function one(r: ReminderOutcome, what: string) {
-  if (!r) return "Not sent: this member was reminded recently.";
+function one(r: ReminderOutcome, what: string, skipped = "Not sent: this member was reminded recently.") {
+  if (!r) return skipped;
   if (r.status === "Logged") return `Not sent: ${NOT_LINKED}`;
   if (r.status === "Failed") return `${what} not sent: ${r.error ?? "WhatsApp could not send it."}`;
   return r.status === "Queued" ? `${what} queued on the linked WhatsApp.` : `${what} sent on WhatsApp.`;
@@ -61,4 +61,9 @@ export async function remindRenewalAction(memberId: string, path: string) {
 export async function remindRenewalsAction(memberIds: string[], path: string) {
   const u = await requirePermission("whatsapp.send");
   await run(path, async () => summary(await remindRenewals(u, memberIds.slice(0, 500))));
+}
+
+export async function sendInvoiceAction(invoiceId: string, path: string) {
+  const u = await requirePermission("whatsapp.send");
+  await run(path, async () => one(await sendInvoiceWhatsApp(u, invoiceId), "Invoice", "Not sent again: this invoice went out on WhatsApp a moment ago."));
 }

@@ -3,8 +3,9 @@ import { db } from "@/lib/db";
 import type { CurrentUser } from "@/lib/auth/current";
 import { daysBetween } from "@/lib/domain/dates";
 import { memberScope, summarize } from "./members";
-import { listReceivables } from "./billing";
+import { getInvoice, listReceivables } from "./billing";
 import { listTemplates, sendTemplate, setAutoSend } from "./whatsapp";
+import { rupeesText } from "@/lib/domain/whatsapp";
 import { UserError } from "./errors";
 import { getAccessRules } from "./attendance";
 import { putSetting } from "./settings";
@@ -70,6 +71,25 @@ function count(t: ReminderTally, r: ReminderOutcome) {
 export async function remindDue(u: CurrentUser, memberId: string, invoiceNumber?: string): Promise<ReminderOutcome> {
   await ownMember(u, memberId);
   return outcome(await sendTemplate({ orgId: u.orgId, memberId, key: "due", userId: u.id, vars: invoiceNumber ? { invoice_number: invoiceNumber } : undefined }));
+}
+
+/** A second press within this window is taken as a double click, not a new send. */
+const RESEND_GUARD_MS = 2 * 60_000;
+
+/**
+ * "Send on WhatsApp" on an invoice: the invoice message with its PDF attached, to the invoice's own member. The invoice is
+ * read through the user's own scope, so another gym's (or branch's) invoice is "not found". Null when the same invoice
+ * already went out moments ago.
+ */
+export async function sendInvoiceWhatsApp(u: CurrentUser, invoiceId: string): Promise<ReminderOutcome> {
+  const inv = await getInvoice(u, invoiceId);
+  if (!inv) throw new UserError("Invoice not found.");
+  if (inv.status === "CANCELLED") throw new UserError("This invoice is cancelled, so it is not sent.");
+  if (inv.member.walkIn || inv.member.erasedAt) throw new UserError("This invoice has no member to send it to.");
+  const attachment = `invoice:${inv.id}`;
+  const recent = await db.whatsAppMessage.findFirst({ where: { orgId: u.orgId, attachment, sentAt: { gte: new Date(Date.now() - RESEND_GUARD_MS) }, status: { notIn: ["Failed", "Logged"] } }, select: { id: true } });
+  if (recent) return null;
+  return outcome(await sendTemplate({ orgId: u.orgId, memberId: inv.memberId, key: "invoice", userId: u.id, vars: { invoice_number: inv.number, amount: rupeesText(inv.total) }, invoiceId: inv.id, force: true }));
 }
 
 /** "Remind all overdue": one reminder per member with an overdue invoice, oldest first. */
