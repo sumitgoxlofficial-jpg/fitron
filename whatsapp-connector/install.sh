@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# One-time setup of the Fitron WhatsApp connector on a fresh Ubuntu server (22.04 or 24.04, x86 or ARM).
+# One-time setup of the Fitron WhatsApp connector on a fresh Ubuntu server (22.04 or 24.04, x86 or ARM; 1 GB RAM is enough,
+# e.g. the free Google Cloud e2-micro or Oracle Cloud Always Free).
 # Run from the cloned repo:  bash whatsapp-connector/install.sh
 # Safe to run again: it keeps an existing .env (and so every gym's WhatsApp link) and only fills in what is missing.
 set -euo pipefail
@@ -16,6 +17,19 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 DOCKER="docker"
 docker info >/dev/null 2>&1 || DOCKER="sudo docker"
+
+# Small free servers (Google Cloud e2-micro: 1 GB RAM) run out of memory building the image and running Postgres, Redis and
+# two Node processes. A 2 GB swap file makes room; it stays across reboots.
+MEM_KB=$(awk '/MemTotal/{print $2}' /proc/meminfo)
+SWAP_KB=$(awk '/SwapTotal/{print $2}' /proc/meminfo)
+if [ "$MEM_KB" -lt 2000000 ] && [ "$SWAP_KB" -lt 1000000 ] && [ ! -f /swapfile ]; then
+  say "Adding 2 GB of swap (this server has $((MEM_KB / 1024)) MB of RAM)…"
+  sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile >/dev/null
+  sudo swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
+fi
 
 # Oracle Cloud's Ubuntu images block web traffic in the server's own firewall; ufw may too. Open 80 and 443.
 if sudo iptables -L INPUT -n 2>/dev/null | grep -q "REJECT"; then
