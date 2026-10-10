@@ -250,6 +250,25 @@ country); numbers with a `+` or `00` prefix are parsed as written, so `+44791112
 - **Secrets.** API keys are stored hashed; WhatsApp auth files are encrypted at rest; logs redact keys, QR payloads and message bodies; no endpoint returns authentication data.
 - **Not included, by design:** bulk/unsolicited messaging, number scraping, group joining or member scraping, anti-ban or CAPTCHA bypass, account creation, session sharing between gyms.
 
+## Running on a gym computer (Windows, no server)
+
+A Windows PC that stays switched on can run the connector instead of a server. Tailscale Funnel (free, no card, no
+domain changes) gives it a fixed public `https://<pc>.<tailnet>.ts.net` address, so nothing is opened on the router.
+
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and open it until it says *Engine running*.
+   In its Settings › General tick *Start Docker Desktop when you sign in*.
+2. Download this repository (GitHub › Code › Download ZIP), unzip it, open the `whatsapp-connector` folder, then in that
+   folder's address bar type `powershell` and run `powershell -ExecutionPolicy Bypass -File install-windows.ps1`.
+   It writes `.env` with new secrets, builds and starts the connector on `127.0.0.1:3000` only
+   (`docker-compose.local.yml`; no nginx or certbot), waits for `/health` and prints the master key.
+3. Install [Tailscale](https://tailscale.com/download/windows), sign in, and run `tailscale funnel --bg 3000`
+   (the first run prints a link to switch Funnel on for the tailnet). It prints the public address and keeps serving it
+   after restarts.
+4. In Fitron's environment set `WA_CONNECTOR_URL` to that address and `WA_CONNECTOR_KEY` to the printed key; redeploy.
+
+Keep the PC from sleeping (Settings › System › Power › Sleep: Never) and on the internet: while it is off, Fitron cannot reach the
+connector, so sends are marked Failed with an alert (retry them from WhatsApp › Failed once the PC is back). Back up `.env` (it holds `SESSION_ENCRYPTION_KEY`).
+
 ## Deployment on an Ubuntu VPS
 
 ```
