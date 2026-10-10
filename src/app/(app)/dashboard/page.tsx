@@ -1,6 +1,6 @@
 import { getGymProfile } from "@/lib/services/settings";
 import { getOnboarding } from "@/lib/services/onboarding";
-import Image from "next/image";
+import { BrandMark } from "@/components/logo";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { canOpen } from "@/lib/nav";
@@ -190,7 +190,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <Section
             title={
               <>
-                <Image src="/fitron-mark.png" alt="" width={22} height={22} className="rounded-full" />
+                <BrandMark size={22} className="rounded-full" />
                 Today&apos;s brief
               </>
             }
@@ -275,7 +275,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <Section
             title={
               <>
-                <Image src="/fitron-mark.png" alt="" width={22} height={22} className="rounded-full" />
+                <BrandMark size={22} className="rounded-full" />
                 Members at risk
               </>
             }
