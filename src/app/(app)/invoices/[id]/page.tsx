@@ -3,10 +3,11 @@ import { requirePermission } from "@/lib/auth/current";
 import { getInvoice } from "@/lib/services/billing";
 import { sellerOf } from "@/lib/services/invoice-seller";
 import { todayIso } from "@/lib/services/time";
-import { Badge, Card, LinkButton, Notice, ScrollRegion } from "@/components/ui";
+import { Badge, Button, Card, LinkButton, Notice, ScrollRegion } from "@/components/ui";
 import { PrintButton } from "@/components/print-button";
 import { gymLogoUrl } from "@/components/gym-logo";
-import { FilePdfIcon } from "@phosphor-icons/react/dist/ssr";
+import { FilePdfIcon, WhatsappLogoIcon } from "@phosphor-icons/react/dist/ssr";
+import { sendInvoiceAction } from "../../reminder-actions";
 import { fmtDate, formatInr, formatRupees, initials } from "@/lib/format";
 import { INVOICE_STATUS_TAG } from "@/lib/domain/billing";
 import { CancelInvoice, CollectForm, ReversePayment } from "./invoice-forms";
@@ -39,7 +40,7 @@ export const metadata = { title: "Invoice · Fitron" };
 export default async function InvoicePage({ params, searchParams }: PageProps<"/invoices/[id]">) {
   const u = await requirePermission("invoices.view");
   const { id } = await params;
-  const { created } = await searchParams;
+  const { created, msg } = await searchParams;
   const inv = await getInvoice(u, id);
   if (!inv) notFound();
   // "From" is the seller as it was when the invoice was made; a later Settings change never alters it.
@@ -71,12 +72,21 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
   return (
     <div className="mx-auto flex w-full max-w-[820px] flex-col gap-3">
       {created && <Notice tone="ok">Invoice created.</Notice>}
+      {typeof msg === "string" && <Notice tone={/^(Not sent|Invoice not sent)/.test(msg) ? "alert" : "ok"}>{msg}</Notice>}
       <div className="flex flex-wrap justify-end gap-2 rounded-lg bg-bg p-2.5 print:hidden" data-testid="invoice-from">
         <LinkButton href={`/invoices/${inv.id}/pdf`} prefetch={false} target="_blank">
           <FilePdfIcon size={16} weight="duotone" />
           Download PDF
         </LinkButton>
         <PrintButton label="Print" />
+        {!cancelled && u.can("whatsapp.send") && u.has("whatsapp") && (
+          <form action={sendInvoiceAction.bind(null, inv.id, `/invoices/${inv.id}`)}>
+            <Button type="submit" title="Send this invoice with its PDF to the member on WhatsApp">
+              <WhatsappLogoIcon size={16} weight="duotone" />
+              Send on WhatsApp
+            </Button>
+          </form>
+        )}
         {!cancelled && inv.balance > 0 && u.can("payments.collect") && (
           <LinkButton href="#collect" variant="primary">
             Collect balance
