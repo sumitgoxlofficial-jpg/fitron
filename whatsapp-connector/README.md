@@ -55,8 +55,8 @@ code from WhatsApp › Linked devices), and Fitron's API, the queue, pacing, con
 
 | `WA_ENGINE` | Library | How it works | Memory per linked gym | Login at rest |
 | --- | --- | --- | --- | --- |
-| `wwebjs` (`.env.example` default) | [whatsapp-web.js](https://github.com/wwebjs/whatsapp-web.js) | Headless Chromium with WhatsApp Web open, driven by Puppeteer | ~300–500 MB | Chromium profile in `SESSION_STORAGE_PATH/<gymId>/session`, folder mode 0700; **not** encrypted with `SESSION_ENCRYPTION_KEY` (Chromium reads it directly), so protect the volume |
-| `baileys` (built-in default if unset) | [Baileys](https://github.com/WhiskeySockets/Baileys) | WebSocket, no browser | a few MB | Encrypted files (AES-256-GCM, `SESSION_ENCRYPTION_KEY`) |
+| `baileys` (`.env.example` and built-in default) | [Baileys](https://github.com/WhiskeySockets/Baileys) | WebSocket, no browser | a few MB | Encrypted files (AES-256-GCM, `SESSION_ENCRYPTION_KEY`) |
+| `wwebjs` | [whatsapp-web.js](https://github.com/wwebjs/whatsapp-web.js) | Headless Chromium with WhatsApp Web open, driven by Puppeteer | ~300–500 MB | Chromium profile in `SESSION_STORAGE_PATH/<gymId>/session`, folder mode 0700; **not** encrypted with `SESSION_ENCRYPTION_KEY` (Chromium reads it directly), so protect the volume |
 
 The Docker image includes Chromium for `wwebjs` (`CHROMIUM_PATH=/usr/bin/chromium-browser`). Switching engines does not
 carry logins over: every gym scans a new QR code. Both are unofficial WhatsApp Web clients, not the WhatsApp Business
