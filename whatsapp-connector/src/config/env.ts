@@ -35,6 +35,10 @@ const schema = z.object({
   REDIS_URL: z.string().min(1, "REDIS_URL is required"),
   WA_CONNECTOR_MASTER_KEY: z.string().min(16, "WA_CONNECTOR_MASTER_KEY must be at least 16 characters"),
   SESSION_ENCRYPTION_KEY: z.string().min(16, "SESSION_ENCRYPTION_KEY must be at least 16 characters"),
+  // Which WhatsApp Web library holds the sessions: baileys (WebSocket, light) or wwebjs (whatsapp-web.js, headless Chromium).
+  WA_ENGINE: z.enum(["baileys", "wwebjs"]).default("baileys"),
+  // The Chromium whatsapp-web.js launches. Empty: Puppeteer's own download.
+  CHROMIUM_PATH: z.string().default(""),
   SESSION_STORAGE_PATH: z.string().default("./data/whatsapp-sessions"),
   MEDIA_STORAGE_PATH: z.string().default("./data/media"),
   MAX_MESSAGES_PER_MINUTE: int(10, 1),

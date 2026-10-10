@@ -4,6 +4,8 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache libc6-compat openssl
+# whatsapp-web.js runs the system Chromium installed below; Puppeteer must not download its own.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 COPY package.json package-lock.json ./
 COPY src/database/prisma ./src/database/prisma
 # postinstall runs `prisma generate`; the client is generated into src/generated/prisma
@@ -20,7 +22,9 @@ RUN npm run build \
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apk add --no-cache openssl tini \
+# Chromium and its fonts are for WA_ENGINE=wwebjs (whatsapp-web.js); the Baileys engine doesn't use them.
+ENV PUPPETEER_SKIP_DOWNLOAD=true CHROMIUM_PATH=/usr/bin/chromium-browser
+RUN apk add --no-cache openssl tini chromium nss freetype harfbuzz ca-certificates ttf-freefont \
  && addgroup -S app && adduser -S app -G app \
  && mkdir -p /data/whatsapp-sessions /data/media && chown -R app:app /data
 COPY --from=build --chown=app:app /app/node_modules ./node_modules

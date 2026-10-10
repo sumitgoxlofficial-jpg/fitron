@@ -67,6 +67,10 @@ if [ ! -f .env ]; then
   echo "Saved .env (keep it: SESSION_ENCRYPTION_KEY unlocks every gym's WhatsApp login)."
 fi
 DOMAIN=$(env_value DOMAIN)
+if [ "$(env_value WA_ENGINE)" = "wwebjs" ] && [ "$MEM_KB" -lt 2000000 ]; then
+  say "Note: WA_ENGINE=wwebjs runs a Chromium per linked gym (about 300-500 MB each) and this server has $((MEM_KB / 1024)) MB of RAM."
+  echo "One gym fits with the swap file, slowly. For more gyms use a bigger server, or set WA_ENGINE=baileys in .env (no browser)."
+fi
 
 # Let's Encrypt can only issue the certificate once the domain points here.
 ME=$(curl -fsS4 https://api.ipify.org 2>/dev/null || true)

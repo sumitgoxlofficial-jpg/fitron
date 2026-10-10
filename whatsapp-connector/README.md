@@ -12,7 +12,7 @@ It is built for legitimate gym-to-member communication: every message is logged,
 sending is paced per gym, and nothing here bulk-messages, scrapes numbers, joins groups or tries to work around WhatsApp.
 
 **Stack:** Node.js 22 · TypeScript (strict) · Express 5 · PostgreSQL + Prisma · Redis + BullMQ · [Baileys](https://github.com/WhiskeySockets/Baileys)
-(maintained WhatsApp Web multi-device library, WebSocket based, no Chromium) · Docker · nginx + Let's Encrypt · pino JSON logs.
+(WebSocket based, no Chromium) or [whatsapp-web.js](https://github.com/wwebjs/whatsapp-web.js) (headless Chromium), picked with `WA_ENGINE` · Docker · nginx + Let's Encrypt · pino JSON logs.
 
 ## Contents
 
@@ -47,6 +47,21 @@ Message flow: `API → validate → consent → queue-size check → log row (QU
 
 Session states: `DISCONNECTED → QR_REQUIRED → CONNECTING → CONNECTED`, plus `RECONNECTING` (temporary loss, retried with
 exponential backoff), `AUTH_FAILURE` (pairing rejected) and `SESSION_EXPIRED` (the phone signed the device out; scan again).
+
+### WhatsApp engine (`WA_ENGINE`)
+
+The connector can hold the gyms' WhatsApp Web sessions with either of two libraries. Gyms see the same thing (scan a QR
+code from WhatsApp › Linked devices), and Fitron's API, the queue, pacing, consent and logs are the same for both.
+
+| `WA_ENGINE` | Library | How it works | Memory per linked gym | Login at rest |
+| --- | --- | --- | --- | --- |
+| `wwebjs` (`.env.example` default) | [whatsapp-web.js](https://github.com/wwebjs/whatsapp-web.js) | Headless Chromium with WhatsApp Web open, driven by Puppeteer | ~300–500 MB | Chromium profile in `SESSION_STORAGE_PATH/<gymId>/session`, folder mode 0700; **not** encrypted with `SESSION_ENCRYPTION_KEY` (Chromium reads it directly), so protect the volume |
+| `baileys` (built-in default if unset) | [Baileys](https://github.com/WhiskeySockets/Baileys) | WebSocket, no browser | a few MB | Encrypted files (AES-256-GCM, `SESSION_ENCRYPTION_KEY`) |
+
+The Docker image includes Chromium for `wwebjs` (`CHROMIUM_PATH=/usr/bin/chromium-browser`). Switching engines does not
+carry logins over: every gym scans a new QR code. Both are unofficial WhatsApp Web clients, not the WhatsApp Business
+Platform: WhatsApp can change its web app and break them, sessions can drop and need a new scan, and a number that sends
+like spam can be restricted.
 
 ## Quick start (Docker)
 
