@@ -4,8 +4,8 @@ import Image from "next/image";
 export function BrandMark({ size, className = "", priority = false }: { size: number; className?: string; priority?: boolean }) {
   return (
     <>
-      <Image src="/fitron-mark.png" alt="" width={size} height={size} priority={priority} className={`light:hidden ${className}`} />
-      <Image src="/fitron-mark-light.png" alt="" width={size} height={size} priority={priority} className={`hidden light:inline ${className}`} />
+      <Image src="/fitron-mark-v2.png" alt="" width={size} height={size} priority={priority} className={`light:hidden ${className}`} />
+      <Image src="/fitron-mark-light-v2.png" alt="" width={size} height={size} priority={priority} className={`hidden light:inline ${className}`} />
     </>
   );
 }
