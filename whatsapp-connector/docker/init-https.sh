@@ -3,7 +3,10 @@
 # Run once from the whatsapp-connector folder after `docker compose up -d app worker postgres redis`:
 #   sh docker/init-https.sh
 set -e
-. ./.env
+# Read only the two values needed: .env is not a shell script (values such as "OPT OUT" have spaces).
+env_value() { sed -n "s/^$1=//p" .env | tail -n 1 | tr -d '"\r'; }
+DOMAIN=$(env_value DOMAIN)
+LETSENCRYPT_EMAIL=$(env_value LETSENCRYPT_EMAIL)
 : "${DOMAIN:?DOMAIN must be set in .env}"
 : "${LETSENCRYPT_EMAIL:?LETSENCRYPT_EMAIL must be set in .env}"
 

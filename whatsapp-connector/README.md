@@ -241,6 +241,10 @@ country); numbers with a `+` or `00` prefix are parsed as written, so `+44791112
 Internet → https://wa-api.fitron.in → nginx (TLS, rate limit) → app:3000 → Postgres / Redis → worker → WhatsApp sessions
 ```
 
+**One command:** on the server, `git clone` this repository and run `bash whatsapp-connector/install.sh`. It installs Docker,
+opens ports 80/443, asks for the domain and email, generates every secret into `.env`, starts the connector, gets the HTTPS
+certificate and prints the `WA_CONNECTOR_URL` and `WA_CONNECTOR_KEY` to put in Vercel. The manual steps it automates:
+
 1. Ubuntu 22.04/24.04, 2 vCPU, 2 GB RAM is plenty for dozens of gyms (each Baileys session is a WebSocket, not a browser).
 2. `apt install docker.io docker-compose-v2`, point `wa-api.fitron.in` (A record) at the server, open ports 80 and 443.
 3. Clone, `cp .env.example .env`, fill in the secrets (`openssl rand -hex 32`), `DOMAIN=wa-api.fitron.in`, `LETSENCRYPT_EMAIL`, `CORS_ORIGIN=https://www.fitron.in`, `PUBLIC_URL=https://wa-api.fitron.in`.
