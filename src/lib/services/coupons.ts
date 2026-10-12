@@ -13,10 +13,11 @@ import { fromIso, todayIso, toIso } from "./time";
 
 type Tx = Prisma.TransactionClient | typeof db;
 
-/** Who is paying: a gym or an AI Trainer member. Each may use a coupon once. */
-export type Payer = { orgId: string; memberId?: undefined } | { memberId: string; orgId?: undefined };
+/** Who is paying: a gym, an AI Trainer member, or a FITRON for Windows computer (its licence). Each may use a coupon once. */
+export type Payer = { orgId: string; memberId?: undefined; installationId?: undefined } | { memberId: string; orgId?: undefined; installationId?: undefined } | { installationId: string; orgId?: undefined; memberId?: undefined };
 
-const own = (p: Payer) => (p.orgId ? { orgId: p.orgId } : { memberId: p.memberId });
+const own = (p: Payer) => (p.orgId ? { orgId: p.orgId } : p.memberId ? { memberId: p.memberId } : { installationId: p.installationId });
+const payerKey = (p: Payer) => p.orgId ?? p.memberId ?? `windows:${p.installationId}`;
 
 export type CouponQuote = {
   coupon: Coupon;
@@ -56,7 +57,7 @@ export async function quoteCoupon(raw: string, product: CouponProduct, payer: Pa
   const code = normaliseCode(raw);
   if (!code) throw new UserError("Enter a coupon code.", "coupon");
   // Codes are short words, so guessing them is limited.
-  if (!rateLimit(`coupon:${payer.orgId ?? payer.memberId}`, 20, 10 * 60_000)) throw new UserError("Too many coupon tries in a few minutes. Wait a little and try again.", "coupon");
+  if (!rateLimit(`coupon:${payerKey(payer)}`, 20, 10 * 60_000)) throw new UserError("Too many coupon tries in a few minutes. Wait a little and try again.", "coupon");
   const coupon = await db.coupon.findUnique({ where: { code } });
   if (!coupon) throw new UserError("That coupon code isn't valid.", "coupon");
   await assertUsable(db, coupon, product, payer);

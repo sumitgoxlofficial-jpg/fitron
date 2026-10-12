@@ -5,10 +5,12 @@ import { log } from "@/lib/log";
 import { createOrder, fitronKeyId, verifyCheckout } from "@/lib/integrations/razorpay";
 import { signLicence } from "@/lib/licence/issue";
 import { findPlan } from "@/lib/domain/pricing";
-import type { Cycle } from "@/lib/domain/saas";
+import { gstInside, type Cycle } from "@/lib/domain/saas";
+import { couponLabel } from "@/lib/domain/coupons";
 import { buyerDetails, CLAIM, INSTALLATION_ID, isWindowsPlan, windowsLicence, windowsPeriod, windowsPrice, type WindowsPlan } from "@/lib/domain/windows-licence";
 import { UserError } from "./errors";
 import { fitronSeller } from "./saas";
+import { markCouponUsed, quoteCoupon, releaseCoupon, reserveCoupon } from "./coupons";
 import { fromIso, todayIso, toIso } from "./time";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -39,26 +41,57 @@ export function signingKey(env: Record<string, string | undefined> = process.env
 
 export type WindowsCheckout =
   | { mode: "LIVE"; id: string; total: number; keyId: string; orderId: string; name: string; description: string; prefill: { name: string; email: string; contact?: string } }
-  | { mode: "DEMO"; id: string; total: number };
+  | { mode: "DEMO"; id: string; total: number }
+  /** A coupon made it free: already paid, nothing to open. */
+  | { mode: "FREE"; id: string; total: 0 };
 
-/** Starts paying for a licence: the order, and Razorpay's order for Checkout. */
-export async function startWindowsLicence(input: { installationId: unknown; claim: unknown; plan: unknown; cycle: unknown; licensee?: unknown; email?: unknown; phone?: unknown; gstin?: unknown }): Promise<WindowsCheckout> {
+/** The link's installation and claim, and the plan picked, or a message the buyer can act on. */
+function chosen(input: { installationId: unknown; claim: unknown; plan: unknown; cycle: unknown }) {
   const installationId = typeof input.installationId === "string" ? input.installationId : "";
   const claim = typeof input.claim === "string" ? input.claim : "";
   if (!INSTALLATION_ID.test(installationId) || !CLAIM.test(claim)) throw new UserError("This link is not complete. Open it again from Settings › Licence in FITRON on your computer.");
   const plan = typeof input.plan === "string" && isWindowsPlan(input.plan) ? input.plan : null;
-  const cycle = input.cycle === "MONTHLY" || input.cycle === "YEARLY" ? input.cycle : null;
+  const cycle: Cycle | null = input.cycle === "MONTHLY" || input.cycle === "YEARLY" ? input.cycle : null;
   if (!plan || !cycle) throw new UserError("Pick a plan, monthly or yearly.");
+  return { installationId, claim, plan, cycle };
+}
+
+/** What a coupon would do to the plan picked, for the coupon box before paying. Changes nothing. Coupons for gym plans ("GYM" or "ALL") work here. */
+export async function quoteWindowsCoupon(input: { installationId: unknown; claim: unknown; plan: unknown; cycle: unknown; coupon: unknown }) {
+  const c = chosen(input);
+  const q = await quoteCoupon(typeof input.coupon === "string" ? input.coupon : "", "GYM", { installationId: c.installationId }, windowsPrice(c.plan, c.cycle).total);
+  return { code: q.code, label: couponLabel(q.percentOff, q.payPaise), listTotal: q.listTotal, discount: q.discount, total: q.total };
+}
+
+/**
+ * Starts paying for a licence: the order, and Razorpay's order for Checkout. With a coupon the price is the coupon's (one
+ * use held for this computer until the payment is made or fails); a 100% coupon is paid at once, with no Razorpay.
+ */
+export async function startWindowsLicence(input: { installationId: unknown; claim: unknown; plan: unknown; cycle: unknown; licensee?: unknown; email?: unknown; phone?: unknown; gstin?: unknown; coupon?: unknown }): Promise<WindowsCheckout> {
+  const { installationId, claim, plan, cycle } = chosen(input);
   const buyer = buyerDetails(input);
   if ("error" in buyer) throw new UserError(buyer.error);
-  const price = windowsPrice(plan, cycle);
+  const listed = windowsPrice(plan, cycle);
+  const code = typeof input.coupon === "string" ? input.coupon.trim() : "";
+  const quote = code ? await quoteCoupon(code, "GYM", { installationId }, listed.total) : null;
+  // FITRON's invoice splits what is actually charged.
+  const price = quote ? gstInside(quote.total) : listed;
+  const free = !!quote && quote.total === 0;
   const keyId = fitronKeyId();
   // A demo payment moves no money, so a live server never starts one.
-  if (!keyId && process.env.NODE_ENV === "production") throw new UserError("Payments to FITRON aren't switched on yet. Write to hello@fitron.in and we will send your licence.");
-  const order = await db.windowsLicenceOrder.create({ data: { installationId, claimHash: claimHash(claim), plan, cycle, ...price, ...buyer } });
+  if (!keyId && !free && process.env.NODE_ENV === "production") throw new UserError("Payments to FITRON aren't switched on yet. Write to hello@fitron.in and we will send your licence.");
+  const order = await db.$transaction(async (tx) => {
+    const row = await tx.windowsLicenceOrder.create({ data: { installationId, claimHash: claimHash(claim), plan, cycle, ...price, couponCode: quote?.code ?? null, discount: quote?.discount ?? 0, ...buyer } });
+    if (quote) await reserveCoupon(tx, quote, "GYM", { installationId }, row.id);
+    return row;
+  });
+  if (free) {
+    await markPaid({ id: order.id }, null, null);
+    return { mode: "FREE", id: order.id, total: 0 };
+  }
   const name = findPlan(plan)?.name ?? plan;
   if (!keyId) return { mode: "DEMO", id: order.id, total: price.total };
-  const rz = await createOrder({ amount: price.total, receipt: order.id, notes: { kind: "windows-licence", order: order.id, plan, cycle } });
+  const rz = await createOrder({ amount: price.total, receipt: order.id, notes: { kind: "windows-licence", order: order.id, plan, cycle, ...(quote ? { coupon: quote.code } : {}) } });
   await db.windowsLicenceOrder.update({ where: { id: order.id }, data: { razorpayOrderId: rz.id } });
   return {
     mode: "LIVE",
@@ -67,7 +100,7 @@ export async function startWindowsLicence(input: { installationId: unknown; clai
     keyId,
     orderId: rz.id,
     name: fitronSeller().name,
-    description: `FITRON Gym Accounting for Windows, ${name}, 1 ${cycle === "YEARLY" ? "year" : "month"} (GST included)`,
+    description: `FITRON Gym Accounting for Windows, ${name}, 1 ${cycle === "YEARLY" ? "year" : "month"} (GST included${quote ? `, coupon ${quote.code} ${couponLabel(quote.percentOff, quote.payPaise)}` : ""})`,
     prefill: { name: buyer.licensee, email: buyer.email, ...(buyer.phone ? { contact: buyer.phone } : {}) },
   };
 }
@@ -109,6 +142,7 @@ async function markPaid(where: { id: string } | { razorpayOrderId: string }, pay
     const paid = { ...o, periodEnd: fromIso(p.end), paidAt: new Date() };
     const licence = sign(paid, today);
     if (!licence) log.error("windows_licence.no_signing_key", new Error(`Order ${o.id} is paid; its licence waits for FITRON_LICENCE_SIGNING_KEY.`));
+    await markCouponUsed(tx, o.id);
     return tx.windowsLicenceOrder.update({
       where: { id: o.id },
       data: { status: "PAID", paidAt: paid.paidAt, periodStart: fromIso(p.start), periodEnd: fromIso(p.end), razorpayPaymentId: paymentId, invoiceNo: await invoiceNumber(tx, today), ...(licence ?? {}) },
@@ -145,6 +179,8 @@ export async function applyWindowsLicencePayment(event: string, pay: RzpPayment)
   }
   if (event === "payment.failed" && order.status === "PENDING") {
     await db.windowsLicenceOrder.update({ where: { id: order.id }, data: { status: "FAILED" } });
+    // The coupon's held use goes back; a retried payment that is captured after all takes it again.
+    await releaseCoupon(db, order.id);
     return "failed";
   }
   return "ignored";

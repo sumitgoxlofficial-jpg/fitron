@@ -1399,29 +1399,33 @@ model Coupon {
   redemptions CouponRedemption[]
 }
 
-/// One use of a coupon on one payment. A gym (orgId) or an AI Trainer member (memberId) may use a coupon once.
+/// One use of a coupon on one payment. A gym (orgId), an AI Trainer member (memberId) or a FITRON for Windows computer
+/// (installationId) may use a coupon once.
 model CouponRedemption {
-  id        String    @id @default(cuid())
-  couponId  String
+  id             String    @id @default(cuid())
+  couponId       String
   /// Restrict: a coupon that was used can't be deleted, only paused
-  coupon    Coupon    @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  coupon         Coupon    @relation(fields: [couponId], references: [id], onDelete: Restrict)
   /// Who used it: the gym or the AI Trainer member
-  orgId     String?
-  memberId  String?
-  /// The payment it was used on: BranchSubscription.id (gym) or TrainerPayment.id (member)
-  paymentId String    @unique
+  orgId          String?
+  memberId       String?
+  /// A FITRON for Windows computer buying its licence on fitron.in (its installation id)
+  installationId String?
+  /// The payment it was used on: BranchSubscription.id (gym), TrainerPayment.id (member) or WindowsLicenceOrder.id (Windows)
+  paymentId      String    @unique
   /// PENDING (payment started; holds a place for a while) | USED (payment made) | RELEASED (payment not made, or started again)
-  status    String    @default("PENDING")
+  status         String    @default("PENDING")
   /// The listed price, what the coupon took off, and what was charged (paise, GST included)
-  listTotal Int
-  discount  Int
-  paid      Int
-  createdAt DateTime  @default(now()) @db.Timestamptz
-  usedAt    DateTime? @db.Timestamptz
+  listTotal      Int
+  discount       Int
+  paid           Int
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+  usedAt         DateTime? @db.Timestamptz
 
   @@index([couponId, status])
   @@index([orgId])
   @@index([memberId])
+  @@index([installationId])
 }
 
 // ── AI Trainer (member app at /trainer) ────────────────────────────────────
@@ -1728,7 +1732,11 @@ model WindowsLicenceOrder {
   cycle             String
   base              Int
   gst               Int
+  /// What is charged (paise, GST included): the plan's price less the coupon's discount
   total             Int
+  /// The coupon typed before paying, and what it took off the plan's price (paise)
+  couponCode        String?
+  discount          Int       @default(0)
   /// PENDING | PAID | FAILED
   status            String    @default("PENDING")
   /// Who the licence is for, as the buyer typed it (the gym or company name), and how to reach them about it

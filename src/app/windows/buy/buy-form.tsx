@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button, Field, Input, Notice } from "@/components/ui";
 import { formatInr } from "@/lib/format";
-import { confirmWindowsLicenceAction, confirmWindowsLicenceDemoAction, startWindowsLicenceAction } from "./actions";
+import { confirmWindowsLicenceAction, confirmWindowsLicenceDemoAction, quoteWindowsCouponAction, startWindowsLicenceAction } from "./actions";
 
 export type PlanChoice = { key: string; name: string; tagline: string; price: { MONTHLY: number; YEARLY: number }; branches: number; memberLimit: number | null };
 
@@ -31,7 +31,26 @@ export function BuyForm({ installationId, claim, plans, initialPlan, demo }: { i
   const [msg, setMsg] = useState<{ tone: "ok" | "alert"; text: string } | null>(null);
   const [paid, setPaid] = useState(false);
   const [pending, start] = useTransition();
+  const [coupon, setCoupon] = useState("");
+  // The coupon applied to the plan and cycle shown; changing either asks for it again.
+  const [applied, setApplied] = useState<{ code: string; label: string; discount: number; total: number; for: string } | null>(null);
+  const [couponMsg, setCouponMsg] = useState<string | null>(null);
   const chosen = plans.find((p) => p.key === plan) ?? plans[0]!;
+  const choice = `${plan}:${cycle}`;
+  const deal = applied && applied.for === choice ? applied : null;
+  const toPay = deal ? deal.total : chosen.price[cycle];
+
+  const apply = () =>
+    start(async () => {
+      setCouponMsg(null);
+      if (!coupon.trim()) return setCouponMsg("Enter a coupon code.");
+      const r = await quoteWindowsCouponAction({ installationId, claim, plan, cycle, coupon });
+      if (!r.ok) {
+        setApplied(null);
+        return setCouponMsg(r.error);
+      }
+      setApplied({ ...r.data, for: choice });
+    });
   const set = (k: keyof typeof buyer) => (e: React.ChangeEvent<HTMLInputElement>) => setBuyer((b) => ({ ...b, [k]: e.target.value }));
 
   const done = () => {
@@ -42,9 +61,10 @@ export function BuyForm({ installationId, claim, plans, initialPlan, demo }: { i
   const pay = () =>
     start(async () => {
       setMsg(null);
-      const r = await startWindowsLicenceAction({ installationId, claim, plan, cycle, ...buyer });
+      const r = await startWindowsLicenceAction({ installationId, claim, plan, cycle, ...buyer, coupon: deal ? deal.code : "" });
       if (!r.ok) return setMsg({ tone: "alert", text: r.error });
       const c = r.data;
+      if (c.mode === "FREE") return done();
       if (c.mode === "DEMO") {
         const d = await confirmWindowsLicenceDemoAction(c.id);
         return d.ok ? done() : setMsg({ tone: "alert", text: d.error });
@@ -116,11 +136,28 @@ export function BuyForm({ installationId, claim, plans, initialPlan, demo }: { i
           <Input value={buyer.gstin} onChange={set("gstin")} />
         </Field>
       </div>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Coupon code (optional)" className="max-w-[260px]">
+            <Input value={coupon} onChange={(e) => { setCoupon(e.target.value.toUpperCase()); setApplied(null); setCouponMsg(null); }} autoComplete="off" spellCheck={false} data-testid="windows-coupon" />
+          </Field>
+          <Button type="button" onClick={apply} disabled={pending || !coupon.trim()} data-testid="windows-coupon-apply">
+            Apply
+          </Button>
+        </div>
+        {deal && (
+          <span className="text-sm text-ok" data-testid="windows-coupon-ok">
+            Coupon {deal.code} applied ({deal.label}): {rupees(deal.discount)} off, you pay {rupees(deal.total)}.
+          </span>
+        )}
+        {applied && !deal && <span className="text-sm text-muted">The plan changed: press Apply again for the coupon.</span>}
+        {couponMsg && <span className="text-sm text-alert">{couponMsg}</span>}
+      </div>
       {msg && <Notice tone={msg.tone}>{msg.text}</Notice>}
       {demo && <Notice tone="neutral">Payments are not switched on for this server: this is a demonstration, and no money moves.</Notice>}
       <div>
         <Button variant="primary" onClick={pay} disabled={pending} data-testid="windows-pay">
-          {pending ? "Please wait…" : `Pay ${rupees(chosen.price[cycle])} · ${chosen.name}, 1 ${cycle === "YEARLY" ? "year" : "month"}`}
+          {pending ? "Please wait…" : toPay === 0 ? `Get it free · ${chosen.name}, 1 ${cycle === "YEARLY" ? "year" : "month"}` : `Pay ${rupees(toPay)} · ${chosen.name}, 1 ${cycle === "YEARLY" ? "year" : "month"}`}
         </Button>
       </div>
     </div>
