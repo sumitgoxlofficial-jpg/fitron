@@ -73,6 +73,16 @@ export const FACTS: readonly Fact[] = [
     keywords: ["messages", "message limit", "daily limit", "limit", "limits", "how many messages", "per day"],
     answer: `The AI Coach answers ${pro} messages a day on AI Pro and ${premium} a day on AI Premium. Everything else in the AI Trainer is the same on both plans.`,
   },
+  // Ahead of gym-accounting, so a tie ("does the console work offline?") goes to this, the more specific answer.
+  {
+    id: "windows",
+    about: "FITRON Windows, the optional desktop app for gyms",
+    keywords: ["windows", "windows app", "windows software", "desktop", "desktop app", "desktop software", "offline", "without internet", "no internet", "internet goes", "cloud sync", "sync", "pc", "computer", "laptop", "download", "installer", "exe"],
+    answer: [
+      "Yes. FITRON Windows is an optional desktop app for gyms that prefer a Windows application. Gym operations carry on offline, and with Cloud Sync on, changes sync automatically when the internet connection returns.",
+      `Get it with "Download for Windows" in the FITRON for Windows section of this page. Gym Accounting also works in any browser without it: /gym-accounting.`,
+    ].join("\n"),
+  },
   {
     id: "gym-accounting",
     about: "Gym Accounting",

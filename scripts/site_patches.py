@@ -590,7 +590,8 @@ def structured_data(page):
             **({"@id": "https://fitron.in/ai-personal-trainer#software", "url": "https://fitron.in/ai-personal-trainer"} if ai else {"@id": "https://fitron.in/gym-accounting#software", "url": "https://fitron.in/gym-accounting"}),
             "name": name,
             "applicationCategory": "HealthApplication" if ai else "BusinessApplication",
-            "operatingSystem": "Web",
+            # Gym Accounting also comes as FITRON Windows, the optional desktop app (WINDOWS_APP_URL).
+            "operatingSystem": "Web" if ai else "Web, Windows",
             "publisher": org,
             "offers": [
                 {"@type": "Offer", "name": n, "price": p, "priceCurrency": "INR",
@@ -669,6 +670,13 @@ def checks(items):
     return '<ul class="checks two">' + "".join(CHECK_ITEM.format(i) for i in items) + "</ul>"
 
 
+# FITRON Windows, the optional desktop app for gyms (built in its own repository). "Download for Windows" in the
+# FITRON for Windows section (site/windows.html, where @@WINDOWS_APP@@ stands for this address) opens its latest release.
+# landing-page.test.ts keeps it equal to WINDOWS_APP_HREF in src/lib/domain/site-links.ts.
+WINDOWS_APP_URL = "https://github.com/sumit4411suman/fitron-windows-app/releases/latest"
+WINDOWS_ICON = '  <symbol id="i-windows" viewBox="0 0 24 24"><path d="M3 5.4l7.4-1v7.1H3zM11.6 4.2 21 3v8.5h-9.4zM3 12.6h7.4v7.1L3 18.6zM11.6 12.6H21V21l-9.4-1.3z"></path></symbol>\n'
+
+
 def about_data():
     """The owner's real profiles, from src/lib/domain/about-data.json (empty until they are supplied)."""
     with open(os.path.join(HERE, "..", "src", "lib", "domain", "about-data.json"), encoding="utf-8") as f:
@@ -684,6 +692,8 @@ def redesign(page):
     page = region(page, r'<header class="nav" id="nav">.*?</header>\s*<nav class="mobile-menu".*?</nav>\n', site_src("nav.html"), "nav", "header and phone menu")
     page = region(page, r'<div class="hero-wrap" id="top">.*?(?=\s*<section class="band")', site_src("hero.html"), "hero", "hero")
     page = put(page, '<section class="section" id="together"', site_src("showcase.html") + "\n  ", "<!--fitron:showcase-->", "<!--/fitron:showcase-->", "showcase sections")
+    page = put(page, "<!--fitron:showcase-->", site_src("windows.html").replace("@@WINDOWS_APP@@", WINDOWS_APP_URL) + "\n  ", "<!--fitron:windows-->", "<!--/fitron:windows-->", "FITRON for Windows section")
+    page = add(page, '  <symbol id="i-close"', WINDOWS_ICON, '<symbol id="i-windows"', "Windows icon", before=True)
     page = region(page, r'<div class="together reveal">.*?(?=\s*<div class="result reveal")', site_src("together.html"), "together", "Better together flow")
     page = put(page, '</section>\n\n  <section class="section" id="pricing"', site_src("partner-extras.html"), "<!--fitron:partner-models-->", "<!--/fitron:partner-models-->", "partner models")
     page = put(page, '\n\n  <section class="section" id="pricing"', site_src("partner-earnings.html"), "<!--fitron:partner-earnings-->", "<!--/fitron:partner-earnings-->", "how the partnership works")
@@ -693,7 +703,7 @@ def redesign(page):
     page = region(page, r"<footer id=\"siteEnd\">.*?</footer>", site_src("footer.html").replace("@@SOCIAL@@", social_html()), "footer", "footer")
     page = region(page, r'<div class="consent" id="consent".*?</div>\n</div>', site_src("consent.html"), "consent", "cookie banner")
     page = region(page, r'<ul class="checks">.*?</ul>', checks(AI_FEATURES), "ai-checks", "AI Trainer card features")
-    page = region(page, r'<ul class="checks">.*?</ul>', checks(GYM_FEATURES) + '<p class="sc-fine" style="text-align:left;margin-top:12px">Some features need the Professional or Enterprise plan. <a href="#pricing">Compare plans</a>.</p>', "gym-checks", "Gym Accounting card features")
+    page = region(page, r'<ul class="checks">.*?</ul>', checks(GYM_FEATURES) + '<p class="sc-fine" style="text-align:left;margin-top:12px">Some features need the Professional or Enterprise plan. <a href="#pricing">Compare plans</a>. Prefer a desktop app? <a href="#windows">Get FITRON for Windows</a>.</p>', "gym-checks", "Gym Accounting card features")
     page = put(page, "</head>", "<style>" + squash_css(site_src("redesign.css")) + "</style>", "<!--fitron:redesign-css-->", "<!--/fitron:redesign-css-->", "redesign styles")
     page = put(page, "</body>", "<script>\n" + site_src("extras.js") + "</script>\n", "<!--fitron:extras-->", "<!--/fitron:extras-->", "redesign script")
     page = add(page, "</body>", '<script src="/site/analytics.js" defer></script>\n', 'src="/site/analytics.js"', "analytics loader (consent-gated, see public/site/analytics.js)", before=True)

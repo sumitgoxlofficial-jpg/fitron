@@ -12,6 +12,7 @@ import { PARTNER_SHARE, PLANS } from "./pricing";
 import { gstInside } from "./saas";
 import { COACH_DAILY_LIMIT } from "./trainer";
 import { PLAN_FEATURES, PRIORITY_SUPPORT_PLANS, type Feature } from "./features";
+import { WINDOWS_APP_HREF } from "./site-links";
 
 const root = path.join(__dirname, "../../..");
 const html = readFileSync(path.join(root, "public/site/index.html"), "utf8");
@@ -226,6 +227,28 @@ describe("the redesigned home page", () => {
     expect([...html.matchAll(/class="faq-cat[^"]*" id="faq-/g)].length).toBeGreaterThanOrEqual(5);
   });
 
+  it("offers FITRON Windows, the optional desktop app, with a download button that opens its latest release", () => {
+    const part = section("windows");
+    expect(part).toContain(`<a class="btn btn-gold" href="${WINDOWS_APP_HREF}" target="_blank" rel="noopener" data-track="windows_download"`);
+    expect(part).toMatch(/<use href="#i-windows"><\/use><\/svg>Download for Windows<\/a>/);
+    expect(html).toContain('<symbol id="i-windows"');
+    // What the app is for, as the brief puts it: optional, offline, and Cloud Sync when the connection returns.
+    for (const s of ["optional desktop app", "offline", "With Cloud Sync on, changes sync automatically when the internet connection returns"]) expect(part.includes(s), s).toBe(true);
+    // The picture beside it is an illustration of how syncing works, not the app's own screen.
+    expect(part).toMatch(/<figcaption>An illustration [^<]*not the app's own screen\.<\/figcaption>/);
+    // The patch script writes the same address the console's code knows.
+    expect(readFileSync(path.join(root, "scripts/site_patches.py"), "utf8")).toContain(`WINDOWS_APP_URL = "${WINDOWS_APP_HREF}"`);
+  });
+
+  it("points to the Windows app from the Gym Accounting card, the FAQ and the footers", () => {
+    const card = html.slice(html.indexOf("<h3>FITRON Gym Accounting</h3>"), html.indexOf("</article>", html.indexOf("<h3>FITRON Gym Accounting</h3>")));
+    expect(card).toContain('<a href="#windows">Get FITRON for Windows</a>');
+    expect(section("faq")).toMatch(/<details><summary>Is there a Windows app\?<\/summary><p>[^<]*Cloud Sync[^<]*<a href="#windows">/);
+    const footer = html.slice(html.indexOf('<footer id="siteEnd"'), html.indexOf("</footer>"));
+    expect(footer).toContain('<li><a href="#windows">Windows App</a></li>');
+    expect(readFileSync(path.join(root, "src/app/(site)/site-footer.tsx"), "utf8")).toContain('["/#windows", "Windows App"]');
+  });
+
   it("has a five-column footer with every legal page and the cookie settings", () => {
     const footer = html.slice(html.indexOf('<footer id="siteEnd"'), html.indexOf("</footer>"));
     for (const h of ["Products", "Business", "Company", "Legal"]) expect(footer.includes(`>${h}</p>`), h).toBe(true);
@@ -352,6 +375,11 @@ describe("home page structured data", () => {
     expect(ofType("Organization")).toHaveLength(1);
     expect(ofType("SoftwareApplication").map((a) => a.name)).toEqual(["FITRON AI Trainer", "FITRON Gym Accounting"]);
     expect(ofType("FAQPage")).toHaveLength(1);
+  });
+
+  it("says Gym Accounting runs on the web and on Windows (FITRON Windows), and the AI Trainer on the web", () => {
+    const os = Object.fromEntries(ofType("SoftwareApplication").map((a) => [a.name, (a as { operatingSystem?: string }).operatingSystem]));
+    expect(os).toEqual({ "FITRON AI Trainer": "Web", "FITRON Gym Accounting": "Web, Windows" });
   });
 
   it("lists every plan at its real monthly price in rupees, GST included", () => {

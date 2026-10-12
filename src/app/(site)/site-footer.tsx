@@ -11,6 +11,7 @@ const columns = [
       ["/gym-accounting", "Gym Accounting"],
       ["/gym-management-software", "Gym Management"],
       ["/gym-gst-billing", "GST Billing"],
+      ["/#windows", "Windows App"],
     ],
   ],
   [
