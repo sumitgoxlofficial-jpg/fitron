@@ -13,6 +13,9 @@ const PUBLIC = [
   "contact", "about", "privacy", "terms", "refund", "c",
   "robots.txt", "sitemap.xml", "favicon.ico", "fitron-mark.png", "fitron-mark-v2.png", "fitron-mark-light-v2.png", "fitron-logo.png", "fitron-logo-v2.png", "site", "_next",
   "trainer", "api/trainer", "api/coach", "api/gym-demo", "api/assistant",
+  // FITRON for Windows: buying its licence, the computer collecting it, and Fitron AI for a licensed computer
+  // (src/lib/services/windows-licence.ts, windows-ai.ts). Each checks its own claim or signed licence.
+  "windows", "api/windows-licence", "api/windows-ai",
   "api/health", "api/analytics-config", "api/client-error", "api/csp-report", "api/webhooks", "api/jobs", "iclock",
   // The pages about Gym Accounting (src/lib/domain/gym-pages.ts) join this list by themselves.
   ...GYM_PAGES.map((p) => p.path.slice(1)),

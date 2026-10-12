@@ -16,6 +16,26 @@ export type Block =
   | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } };
 export type Msg = { role: "user" | "assistant"; content: string | Block[] };
 
+export type Reply = { content: Block[]; stop_reason: string; usage?: { input_tokens?: number; output_tokens?: number } };
+
+/**
+ * One request to Anthropic with this server's key, passed as it came (FITRON for Windows' Fitron AI through fitron.in,
+ * src/lib/services/windows-ai.ts): the model is always this server's, and the usage comes back for the daily allowance.
+ */
+export async function anthropicMessages(req: { system: string; messages: unknown[]; tools?: readonly unknown[]; maxTokens: number; timeoutMs: number }): Promise<Reply> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY!.trim(), "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: aiModel(), max_tokens: req.maxTokens, system: req.system, messages: req.messages, ...(req.tools?.length ? { tools: req.tools } : {}) }),
+    signal: AbortSignal.timeout(req.timeoutMs),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Claude API ${res.status}: ${text.slice(0, 300)}`);
+  }
+  return (await res.json()) as Reply;
+}
+
 export async function claude(req: { system: string; messages: Msg[]; tools: readonly object[]; maxTokens?: number; timeoutMs?: number }) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
