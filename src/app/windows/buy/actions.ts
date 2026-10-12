@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { rateLimit } from "@/lib/rate-limit";
 import { UserError } from "@/lib/services/errors";
-import { confirmWindowsLicenceCheckout, confirmWindowsLicenceDemo, startWindowsLicence, type WindowsCheckout } from "@/lib/services/windows-licence";
+import { confirmWindowsLicenceCheckout, confirmWindowsLicenceDemo, quoteWindowsCoupon, startWindowsLicence, type WindowsCheckout } from "@/lib/services/windows-licence";
 import { log } from "@/lib/log";
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -23,8 +23,14 @@ async function run<T>(what: string, f: () => Promise<T>): Promise<Result<T>> {
   }
 }
 
+/** The coupon box's Apply: what the coupon does to the plan picked. Changes nothing. */
+export async function quoteWindowsCouponAction(input: { installationId: string; claim: string; plan: string; cycle: string; coupon: string }) {
+  if (!rateLimit(`windows-coupon:${await ip()}`, 30, 10 * 60_000)) return { ok: false as const, error: "Too many coupon tries. Wait a few minutes and try again." };
+  return run("coupon", () => quoteWindowsCoupon(input));
+}
+
 /** The buy page's Pay button: an order, and what Razorpay Checkout needs. */
-export async function startWindowsLicenceAction(input: { installationId: string; claim: string; plan: string; cycle: string; licensee: string; email: string; phone: string; gstin: string }): Promise<Result<WindowsCheckout>> {
+export async function startWindowsLicenceAction(input: { installationId: string; claim: string; plan: string; cycle: string; licensee: string; email: string; phone: string; gstin: string; coupon: string }): Promise<Result<WindowsCheckout>> {
   if (!rateLimit(`windows-buy:${await ip()}`, 20, 10 * 60_000)) return { ok: false, error: "Too many tries. Wait a few minutes and try again." };
   return run("start", () => startWindowsLicence(input));
 }

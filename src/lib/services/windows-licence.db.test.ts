@@ -7,7 +7,7 @@ import { verifyLicence } from "@/lib/licence/licence";
 import { buyerDetails } from "@/lib/domain/windows-licence";
 import { addDays, membershipEndDate } from "@/lib/domain/dates";
 import { applyFitronBillingEvent } from "./saas";
-import { claimWindowsLicence, confirmWindowsLicenceCheckout, confirmWindowsLicenceDemo, startWindowsLicence } from "./windows-licence";
+import { applyWindowsLicencePayment, claimWindowsLicence, confirmWindowsLicenceCheckout, confirmWindowsLicenceDemo, quoteWindowsCoupon, startWindowsLicence } from "./windows-licence";
 import { todayIso, toIso } from "./time";
 
 // fitron.in's side of buying a FITRON for Windows licence (docs/local-windows/LICENSING.md).
@@ -95,6 +95,56 @@ describe.skipIf(!hasDb)("FITRON for Windows licences bought on fitron.in (databa
     const after = await db.windowsLicenceOrder.findUniqueOrThrow({ where: { id: order.id } });
     expect(after).toMatchObject({ status: "PAID", razorpayPaymentId: payId });
     expect(after.licenceText).toMatch(/^FITRON-LICENCE-1\./);
+  });
+
+  const coupon = (over: { percentOff?: number; payPaise?: number | null; appliesTo?: string; usageLimit?: number | null; validTill?: Date | null } = {}) =>
+    db.coupon.create({ data: { code: `WIN${randomBytes(4).toString("hex").toUpperCase()}`, percentOff: 20, appliesTo: "GYM", createdBy: "test", ...over } });
+
+  it("takes a coupon before paying: the order, the invoice and the licence are at the coupon's price, and it is used once", async () => {
+    const c20 = await coupon({ percentOff: 20 });
+    const q = await quoteWindowsCoupon({ installationId, claim, plan: "professional", cycle: "YEARLY", coupon: c20.code.toLowerCase() });
+    expect(q).toEqual({ code: c20.code, label: "20% off", listTotal: 19_99_000, discount: 3_99_800, total: 15_99_200 });
+    const c = await startWindowsLicence({ installationId, claim, plan: "professional", cycle: "YEARLY", ...buyer, coupon: c20.code });
+    expect(c).toMatchObject({ mode: "DEMO", total: 15_99_200 });
+    expect(await db.couponRedemption.findUnique({ where: { paymentId: c.id } })).toMatchObject({ installationId, status: "PENDING", listTotal: 19_99_000, discount: 3_99_800, paid: 15_99_200 });
+    const paid = await confirmWindowsLicenceDemo(c.id);
+    expect(paid).toMatchObject({ status: "PAID", total: 15_99_200, couponCode: c20.code, discount: 3_99_800 });
+    expect(paid!.base + paid!.gst).toBe(15_99_200);
+    expect((await db.couponRedemption.findUniqueOrThrow({ where: { paymentId: c.id } })).status).toBe("USED");
+    expect((await claimWindowsLicence({ installationId, claim })).status).toBe("paid");
+    // The same computer cannot use it again; another computer can.
+    await expect(quoteWindowsCoupon({ installationId, claim, plan: "starter", cycle: "MONTHLY", coupon: c20.code })).rejects.toThrow(/already used/);
+    await expect(quoteWindowsCoupon({ installationId: randomUUID(), claim, plan: "starter", cycle: "MONTHLY", coupon: c20.code })).resolves.toMatchObject({ total: 79_920 });
+  });
+
+  it("gives the licence at once for a 100% coupon, with no payment to make", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const free = await coupon({ percentOff: 100 });
+    const c = await startWindowsLicence({ installationId, claim, plan: "starter", cycle: "YEARLY", ...buyer, coupon: free.code });
+    expect(c).toEqual({ mode: "FREE", id: expect.any(String), total: 0 });
+    expect(await db.windowsLicenceOrder.findUniqueOrThrow({ where: { id: c.id } })).toMatchObject({ status: "PAID", total: 0, base: 0, gst: 0, razorpayOrderId: null });
+    expect((await claimWindowsLicence({ installationId, claim })).status).toBe("paid");
+  });
+
+  it("refuses a coupon that is unknown, paused, expired, used up or only for the AI Trainer, and gives a failed payment's use back", async () => {
+    const ask = (code: string) => quoteWindowsCoupon({ installationId, claim, plan: "starter", cycle: "YEARLY", coupon: code });
+    await expect(ask("NOSUCHCODE")).rejects.toThrow(/isn't valid/);
+    await expect(ask((await coupon({ appliesTo: "TRAINER" })).code)).rejects.toThrow(/only works on AI Trainer plans/);
+    await expect(ask((await coupon({ validTill: new Date("2020-01-01") })).code)).rejects.toThrow(/expired/);
+    const paused = await coupon();
+    await db.coupon.update({ where: { id: paused.id }, data: { status: "PAUSED" } });
+    await expect(ask(paused.code)).rejects.toThrow(/isn't valid/);
+    // One use: held by a payment started on another computer, given back when that payment fails.
+    const one = await coupon({ usageLimit: 1 });
+    vi.stubEnv("FITRON_RAZORPAY_KEY_ID", "rzp_test_x");
+    vi.stubEnv("FITRON_RAZORPAY_KEY_SECRET", "secret");
+    const other = randomUUID();
+    const held = await db.windowsLicenceOrder.create({ data: { installationId: other, claimHash: "h", plan: "starter", cycle: "YEARLY", base: 1, gst: 0, total: 1, licensee: "X", email: "x@y.in", razorpayOrderId: `order_${randomUUID()}` } });
+    await db.couponRedemption.create({ data: { couponId: one.id, installationId: other, paymentId: held.id, listTotal: 9_99_000, discount: 1_99_800, paid: 7_99_200 } });
+    await expect(ask(one.code)).rejects.toThrow(/fully used/);
+    expect(await applyWindowsLicencePayment("payment.failed", { order_id: held.razorpayOrderId! })).toBe("failed");
+    expect((await db.couponRedemption.findUniqueOrThrow({ where: { paymentId: held.id } })).status).toBe("RELEASED");
+    await expect(ask(one.code)).resolves.toMatchObject({ code: one.code });
   });
 
   it("asks for the buyer's details it writes on the licence and receipt", () => {
