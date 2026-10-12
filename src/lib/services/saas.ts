@@ -21,6 +21,7 @@ import { completeTrainerPayment, recordTrainerCharge, trainerRenewalTrouble } fr
 import { sendGymWhatsApp } from "./whatsapp";
 import { fromIso, toIso, todayIso } from "./time";
 import { log } from "@/lib/log";
+import { applyWindowsLicencePayment } from "./windows-licence";
 
 type Tx = Prisma.TransactionClient | typeof db;
 
@@ -465,6 +466,11 @@ export async function applyFitronBillingEvent(ev: RzpEvent) {
   const pay = ev.payload?.payment?.entity;
   const subscription = ev.payload?.subscription?.entity;
   if (ev.event?.startsWith("subscription.") && subscription?.id) return applySubscriptionEvent(ev.event, subscription, pay);
+  // A FITRON for Windows licence bought on fitron.in (src/lib/services/windows-licence.ts).
+  if (ev.event && pay) {
+    const windows = await applyWindowsLicencePayment(ev.event, pay);
+    if (windows) return windows;
+  }
   if (ev.event === "payment.captured" && pay?.order_id && pay.id) {
     const done = await complete({ razorpayOrderId: pay.order_id }, pay.id);
     if (done) return "paid";
