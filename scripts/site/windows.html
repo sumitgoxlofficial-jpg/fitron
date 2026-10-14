@@ -2,7 +2,7 @@
     <div class="sc-split">
       <div>
         <span class="eyebrow reveal">FITRON for Windows · Optional</span>
-        <h2 id="win-title" class="reveal-3d" style="margin:18px 0">Prefer a desktop app? Run your gym from Windows.</h2>
+        <h2 id="win-title" class="reveal-3d">Prefer a desktop app? Run your gym from Windows.</h2>
         <p class="lead reveal">FITRON Windows is an optional desktop app for gyms that would rather use a Windows application. Install it on your front-desk PC and keep working when the internet drops.</p>
         <ul class="sc-list reveal">
           <li><svg class="icon"><use href="#i-check"></use></svg>Optional: Gym Accounting keeps working in any browser, with or without it</li>
@@ -16,10 +16,17 @@
       </div>
       <figure class="sc-ui win-ui reveal" style="--d:100ms" aria-label="Illustration: FITRON Windows working offline, then syncing its changes when the internet returns">
         <div class="win-bar" aria-hidden="true"><span class="win-title"><img src="/site/fitron-ring-v2.png" alt="" width="18" height="18" loading="lazy" decoding="async">FITRON</span><span class="win-ctl"><svg viewBox="0 0 30 12"><path d="M10 6h10"></path></svg><svg viewBox="0 0 30 12"><path d="M10 1h10v10H10z"></path></svg><svg viewBox="0 0 30 12"><path d="M10 1l10 10M20 1L10 11"></path></svg></span></div>
-        <div class="win-state"><span class="win-dot" aria-hidden="true"></span><b>Offline</b><span>The front desk keeps working on this PC</span></div>
-        <div class="sc-card"><span class="sc-k">Saved on this PC</span><b>3 changes</b><span class="sc-s">Waiting for the internet</span></div>
-        <div class="sc-card"><span class="sc-k">Cloud Sync</span><span class="win-switch"><i aria-hidden="true"></i>On</span><span class="sc-s">Changes go up by themselves when the connection is back</span></div>
-        <div class="win-state on"><span class="win-dot" aria-hidden="true"></span><b>Back online</b><span>3 changes synced</span></div>
+        <div class="win-head"><span class="sc-k">Front desk</span><span class="win-sync"><span class="win-switch"><i aria-hidden="true"></i>Cloud Sync</span><em>On</em></span></div>
+        <ol class="win-flow">
+          <li class="win-step off"><span class="win-dot" aria-hidden="true"></span><div><b>Offline</b><span>The front desk keeps working on this PC</span></div></li>
+          <li class="win-step wait"><span class="win-dot" aria-hidden="true"></span><div><b>Saved on this PC</b><span>3 changes, waiting for the internet</span>
+            <ul class="win-queue" aria-label="Example changes">
+              <li><span>Payment recorded</span><em>Pending</em></li>
+              <li><span>New member added</span><em>Pending</em></li>
+              <li><span>Membership renewed</span><em>Pending</em></li>
+            </ul></div></li>
+          <li class="win-step on"><span class="win-dot" aria-hidden="true"></span><div><b>Back online · 3 changes synced</b><span>Changes go up by themselves when the connection is back</span><span class="win-meter" aria-hidden="true"><i></i></span></div></li>
+        </ol>
         <figcaption>An illustration of offline working and Cloud Sync, with example numbers, not the app's own screen.</figcaption>
       </figure>
     </div>
