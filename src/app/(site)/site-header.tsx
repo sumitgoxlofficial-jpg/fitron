@@ -9,6 +9,7 @@ import { Logo } from "@/components/logo";
 export const NAV_LINKS = [
   ["/ai-personal-trainer", "AI Trainer"],
   ["/gym-accounting", "Gym Accounting"],
+  ["/#windows", "Windows App"],
   ["/#together", "Better Together"],
   ["/#partnership", "Partner With Us"],
   ["/#pricing", "Pricing"],
@@ -69,7 +70,7 @@ export function SiteHeader() {
           <a href="/" aria-label="FITRON home" className="shrink-0">
             <Logo size={scrolled ? 28 : 32} />
           </a>
-          <nav aria-label="Main" className="hidden items-center gap-5 xl:flex">
+          <nav aria-label="Main" className="hidden items-center gap-4 xl:flex">
             {NAV_LINKS.map(([href, label]) => (
               <a key={href} href={href} className="s-nav-link">
                 {label}

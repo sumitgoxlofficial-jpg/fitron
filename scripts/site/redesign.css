@@ -288,3 +288,6 @@ img[src="/site/fitron-ring-v2.png"]{object-fit:cover}
 .win-ui figcaption{padding:12px 20px 16px;border-top:1px solid var(--line);font-size:.76rem}
 @media (max-width:900px){#windows .sc-split{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:560px){.win-spot{border-radius:24px;padding:24px 18px}.win-badge{letter-spacing:.12em}.win-toast{right:10px;bottom:auto;top:-16px}.win-head,.win-flow{padding-left:16px;padding-right:16px}.win-flow::before{left:20px}.win-ui figcaption{padding:12px 16px 14px}}
+/* Header: Windows App joined the links, so Partner Earnings (beside Partner With Us) shows only on wide screens, and narrow laptops get tighter links. */
+@media (max-width:1600px){.nav-links .nav-wide{display:none}}
+@media (max-width:1280px){.nav-links{gap:16px}.nav-links a{letter-spacing:.05em}}
