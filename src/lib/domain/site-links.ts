@@ -26,7 +26,7 @@ export function trainerHref(plan?: string | null): string {
 
 /**
  * FITRON Windows, the optional desktop app for gyms (built in its own repository): the latest release, where the installer
- * is. The fine print under the home page's "Download for Windows" button links to it (WINDOWS_APP_URL in
+ * is. /download/windows falls back to it when the installer can't be found (WINDOWS_APP_URL in
  * scripts/site_patches.py, kept equal to this by landing-page.test.ts).
  */
 export const WINDOWS_APP_HREF = "https://github.com/sumit4411suman/fitron-windows-app/releases/latest";

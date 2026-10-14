@@ -229,10 +229,10 @@ describe("the redesigned home page", () => {
 
   it("offers FITRON Windows, the optional desktop app, with a download button that downloads its installer", () => {
     const part = section("windows");
-    // The button downloads the installer through fitron.in's own address, in the same tab; the fine print links to the release.
+    // The button downloads the installer through fitron.in's own address, in the same tab, with no fine print under it.
     expect(part).toContain(`<a class="btn btn-gold" href="${WINDOWS_DOWNLOAD_HREF}" data-track="windows_download"`);
     expect(existsSync(path.join(root, "src/app", WINDOWS_DOWNLOAD_HREF, "route.ts"))).toBe(true);
-    expect(part).toContain(`<a href="${WINDOWS_APP_HREF}" target="_blank" rel="noopener">release notes</a>`);
+    expect(part).not.toContain("release notes");
     expect(part).toMatch(/<use href="#i-windows"><\/use><\/svg>Download for Windows<\/a>/);
     expect(html).toContain('<symbol id="i-windows"');
     // What the app is for, as the brief puts it: optional, offline, and Cloud Sync when the connection returns.

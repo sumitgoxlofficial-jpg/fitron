@@ -233,7 +233,6 @@ img[src="/site/fitron-ring-v2.png"]{object-fit:cover}
 @media (max-width:900px){.pd{grid-template-columns:minmax(0,1fr)}.pd-phone{justify-self:center}}
 /* FITRON for Windows (windows.html): the optional desktop app, with an illustration of offline working and Cloud Sync. */
 .btn .icon.i-win{fill:currentColor;stroke:none;width:17px;height:17px}
-.win-fine{margin:14px 0 0;text-align:left}
 .win-ui{gap:10px}
 .win-bar{display:flex;align-items:center;justify-content:space-between;margin:-18px -18px 6px;padding:9px 4px 9px 14px;border-bottom:1px solid var(--line);border-radius:24px 24px 0 0;background:rgba(255,255,255,.035)}
 .win-title{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:700;letter-spacing:.12em;color:var(--muted)}
