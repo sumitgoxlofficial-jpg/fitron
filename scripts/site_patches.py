@@ -671,8 +671,11 @@ def checks(items):
 
 
 # FITRON Windows, the optional desktop app for gyms (built in its own repository). "Download for Windows" in the
-# FITRON for Windows section (site/windows.html, where @@WINDOWS_APP@@ stands for this address) opens its latest release.
-# landing-page.test.ts keeps it equal to WINDOWS_APP_HREF in src/lib/domain/site-links.ts.
+# FITRON for Windows section (site/windows.html, where @@WINDOWS_DOWNLOAD@@ stands for this address) downloads the
+# installer of its latest release straight away (src/app/download/windows/route.ts); the fine print under it links to
+# that release on GitHub (@@WINDOWS_APP@@). landing-page.test.ts keeps them equal to WINDOWS_DOWNLOAD_HREF and
+# WINDOWS_APP_HREF in src/lib/domain/site-links.ts.
+WINDOWS_DOWNLOAD_URL = "/download/windows"
 WINDOWS_APP_URL = "https://github.com/sumit4411suman/fitron-windows-app/releases/latest"
 WINDOWS_ICON = '  <symbol id="i-windows" viewBox="0 0 24 24"><path d="M3 5.4l7.4-1v7.1H3zM11.6 4.2 21 3v8.5h-9.4zM3 12.6h7.4v7.1L3 18.6zM11.6 12.6H21V21l-9.4-1.3z"></path></symbol>\n'
 
@@ -692,7 +695,7 @@ def redesign(page):
     page = region(page, r'<header class="nav" id="nav">.*?</header>\s*<nav class="mobile-menu".*?</nav>\n', site_src("nav.html"), "nav", "header and phone menu")
     page = region(page, r'<div class="hero-wrap" id="top">.*?(?=\s*<section class="band")', site_src("hero.html"), "hero", "hero")
     page = put(page, '<section class="section" id="together"', site_src("showcase.html") + "\n  ", "<!--fitron:showcase-->", "<!--/fitron:showcase-->", "showcase sections")
-    page = put(page, "<!--fitron:showcase-->", site_src("windows.html").replace("@@WINDOWS_APP@@", WINDOWS_APP_URL) + "\n  ", "<!--fitron:windows-->", "<!--/fitron:windows-->", "FITRON for Windows section")
+    page = put(page, "<!--fitron:showcase-->", site_src("windows.html").replace("@@WINDOWS_DOWNLOAD@@", WINDOWS_DOWNLOAD_URL).replace("@@WINDOWS_APP@@", WINDOWS_APP_URL) + "\n  ", "<!--fitron:windows-->", "<!--/fitron:windows-->", "FITRON for Windows section")
     page = add(page, '  <symbol id="i-close"', WINDOWS_ICON, '<symbol id="i-windows"', "Windows icon", before=True)
     page = region(page, r'<div class="together reveal">.*?(?=\s*<div class="result reveal")', site_src("together.html"), "together", "Better together flow")
     page = put(page, '</section>\n\n  <section class="section" id="pricing"', site_src("partner-extras.html"), "<!--fitron:partner-models-->", "<!--/fitron:partner-models-->", "partner models")
