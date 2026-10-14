@@ -233,17 +233,61 @@ img[src="/site/fitron-ring-v2.png"]{object-fit:cover}
 @media (max-width:900px){.pd{grid-template-columns:minmax(0,1fr)}.pd-phone{justify-self:center}}
 /* FITRON for Windows (windows.html): the optional desktop app, with an illustration of offline working and Cloud Sync. */
 .btn .icon.i-win{fill:currentColor;stroke:none;width:17px;height:17px}
-.win-ui{gap:10px}
-.win-bar{display:flex;align-items:center;justify-content:space-between;margin:-18px -18px 6px;padding:9px 4px 9px 14px;border-bottom:1px solid var(--line);border-radius:24px 24px 0 0;background:rgba(255,255,255,.035)}
-.win-title{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:700;letter-spacing:.12em;color:var(--muted)}
+.win-spot{position:relative;isolation:isolate;overflow:hidden;padding:clamp(28px,4.4vw,52px);border-radius:32px;border:1px solid var(--line-2);background:radial-gradient(120% 90% at 100% 0%,rgba(217,180,90,.2),transparent 55%),radial-gradient(80% 70% at 0% 100%,rgba(169,121,31,.14),transparent 60%),linear-gradient(160deg,#1b1810,#0f0e0a 70%);box-shadow:0 40px 100px -40px rgba(0,0,0,.9),inset 0 1px 0 rgba(239,215,154,.12)}
+.win-spot::before{content:"";position:absolute;inset:0;z-index:-1;background-image:linear-gradient(rgba(226,192,120,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(226,192,120,.06) 1px,transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(70% 80% at 70% 40%,#000,transparent);mask-image:radial-gradient(70% 80% at 70% 40%,#000,transparent)}
+.win-spot::after{content:"";position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+#windows .sc-split{grid-template-columns:minmax(0,1.2fr) minmax(0,.9fr);gap:clamp(28px,4vw,48px);align-items:center}
+.win-badge{display:inline-flex;align-items:center;gap:9px;padding:7px 14px 7px 12px;border-radius:999px;font-size:.74rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-2);background:rgba(217,180,90,.1);border:1px solid var(--line-2)}
+.win-badge .icon{width:14px;height:14px;fill:currentColor;stroke:none}
+#windows h2{margin:20px 0 18px;font-size:clamp(2.3rem,4vw,3.5rem);line-height:1;letter-spacing:.005em;text-wrap:balance}
+.win-gold{background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+#windows .lead{max-width:50ch;font-size:clamp(1rem,1.25vw,1.12rem);line-height:1.65}
+.win-feats{display:grid;gap:10px;margin:28px 0 0;padding:0;list-style:none}
+.win-feats li{display:grid;grid-template-columns:40px minmax(0,1fr);gap:14px;align-items:center;padding:12px 16px 12px 12px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid var(--line);font-size:.92rem;line-height:1.45;color:var(--muted);text-wrap:pretty;transition:border-color .25s,background .25s}
+.win-feats li:hover{border-color:var(--line-2);background:rgba(217,180,90,.05)}
+.win-feats b{display:block;margin-bottom:1px;font-size:.98rem;color:var(--text)}
+.win-ico{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:linear-gradient(160deg,rgba(239,215,154,.2),rgba(169,121,31,.12));border:1px solid var(--line-2)}
+.win-ico svg{width:20px;height:20px;fill:none;stroke:var(--gold-2);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#windows .cta-row{margin-top:30px}
+#windows .cta-row .btn{padding:0 24px}
+.win-stage{position:relative;width:100%;max-width:480px;justify-self:center}
+.win-stage::before{content:"";position:absolute;inset:8% -6% -4%;z-index:-1;border-radius:50%;background:radial-gradient(closest-side,rgba(217,180,90,.32),transparent);filter:blur(30px)}
+.win-toast{position:absolute;right:-18px;bottom:64px;display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;font-size:.84rem;font-weight:700;color:#10200f;background:linear-gradient(180deg,#a6dc9f,#76b56f);box-shadow:0 18px 40px -14px rgba(0,0,0,.8);animation:win-float 4s ease-in-out infinite}
+.win-toast svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.win-step.off .win-dot{animation:win-pulse 2s ease-out infinite}
+@keyframes win-float{50%{transform:translateY(-6px)}}
+@keyframes win-pulse{0%{box-shadow:0 0 0 0 rgba(208,113,95,.55)}100%{box-shadow:0 0 0 9px rgba(208,113,95,0)}}
+@media (prefers-reduced-motion:reduce){.win-toast,.win-step.off .win-dot{animation:none}}
+.win-ui{position:relative;gap:0;max-width:none;padding:0;overflow:hidden;border-radius:18px;background:linear-gradient(180deg,rgba(28,26,20,.98),rgba(15,14,11,.98));box-shadow:0 30px 80px -30px rgba(0,0,0,.8),0 0 0 1px rgba(217,180,90,.06) inset}
+.win-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 8px 14px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.03)}
+.win-title{display:inline-flex;align-items:center;gap:8px;font-size:.74rem;font-weight:700;letter-spacing:.14em;color:var(--muted)}
 .win-title img{border-radius:50%}
 .win-ctl{display:flex}
-.win-ctl svg{width:34px;height:13px;fill:none;stroke:var(--dim);stroke-width:1.2}
-.win-state{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:12px 16px;border-radius:16px;border:1px solid rgba(208,113,95,.35);background:rgba(208,113,95,.08);font-size:.88rem;color:var(--muted)}
-.win-state b{color:var(--text)}
-.win-dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 0 4px rgba(208,113,95,.18)}
-.win-state.on{border-color:rgba(127,191,122,.35);background:rgba(127,191,122,.08)}
-.win-state.on .win-dot{background:#7fbf7a;box-shadow:0 0 0 4px rgba(127,191,122,.18)}
-.win-switch{display:inline-flex;align-items:center;gap:10px;font-weight:700;color:var(--text)}
-.win-switch i{position:relative;width:38px;height:22px;border-radius:999px;background:var(--gold-grad)}
-.win-switch i::after{content:"";position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#17140d}
+.win-ctl svg{width:34px;height:12px;fill:none;stroke:var(--dim);stroke-width:1.2}
+.win-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.win-sync{display:inline-flex;align-items:center;gap:8px;font-size:.84rem}
+.win-sync em{font-style:normal;font-weight:700;color:var(--gold-2)}
+.win-switch{display:inline-flex;align-items:center;gap:8px;font-weight:600;color:var(--muted)}
+.win-switch i{position:relative;width:30px;height:17px;border-radius:999px;background:var(--gold-grad)}
+.win-switch i::after{content:"";position:absolute;top:2px;right:2px;width:13px;height:13px;border-radius:50%;background:#17140d}
+.win-flow{position:relative;display:grid;gap:18px;margin:0;padding:20px 20px 18px;list-style:none}
+.win-flow::before{content:"";position:absolute;left:24px;top:28px;bottom:46px;width:1px;background:linear-gradient(var(--red),var(--gold),#7fbf7a);opacity:.45}
+.win-step{position:relative;display:grid;grid-template-columns:9px minmax(0,1fr);gap:16px;align-items:start}
+.win-step>div{display:grid;gap:3px;min-width:0}
+.win-step b{font-size:.95rem;font-weight:700;color:var(--text)}
+.win-step>div>span{font-size:.86rem;line-height:1.45;color:var(--muted)}
+.win-dot{position:relative;z-index:1;width:9px;height:9px;margin-top:6px;border-radius:50%;background:var(--red);box-shadow:0 0 0 4px rgba(208,113,95,.16)}
+.win-step.wait .win-dot{background:var(--gold);box-shadow:0 0 0 4px rgba(217,180,90,.16)}
+.win-step.on .win-dot{background:#7fbf7a;box-shadow:0 0 0 4px rgba(127,191,122,.16)}
+.win-queue{display:grid;margin:10px 0 0;padding:0;list-style:none;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.025)}
+.win-queue li{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;font-size:.84rem;color:var(--text)}
+.win-queue li+li{border-top:1px solid var(--line)}
+.win-queue em{font-style:normal;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold)}
+.win-meter{display:block;height:4px;margin-top:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+.win-meter i{display:block;height:100%;width:100%;border-radius:inherit;background:#7fbf7a}
+.win-ui figcaption{padding:12px 20px 16px;border-top:1px solid var(--line);font-size:.76rem}
+@media (max-width:900px){#windows .sc-split{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:560px){.win-spot{border-radius:24px;padding:24px 18px}.win-badge{letter-spacing:.12em}.win-toast{right:10px;bottom:auto;top:-16px}.win-head,.win-flow{padding-left:16px;padding-right:16px}.win-flow::before{left:20px}.win-ui figcaption{padding:12px 16px 14px}}
+/* Header: Windows App joined the links, so Partner Earnings (beside Partner With Us) shows only on wide screens, and narrow laptops get tighter links. */
+@media (max-width:1600px){.nav-links .nav-wide{display:none}}
+@media (max-width:1280px){.nav-links{gap:16px}.nav-links a{letter-spacing:.05em}}
