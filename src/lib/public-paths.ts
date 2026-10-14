@@ -18,6 +18,8 @@ const PUBLIC = [
   // downloading its installer (src/app/download).
   "windows", "api/windows-licence", "api/windows-ai", "download",
   "api/health", "api/analytics-config", "api/client-error", "api/csp-report", "api/webhooks", "api/jobs", "iclock",
+  // Digital Asset Links for the AI Coach Android app (src/app/.well-known/assetlinks.json).
+  ".well-known",
   // The pages about Gym Accounting (src/lib/domain/gym-pages.ts) join this list by themselves.
   ...GYM_PAGES.map((p) => p.path.slice(1)),
   TRAINER_PAGE.path.slice(1), GUIDES_PATH.slice(1), TOOLS_PATH.slice(1), "manifest.webmanifest",
