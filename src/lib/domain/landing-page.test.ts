@@ -12,7 +12,7 @@ import { PARTNER_SHARE, PLANS } from "./pricing";
 import { gstInside } from "./saas";
 import { COACH_DAILY_LIMIT } from "./trainer";
 import { PLAN_FEATURES, PRIORITY_SUPPORT_PLANS, type Feature } from "./features";
-import { WINDOWS_APP_HREF } from "./site-links";
+import { WINDOWS_APP_HREF, WINDOWS_DOWNLOAD_HREF } from "./site-links";
 
 const root = path.join(__dirname, "../../..");
 const html = readFileSync(path.join(root, "public/site/index.html"), "utf8");
@@ -227,17 +227,22 @@ describe("the redesigned home page", () => {
     expect([...html.matchAll(/class="faq-cat[^"]*" id="faq-/g)].length).toBeGreaterThanOrEqual(5);
   });
 
-  it("offers FITRON Windows, the optional desktop app, with a download button that opens its latest release", () => {
+  it("offers FITRON Windows, the optional desktop app, with a download button that downloads its installer", () => {
     const part = section("windows");
-    expect(part).toContain(`<a class="btn btn-gold" href="${WINDOWS_APP_HREF}" target="_blank" rel="noopener" data-track="windows_download"`);
+    // The button downloads the installer through fitron.in's own address, in the same tab; the fine print links to the release.
+    expect(part).toContain(`<a class="btn btn-gold" href="${WINDOWS_DOWNLOAD_HREF}" data-track="windows_download"`);
+    expect(existsSync(path.join(root, "src/app", WINDOWS_DOWNLOAD_HREF, "route.ts"))).toBe(true);
+    expect(part).toContain(`<a href="${WINDOWS_APP_HREF}" target="_blank" rel="noopener">release notes</a>`);
     expect(part).toMatch(/<use href="#i-windows"><\/use><\/svg>Download for Windows<\/a>/);
     expect(html).toContain('<symbol id="i-windows"');
     // What the app is for, as the brief puts it: optional, offline, and Cloud Sync when the connection returns.
     for (const s of ["optional desktop app", "offline", "With Cloud Sync on, changes sync automatically when the internet connection returns"]) expect(part.includes(s), s).toBe(true);
     // The picture beside it is an illustration of how syncing works, not the app's own screen.
     expect(part).toMatch(/<figcaption>An illustration [^<]*not the app's own screen\.<\/figcaption>/);
-    // The patch script writes the same address the console's code knows.
-    expect(readFileSync(path.join(root, "scripts/site_patches.py"), "utf8")).toContain(`WINDOWS_APP_URL = "${WINDOWS_APP_HREF}"`);
+    // The patch script writes the same addresses the console's code knows.
+    const patches = readFileSync(path.join(root, "scripts/site_patches.py"), "utf8");
+    expect(patches).toContain(`WINDOWS_DOWNLOAD_URL = "${WINDOWS_DOWNLOAD_HREF}"`);
+    expect(patches).toContain(`WINDOWS_APP_URL = "${WINDOWS_APP_HREF}"`);
   });
 
   it("points to the Windows app from the Gym Accounting card, the FAQ and the footers", () => {
