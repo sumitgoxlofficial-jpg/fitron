@@ -233,13 +233,32 @@ img[src="/site/fitron-ring-v2.png"]{object-fit:cover}
 @media (max-width:900px){.pd{grid-template-columns:minmax(0,1fr)}.pd-phone{justify-self:center}}
 /* FITRON for Windows (windows.html): the optional desktop app, with an illustration of offline working and Cloud Sync. */
 .btn .icon.i-win{fill:currentColor;stroke:none;width:17px;height:17px}
-#windows .sc-split{align-items:center}
-#windows h2{margin:16px 0 18px;font-size:clamp(2.2rem,3.9vw,3.4rem);line-height:1.02;letter-spacing:.005em}
-#windows .eyebrow{line-height:1.5}
-#windows .lead{max-width:52ch;font-size:clamp(1rem,1.25vw,1.12rem);line-height:1.65}
-#windows .sc-list{gap:14px;margin-top:26px;padding-top:24px;border-top:1px solid var(--line)}
+.win-spot{position:relative;isolation:isolate;overflow:hidden;padding:clamp(28px,4.4vw,52px);border-radius:32px;border:1px solid var(--line-2);background:radial-gradient(120% 90% at 100% 0%,rgba(217,180,90,.2),transparent 55%),radial-gradient(80% 70% at 0% 100%,rgba(169,121,31,.14),transparent 60%),linear-gradient(160deg,#1b1810,#0f0e0a 70%);box-shadow:0 40px 100px -40px rgba(0,0,0,.9),inset 0 1px 0 rgba(239,215,154,.12)}
+.win-spot::before{content:"";position:absolute;inset:0;z-index:-1;background-image:linear-gradient(rgba(226,192,120,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(226,192,120,.06) 1px,transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(70% 80% at 70% 40%,#000,transparent);mask-image:radial-gradient(70% 80% at 70% 40%,#000,transparent)}
+.win-spot::after{content:"";position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+#windows .sc-split{grid-template-columns:minmax(0,1.2fr) minmax(0,.9fr);gap:clamp(28px,4vw,48px);align-items:center}
+.win-badge{display:inline-flex;align-items:center;gap:9px;padding:7px 14px 7px 12px;border-radius:999px;font-size:.74rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-2);background:rgba(217,180,90,.1);border:1px solid var(--line-2)}
+.win-badge .icon{width:14px;height:14px;fill:currentColor;stroke:none}
+#windows h2{margin:20px 0 18px;font-size:clamp(2.3rem,4vw,3.5rem);line-height:1;letter-spacing:.005em;text-wrap:balance}
+.win-gold{background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+#windows .lead{max-width:50ch;font-size:clamp(1rem,1.25vw,1.12rem);line-height:1.65}
+.win-feats{display:grid;gap:10px;margin:28px 0 0;padding:0;list-style:none}
+.win-feats li{display:grid;grid-template-columns:40px minmax(0,1fr);gap:14px;align-items:center;padding:12px 16px 12px 12px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid var(--line);font-size:.92rem;line-height:1.45;color:var(--muted);text-wrap:pretty;transition:border-color .25s,background .25s}
+.win-feats li:hover{border-color:var(--line-2);background:rgba(217,180,90,.05)}
+.win-feats b{display:block;margin-bottom:1px;font-size:.98rem;color:var(--text)}
+.win-ico{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:linear-gradient(160deg,rgba(239,215,154,.2),rgba(169,121,31,.12));border:1px solid var(--line-2)}
+.win-ico svg{width:20px;height:20px;fill:none;stroke:var(--gold-2);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #windows .cta-row{margin-top:30px}
-.win-ui{gap:0;max-width:480px;padding:0;overflow:hidden;border-radius:18px;background:linear-gradient(180deg,rgba(28,26,20,.98),rgba(15,14,11,.98));box-shadow:0 30px 80px -30px rgba(0,0,0,.8),0 0 0 1px rgba(217,180,90,.06) inset}
+#windows .cta-row .btn{padding:0 24px}
+.win-stage{position:relative;width:100%;max-width:480px;justify-self:center}
+.win-stage::before{content:"";position:absolute;inset:8% -6% -4%;z-index:-1;border-radius:50%;background:radial-gradient(closest-side,rgba(217,180,90,.32),transparent);filter:blur(30px)}
+.win-toast{position:absolute;right:-18px;bottom:64px;display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;font-size:.84rem;font-weight:700;color:#10200f;background:linear-gradient(180deg,#a6dc9f,#76b56f);box-shadow:0 18px 40px -14px rgba(0,0,0,.8);animation:win-float 4s ease-in-out infinite}
+.win-toast svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.win-step.off .win-dot{animation:win-pulse 2s ease-out infinite}
+@keyframes win-float{50%{transform:translateY(-6px)}}
+@keyframes win-pulse{0%{box-shadow:0 0 0 0 rgba(208,113,95,.55)}100%{box-shadow:0 0 0 9px rgba(208,113,95,0)}}
+@media (prefers-reduced-motion:reduce){.win-toast,.win-step.off .win-dot{animation:none}}
+.win-ui{position:relative;gap:0;max-width:none;padding:0;overflow:hidden;border-radius:18px;background:linear-gradient(180deg,rgba(28,26,20,.98),rgba(15,14,11,.98));box-shadow:0 30px 80px -30px rgba(0,0,0,.8),0 0 0 1px rgba(217,180,90,.06) inset}
 .win-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 8px 14px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.03)}
 .win-title{display:inline-flex;align-items:center;gap:8px;font-size:.74rem;font-weight:700;letter-spacing:.14em;color:var(--muted)}
 .win-title img{border-radius:50%}
@@ -267,4 +286,5 @@ img[src="/site/fitron-ring-v2.png"]{object-fit:cover}
 .win-meter{display:block;height:4px;margin-top:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
 .win-meter i{display:block;height:100%;width:100%;border-radius:inherit;background:#7fbf7a}
 .win-ui figcaption{padding:12px 20px 16px;border-top:1px solid var(--line);font-size:.76rem}
-@media (max-width:560px){#windows .eyebrow{letter-spacing:.16em}#windows .eyebrow::after{display:none}.win-head,.win-flow{padding-left:16px;padding-right:16px}.win-flow::before{left:20px}.win-ui figcaption{padding:12px 16px 14px}}
+@media (max-width:900px){#windows .sc-split{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:560px){.win-spot{border-radius:24px;padding:24px 18px}.win-badge{letter-spacing:.12em}.win-toast{right:10px;bottom:auto;top:-16px}.win-head,.win-flow{padding-left:16px;padding-right:16px}.win-flow::before{left:20px}.win-ui figcaption{padding:12px 16px 14px}}
