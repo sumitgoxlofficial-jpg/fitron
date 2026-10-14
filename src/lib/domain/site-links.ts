@@ -30,3 +30,25 @@ export function trainerHref(plan?: string | null): string {
  * this by landing-page.test.ts).
  */
 export const WINDOWS_APP_HREF = "https://github.com/sumit4411suman/fitron-windows-app/releases/latest";
+
+/**
+ * The GitHub API's answer for the Windows app's latest published release, where the installer is one of the files.
+ * fitron.in/download/windows (src/app/download/windows/route.ts) asks it which file to download.
+ */
+export const WINDOWS_LATEST_RELEASE_API = "https://api.github.com/repos/sumit4411suman/fitron-windows-app/releases/latest";
+
+type ReleaseAsset = { name?: unknown; browser_download_url?: unknown };
+
+/**
+ * The installer's download address in a release (the GitHub API's answer), or null when it has none: the .exe file,
+ * the one named "Setup" if there are several (FITRON-Gym-Accounting-Setup-0.1.2.exe).
+ */
+export function windowsInstallerUrl(release: unknown): string | null {
+  const assets = (release as { assets?: unknown } | null)?.assets;
+  if (!Array.isArray(assets)) return null;
+  const exes = (assets as ReleaseAsset[]).filter(
+    (a): a is { name: string; browser_download_url: string } =>
+      typeof a?.name === "string" && /\.exe$/i.test(a.name) && typeof a.browser_download_url === "string" && a.browser_download_url.startsWith("https://github.com/"),
+  );
+  return (exes.find((a) => /setup/i.test(a.name)) ?? exes[0])?.browser_download_url ?? null;
+}
