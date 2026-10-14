@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { googleBackUrl } from "@/lib/integrations/google";
-import { GYM_SIGNIN_HREF, TRAINER_HREF, gymSignupHref, trainerHref } from "./site-links";
+import { GYM_SIGNIN_HREF, TRAINER_HREF, gymSignupHref, trainerHref, windowsInstallerUrl } from "./site-links";
 
 const page = (p: string) => readFileSync(new URL(`../../../public/${p}`, import.meta.url), "utf8");
 
@@ -59,5 +59,26 @@ describe("the AI Trainer's sign-in", () => {
   });
   it("is served where the other pages link to it", () => {
     expect(TRAINER_HREF).toBe("/trainer");
+  });
+});
+
+describe("windowsInstallerUrl", () => {
+  const exe = (name: string) => ({ name, browser_download_url: `https://github.com/sumit4411suman/fitron-windows-app/releases/download/v0.1.2/${name}` });
+  it("finds the installer among a release's files (what desktop-release.yml uploads)", () => {
+    expect(windowsInstallerUrl({ assets: [exe("latest.json"), exe("FITRON-Gym-Accounting-Setup-0.1.2.exe"), exe("FITRON-Gym-Accounting-Setup-0.1.2.exe.sha256")] })).toBe(
+      "https://github.com/sumit4411suman/fitron-windows-app/releases/download/v0.1.2/FITRON-Gym-Accounting-Setup-0.1.2.exe",
+    );
+  });
+  it("prefers the Setup file when there are several .exe files", () => {
+    expect(windowsInstallerUrl({ assets: [exe("helper.exe"), exe("FITRON-Gym-Accounting-Setup-0.1.3.exe")] })).toMatch(/Setup-0\.1\.3\.exe$/);
+  });
+  it("is null when there is no installer, or the answer is not a release", () => {
+    expect(windowsInstallerUrl({ assets: [exe("latest.json")] })).toBeNull();
+    expect(windowsInstallerUrl({ assets: [] })).toBeNull();
+    expect(windowsInstallerUrl({ message: "Not Found" })).toBeNull();
+    expect(windowsInstallerUrl(null)).toBeNull();
+  });
+  it("only sends visitors to GitHub", () => {
+    expect(windowsInstallerUrl({ assets: [{ name: "Setup.exe", browser_download_url: "https://example.com/Setup.exe" }] })).toBeNull();
   });
 });
