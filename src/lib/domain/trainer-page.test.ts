@@ -8,6 +8,7 @@ import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { isPublicPath } from "@/lib/public-paths";
 import { GYM_PAGES } from "./gym-pages";
+import { ANDROID_DOWNLOAD_HREF } from "./site-links";
 import { DATA_SAFETY, SCREENSHOTS, TRAINER_PAGE as page } from "./trainer-page";
 
 const root = path.join(__dirname, "../../..");
@@ -47,7 +48,7 @@ describe(page.path, () => {
   });
 
   it("only links to pages that exist", () => {
-    const known = new Set(["/", "/trainer", "/site/coach-demo.html", "/privacy", "/about", "/contact", "/tools/protein-calculator", "/tools/calorie-calculator", ...GYM_PAGES.map((p) => p.path)]);
+    const known = new Set(["/", "/trainer", "/site/coach-demo.html", "/privacy", "/about", "/contact", "/tools/protein-calculator", "/tools/calorie-calculator", ANDROID_DOWNLOAD_HREF, ...GYM_PAGES.map((p) => p.path)]);
     const links = [...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => decode(m[1]!).split(/[?#]/)[0] || "/");
     expect(links.filter((l) => !known.has(l))).toEqual([]);
   });

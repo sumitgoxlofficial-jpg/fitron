@@ -59,3 +59,32 @@ export function windowsInstallerUrl(release: unknown): string | null {
   );
   return (exes.find((a) => /setup/i.test(a.name)) ?? exes[0])?.browser_download_url ?? null;
 }
+
+/**
+ * Downloads the FITRON AI Coach Android app (the .apk file, built in its own repository) straight to the phone
+ * (src/app/download/android/route.ts). The AI Trainer page's "Download for Android" button. iPhones can't install it and
+ * use the AI Trainer in the browser instead.
+ */
+export const ANDROID_DOWNLOAD_HREF = "/download/android";
+
+/** The GitHub API's answer for the Android app's latest published release, where the .apk is one of the files. */
+export const ANDROID_LATEST_RELEASE_API = "https://api.github.com/repos/sumit4411suman/fitron-ai-coach-apk/releases/latest";
+
+/**
+ * The .apk file in a release (the GitHub API's answer), or null when it has none: its public download address
+ * (`download`, which needs the repository to be public) and its API address (`api`, which downloads it with a token).
+ */
+export function androidApk(release: unknown): { download: string; api: string } | null {
+  const assets = (release as { assets?: unknown } | null)?.assets;
+  if (!Array.isArray(assets)) return null;
+  const apk = (assets as (ReleaseAsset & { url?: unknown })[]).find(
+    (a): a is { name: string; browser_download_url: string; url: string } =>
+      typeof a?.name === "string" &&
+      /\.apk$/i.test(a.name) &&
+      typeof a.browser_download_url === "string" &&
+      a.browser_download_url.startsWith("https://github.com/") &&
+      typeof a.url === "string" &&
+      a.url.startsWith("https://api.github.com/"),
+  );
+  return apk ? { download: apk.browser_download_url, api: apk.url } : null;
+}

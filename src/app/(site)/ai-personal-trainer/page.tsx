@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { GYM_PAGES } from "@/lib/domain/gym-pages";
 import { rupeesLabel, TRIAL_DAYS } from "@/lib/domain/pricing";
-import { trainerHref } from "@/lib/domain/site-links";
+import { ANDROID_DOWNLOAD_HREF, trainerHref } from "@/lib/domain/site-links";
 import { APP_FACTS, DATA_SAFETY, SCREENSHOTS, TRAINER_PAGE as page, TRAINER_PLAN_LIST } from "@/lib/domain/trainer-page";
 import { absoluteUrl, breadcrumbJsonLd, faqJsonLd, jsonLdScript, pageMetadata, SITE_NAME } from "@/lib/seo";
 import { LiveDemo } from "../live-demo";
@@ -30,7 +30,8 @@ export default function Page() {
       name: "FITRON AI Trainer",
       url: absoluteUrl(page.path),
       applicationCategory: "HealthApplication",
-      operatingSystem: "Web",
+      operatingSystem: "Web, Android",
+      downloadUrl: absoluteUrl(ANDROID_DOWNLOAD_HREF),
       description: page.description,
       publisher: { "@id": absoluteUrl("/#org") },
       offers: TRAINER_PLAN_LIST.map((p) => ({
@@ -47,7 +48,16 @@ export default function Page() {
     ["Developer", "FITRON, India"],
     ["Category", "Health & fitness"],
     ["Price", `${TRIAL_DAYS}-day free trial, then from ${rupeesLabel(TRAINER_PLAN_LIST[0]!.price.MONTHLY)} a month (GST included)`],
-    ["Works on", "Any modern phone or computer browser: Android, iPhone, Windows and Mac"],
+    [
+      "Works on",
+      <>
+        Android app (
+        <a href={ANDROID_DOWNLOAD_HREF} className="font-semibold text-accent underline">
+          download the .apk
+        </a>
+        ), or any modern phone or computer browser: iPhone (Chrome or Safari), Windows and Mac
+      </>,
+    ],
     ["Content", "Fitness, nutrition and recovery guidance. General guidance, not medical advice."],
     [
       "Support",
@@ -97,11 +107,20 @@ export default function Page() {
             <a href={trainerHref("ai-pro")} className={`${primary} min-w-48 justify-center`} data-track="start_ai_trial" data-track-from="ai-trainer-page">
               Start your {TRIAL_DAYS}-day free trial
             </a>
+            <a href={ANDROID_DOWNLOAD_HREF} className={secondary} data-track="download_android_app" data-track-from="ai-trainer-page">
+              <svg viewBox="0 0 24 24" className="size-5 shrink-0 fill-current" aria-hidden="true">
+                <path d="M17.6 9.48l1.84-3.18a.38.38 0 00-.66-.38l-1.86 3.22a11.4 11.4 0 00-9.84 0L5.22 5.92a.38.38 0 00-.66.38L6.4 9.48A10.8 10.8 0 001 18h22a10.8 10.8 0 00-5.4-8.52zM7 15.25a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5zm10 0a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5z" />
+              </svg>
+              Download for Android
+            </a>
             <a href="#demo" className={secondary}>
               Try the live demo
             </a>
           </div>
-          <p className="mt-3 text-sm text-muted">No card needed. Cancel any time. Opens in your phone or computer browser, nothing to download.</p>
+          <p className="mt-3 text-sm text-muted">
+            No card needed. Cancel any time. On Android, download the app straight to your phone. On iPhone, open FITRON in Chrome or Safari: it works
+            in the browser, nothing to download.
+          </p>
         </div>
       </header>
 
