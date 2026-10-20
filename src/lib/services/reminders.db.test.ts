@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { addDays, daysBetween } from "@/lib/domain/dates";
+import { planEndingOn } from "@/test/dates";
 import { hasDb, makeGym, pick } from "@/test/db";
 import { createMember, summarize } from "./members";
 import { createPlan } from "./plans";
@@ -26,8 +27,10 @@ describe.skipIf(!hasDb)("reminders (database)", () => {
     await db.invoice.update({ where: { id: sale.invoice.id }, data: { dueDate: new Date(`${addDays(today, -10)}T00:00:00Z`) } });
     await sellMembership(admin, ending, { planId: plan.id, startDate: addDays(today, -28), discount: 10000, includeRegFee: false, payAmount: 140000, payMethod: "UPI" });
     fortnight = (await createMember(admin, { name: "Ends In Two Weeks", gender: "Male", phone: "9876522003", source: "Walk-in", tags: [] })).id;
-    // A one-month plan starting so that it ends in exactly 15 days.
-    await sellMembership(admin, fortnight, { planId: plan.id, startDate: addDays(addDays(today, 15), -29), discount: 0, includeRegFee: false, payAmount: 0 });
+    // A plan starting so that it ends in exactly 15 days.
+    const ends = planEndingOn(addDays(today, 15));
+    const fortnightPlan = await createPlan(admin, { name: "Fortnight", kind: "Membership", months: ends.months, price: 150000, regFee: 0, discount: 0, gstApplicable: false, features: [] });
+    await sellMembership(admin, fortnight, { planId: fortnightPlan.id, startDate: ends.start, discount: 0, includeRegFee: false, payAmount: 0 });
   });
 
   it("picks the expiry template by days left", () => {
