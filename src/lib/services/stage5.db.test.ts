@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { hasDb, makeGym, pick } from "@/test/db";
 import { addDays } from "@/lib/domain/dates";
+import { planEndingOn } from "@/test/dates";
 import { verifyWebhook } from "@/lib/integrations/razorpay";
 import { createMember } from "./members";
 import { createPlan } from "./plans";
@@ -61,9 +62,10 @@ describe.skipIf(!hasDb)("WhatsApp, autopay and daily jobs (database)", () => {
 
   it("daily jobs send expiry reminders once and don't run twice in a day", async () => {
     const m = await newMember();
-    // A one-month plan starting so that it ends in exactly 7 days.
-    const start = addDays(addDays(today, 7), -29);
-    const s = await sellMembership(admin, m.id, { planId, startDate: start, discount: 0, includeRegFee: false, payAmount: 0 });
+    // A plan starting so that it ends in exactly 7 days.
+    const ends = planEndingOn(addDays(today, 7));
+    const sevenDayPlan = await createPlan(admin, { name: "Seven days left", kind: "Membership", months: ends.months, price: 100000, regFee: 0, discount: 0, gstApplicable: true, features: [] });
+    const s = await sellMembership(admin, m.id, { planId: sevenDayPlan.id, startDate: ends.start, discount: 0, includeRegFee: false, payAmount: 0 });
     expect(addDays(today, 7)).toBe(s.membership.endDate.toISOString().slice(0, 10));
     // A daytime run, outside quiet hours, so the reminder goes straight out.
     const first = await runDailyJobs(gym.org.id, today, istInstant(today, "10:00"));
