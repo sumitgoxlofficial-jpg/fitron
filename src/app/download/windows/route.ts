@@ -4,6 +4,9 @@ import { log } from "@/lib/log";
 // fitron.in/download/windows: downloads the newest FITRON for Windows installer straight away, so the address can be shared
 // and keeps working when a new version is released. The latest release is asked of GitHub at most every 10 minutes; if
 // GitHub does not answer, or the release has no installer yet, the visitor gets the release page instead.
+// Dynamic, so the redirect is worked out per visit and is not frozen at build time to the installer that was newest then.
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   let to = WINDOWS_APP_HREF;
   try {
