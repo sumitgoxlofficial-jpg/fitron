@@ -32,6 +32,7 @@ const columns = [
       ["/#faq", "FAQ"],
       ["/contact", "Contact"],
       ["/contact#company", "Company details"],
+      ["/employee-login", "Employee login"],
     ],
   ],
 ] as const;

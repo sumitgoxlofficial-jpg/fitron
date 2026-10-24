@@ -81,6 +81,9 @@ export function SiteHeader() {
             <a href="/signin" data-track="signin_click" data-track-from="header" className="s-nav-link hidden min-h-11 items-center px-1 min-[340px]:inline-flex">
               Sign in
             </a>
+            <a href="/employee-login" data-track="employee_login_click" data-track-from="header" className="s-nav-link hidden min-h-11 items-center px-1 md:inline-flex">
+              Employee login
+            </a>
             <a href="/#products" data-track="get_started_click" data-track-from="header" className="s-btn s-btn-primary s-btn-sm">
               Get Started
             </a>
@@ -115,6 +118,9 @@ export function SiteHeader() {
           <div className="mt-6 flex flex-wrap gap-3">
             <a href="/signin" data-track="signin_click" data-track-from="menu" className="s-btn s-btn-ghost" onClick={() => setOpen(false)}>
               Sign In
+            </a>
+            <a href="/employee-login" data-track="employee_login_click" data-track-from="menu" className="s-btn s-btn-ghost" onClick={() => setOpen(false)}>
+              Employee Login
             </a>
             <a href="/#products" data-track="get_started_click" data-track-from="menu" className="s-btn s-btn-primary" onClick={() => setOpen(false)}>
               Get Started

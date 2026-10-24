@@ -21,6 +21,11 @@ const nextConfig: NextConfig = {
     "/invoices/[id]/pdf": ["./node_modules/dejavu-fonts-ttf/ttf/DejaVuSans.ttf", "./node_modules/dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf"],
   },
   // fitron.in itself is the static marketing site in public/site; the console lives under its own paths.
+  // The sales team's CRM is a static, self-contained prototype in public/site/crm, opened from "Employee login" on the website.
+  // A redirect, not a rewrite: its in-browser compiler needs a looser script policy than the one the proxy puts on pages.
+  async redirects() {
+    return [{ source: "/employee-login", destination: "/site/crm/index.html", permanent: false }];
+  },
   async rewrites() {
     return {
       beforeFiles: [
