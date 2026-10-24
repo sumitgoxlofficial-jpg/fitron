@@ -22,7 +22,7 @@ describe("every place that opens a staff session", () => {
       .filter((f) => /\bcreateSession\(/.test(readFileSync(f, "utf8")))
       .map(rel)
       .sort();
-    expect(sites, "a new createSession( call needs the two-step check before it: see src/app/login/actions.ts").toEqual(["src/app/(site)/account-actions.ts", "src/app/auth/google/callback/route.ts", "src/app/login/actions.ts"]);
+    expect(sites, "a new createSession( call needs the two-step check before it: see src/app/login/actions.ts").toEqual(["src/app/(site)/account-actions.ts", "src/app/auth/google/callback/route.ts", "src/app/employee-login/actions.ts", "src/app/login/actions.ts"]);
   });
 
   it("asks for the second step first, after the password", () => {
@@ -57,6 +57,16 @@ describe("every place that opens a staff session", () => {
     const staffIn = s.slice(s.indexOf("async function staffIn("));
     expect(staffIn.indexOf("user.totpEnabledAt")).toBeGreaterThan(-1);
     expect(staffIn.indexOf("challengeCookie(")).toBeLessThan(staffIn.indexOf("createSession("));
+  });
+
+  it("asks for the second step after the password on the employee page, too", () => {
+    const s = read("src/app/employee-login/actions.ts");
+    const signIn = s.slice(s.indexOf("export async function signInAction("), s.indexOf("export async function signUpAction("));
+    expect(read("src/lib/services/crm-auth.ts")).toContain("twoStep: !!staff.user.totpEnabledAt");
+    expect(signIn.indexOf("r.twoStep")).toBeGreaterThan(-1);
+    expect(signIn.indexOf("startChallenge(")).toBeLessThan(signIn.indexOf("createSession("));
+    // Creating an account never opens a session: the address is confirmed and the person signs in.
+    expect(s.slice(s.indexOf("export async function signUpAction("), s.indexOf("export async function verifyCodeAction(")).includes("createSession(")).toBe(false);
   });
 
   it("opens a session at sign-up only for the account that was just created, where nothing has been set up yet", () => {
