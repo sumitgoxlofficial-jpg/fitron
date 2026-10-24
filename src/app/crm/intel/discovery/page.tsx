@@ -21,9 +21,14 @@ export default async function DiscoveryPage() {
   return (
     <>
       <PageHeader kicker="Gym Intelligence" title="Gym discovery" subtitle="Start a collection job, watch it, and retry what failed. Jobs carry on from where they stopped." />
-      {live.length === 0 && <div className="mb-5"><Notice tone="accent">No collecting source is switched on. Open <Link href="/crm/intel/sources" className="underline">Sources &amp; integrations</Link>, read a source&apos;s terms and turn it on first.</Notice></div>}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <Card title="New collection job">
+          {live.length === 0 ? (
+            <div className="flex flex-col gap-3">
+              <Notice tone="accent">No collecting source is switched on yet, so there is nothing to start. Turn one on first: open Sources &amp; integrations, tick that you have read its terms, and press “Turn on” for <b>OpenStreetMap (Overpass API)</b>. Then come back here.</Notice>
+              <div><Link href="/crm/intel/sources" className="inline-flex min-h-10 items-center rounded-full bg-[var(--accent)] px-5 text-sm font-semibold text-[var(--accent-ink)]">Open Sources &amp; integrations</Link></div>
+            </div>
+          ) : (
           <CrmForm action={createJobAction} submit="Queue job" className="flex flex-col gap-4">
             <Field label="Source"><Select name="source" required defaultValue={live[0]?.key ?? ""}>{live.map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}</Select></Field>
             <fieldset className="flex flex-col gap-2"><legend className="mb-1 text-sm font-semibold">Where</legend>
@@ -39,6 +44,7 @@ export default async function DiscoveryPage() {
             <label className={box}><input type="checkbox" name="onlyMissingPhone" defaultChecked /> Website enrichment: only gyms with no phone yet</label>
             <label className={box}><input type="checkbox" name="confirmed" /> I understand a job over {settings.confirmAbove} areas makes many requests to a public service</label>
           </CrmForm>
+          )}
         </Card>
         <Card title="Run now">
           <p className="mt-0 text-sm text-[var(--muted)]">The worker advances jobs every half hour on its own. Press this to move queued jobs along immediately (up to about three minutes of work).</p>
