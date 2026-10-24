@@ -13,8 +13,26 @@ export function navFor(u: CrmUser, pending = 0): NavGroup[] {
     { group: "Sales", items: [item("/crm/leads", "Leads", "leads"), item("/crm/companies", "Companies", "companies"), item("/crm/pipeline", "Pipeline", "pipeline"), item("/crm/tasks", "Tasks", "tasks"), ...(u.can("deal.verify") ? [item("/crm/verification", "Verification", "verify", pending)] : []), ...(sales ? [item("/crm/pricing", "Price list", "pricing")] : [])] },
     { group: "Marketing", items: [...(u.can("leads.import") ? [item("/crm/import", "Import leads", "import")] : []), ...(u.can("campaigns.manage") ? [item("/crm/campaigns", "Campaigns", "campaigns")] : [])] },
     { group: "Team", items: [item("/crm/leaderboard", "Leaderboard", "leaderboard"), item("/crm/activity", sales ? "My activity" : "Activity", "activity"), ...(u.role !== "marketing" ? [item("/crm/earnings", sales ? "My earnings" : "Commissions", "earnings")] : []), ...(u.can("employees.manage") ? [item("/crm/employees", "Employees", "team")] : []), item("/crm/id-card", "My ID card", "idcard")] },
+    ...(u.role === "marketing" ? [intelGroup(u)] : []),
     { group: "Admin", items: [...(sales ? [] : [item("/crm/pricing", "Price list", "pricing")]), ...(u.can("audit.view") ? [item("/crm/audit", "Audit log", "audit")] : []), ...(sales ? [] : [item("/crm/roles", "Roles & permissions", "access")])] },
   ].filter((g) => g.items.length);
+}
+
+/** The Gym Intelligence pages this person may open: the Super Admin all of them, a Marketing Head the read-only ones. */
+function intelGroup(u: CrmUser): NavGroup {
+  if (!u.can("intel.view")) return { group: "Gym Intelligence", items: [] };
+  const m = u.can("intel.manage");
+  return {
+    group: "Gym Intelligence",
+    items: [
+      item("/crm/intel", "Overview", "intelOverview"),
+      ...(m ? [item("/crm/intel/discovery", "Gym discovery", "intelSearch")] : []),
+      item("/crm/intel/gyms", "India gym database", "intelDb"),
+      item("/crm/intel/phones", "Phone verification", "intelPhone"),
+      item("/crm/intel/coverage", "Geographic coverage", "intelMap"),
+      ...(m ? [item("/crm/intel/sources", "Sources & integrations", "intelSources"), item("/crm/intel/duplicates", "Duplicate review", "intelDup"), item("/crm/intel/transfer", "Import & export", "intelTransfer"), item("/crm/intel/settings", "Collection settings", "intelSettings"), item("/crm/audit?kind=intel", "Audit logs", "audit")] : []),
+    ],
+  };
 }
 
 export const pagesFor = (u: CrmUser) => navFor(u).flatMap((g) => g.items.map((i) => ({ label: i.label, sub: g.group, href: i.href })));
@@ -26,6 +44,7 @@ function adminNav(u: CrmUser, pending: number): NavGroup[] {
     { group: "Sales", items: [item("/crm/leads", "Leads", "leads"), item("/crm/companies", "Companies", "companies"), item("/crm/pipeline", "Pipeline", "pipeline"), item("/crm/verification", "Deal approvals", "verify", pending)] },
     { group: "Marketing", items: [item("/crm/import", "Import leads", "import"), item("/crm/campaigns", "Campaigns", "campaigns")] },
     { group: "People", items: [item("/crm/employees", "Employees", "team"), item("/crm/leaderboard", "Leaderboard", "leaderboard"), item("/crm/activity", "Activity", "activity"), item("/crm/earnings", "Commissions & payouts", "earnings")] },
+    intelGroup(u),
     { group: "Control", items: [item("/crm/roles", "Roles & permissions", "access"), item("/crm/pricing", "Price list", "pricing"), item("/crm/audit", "Audit log", "audit")] },
   ];
 }

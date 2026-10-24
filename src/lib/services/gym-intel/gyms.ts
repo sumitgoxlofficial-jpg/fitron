@@ -162,3 +162,16 @@ export async function suppressNumber(u: CrmUser, gymId: string, reason: string) 
     await intelAudit(tx, u, `Number on ${gymId} added to the do-not-contact list`);
   });
 }
+
+/** A gym and number entered by a person, with where they got it. Treated like any other source: matched, evidenced, audited. */
+export async function addManualGym(u: CrmUser, i: { name: string; phone?: string; website?: string; address?: string; state?: string; district?: string; city?: string; pin?: string; evidence: string }) {
+  need(u, "intel.manage");
+  const name = i.name.trim();
+  if (name.length < 2) throw new UserError("Enter the gym's name.", "name");
+  if (i.evidence.trim().length < 8) throw new UserError("Say where the number came from (the gym's board, its listing, a call to the front desk).", "evidence");
+  const { recordObservation } = await import("./persist");
+  const settings = await getSettings();
+  const r = await recordObservation({ source: "manual_entry", sourceUrl: `manual:${u.empId}`, sourceRecordId: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name, phonesRaw: i.phone?.trim() ? [i.phone.trim()] : [], website: i.website, address: i.address, state: i.state, district: i.district, city: i.city, pin: i.pin, evidence: { enteredBy: u.empId, note: i.evidence.trim().slice(0, 300) } }, { settings });
+  await intelAudit(db, u, `Gym ${r.gymId} ${r.created ? "added" : "updated"} by hand`, { gymId: r.gymId });
+  return r;
+}

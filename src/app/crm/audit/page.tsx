@@ -6,7 +6,7 @@ import { fmtStamp } from "@/lib/format";
 import { LeadLink } from "../parts";
 
 export const metadata = { title: "Audit log · FITRON CRM" };
-const KINDS = ["create", "assign", "stage", "call", "task", "verify", "export", "import", "user", "denied"];
+const KINDS = ["create", "assign", "stage", "call", "task", "verify", "export", "import", "user", "denied", "intel"];
 
 export default async function AuditPage({ searchParams }: PageProps<"/crm/audit">) {
   const u = await requireCrm("audit.view");

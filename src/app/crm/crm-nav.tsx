@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BuildingsIcon, ChartLineUpIcon, CheckSquareOffsetIcon, IdentificationBadgeIcon, IdentificationCardIcon, KanbanIcon, MegaphoneIcon, PulseIcon, ScrollIcon, SealCheckIcon, ShieldCheckIcon, SquaresFourIcon, TagIcon,
-  TrophyIcon, UploadSimpleIcon, UsersThreeIcon, WalletIcon, UserCircleIcon, type Icon,
+  TrophyIcon, UploadSimpleIcon, DatabaseIcon, MapTrifoldIcon, PhoneCallIcon, GearSixIcon, CopyIcon, PlugsConnectedIcon, ArrowsLeftRightIcon, MagnifyingGlassIcon, ChartPieSliceIcon, UsersThreeIcon, WalletIcon, UserCircleIcon, type Icon,
 } from "@phosphor-icons/react";
 import { cx } from "@/components/ui";
 
-const ICONS = { dashboard: SquaresFourIcon, reports: ChartLineUpIcon, leads: UsersThreeIcon, companies: BuildingsIcon, pipeline: KanbanIcon, tasks: CheckSquareOffsetIcon, verify: SealCheckIcon, leaderboard: TrophyIcon, activity: PulseIcon, earnings: WalletIcon, team: IdentificationBadgeIcon, idcard: IdentificationCardIcon, import: UploadSimpleIcon, campaigns: MegaphoneIcon, pricing: TagIcon, audit: ScrollIcon, access: ShieldCheckIcon, profile: UserCircleIcon } satisfies Record<string, Icon>;
+const ICONS = { dashboard: SquaresFourIcon, reports: ChartLineUpIcon, leads: UsersThreeIcon, companies: BuildingsIcon, pipeline: KanbanIcon, tasks: CheckSquareOffsetIcon, verify: SealCheckIcon, leaderboard: TrophyIcon, activity: PulseIcon, earnings: WalletIcon, team: IdentificationBadgeIcon, idcard: IdentificationCardIcon, import: UploadSimpleIcon, campaigns: MegaphoneIcon, pricing: TagIcon, audit: ScrollIcon, access: ShieldCheckIcon, profile: UserCircleIcon, intelOverview: ChartPieSliceIcon, intelSearch: MagnifyingGlassIcon, intelDb: DatabaseIcon, intelPhone: PhoneCallIcon, intelMap: MapTrifoldIcon, intelSources: PlugsConnectedIcon, intelDup: CopyIcon, intelTransfer: ArrowsLeftRightIcon, intelSettings: GearSixIcon } satisfies Record<string, Icon>;
 export type NavIconKey = keyof typeof ICONS;
 export type NavItem = { href: string; label: string; icon: NavIconKey; badge?: number; badgeTone?: "alert" };
 export type NavGroup = { group: string; items: NavItem[] };
