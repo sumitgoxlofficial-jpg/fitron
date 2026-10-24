@@ -49,7 +49,7 @@ export default async function EmployeesPage() {
                 {p.role !== "marketing" && (first ? <span>First month: 20% commission until {fmtShort(new Date(`${p.firstMonthEnds}T00:00:00+05:30`))}. Then {p.salary ? `salary ${formatRupees(p.salary)} + ` : ""}{p.incentive}% incentive</span> : <span>{p.salary ? `Salary ${formatRupees(p.salary)} + ` : "No salary set · "}{p.incentive}% incentive</span>)}
                 {p.monthlyTarget > 0 && <span>Target {formatRupees(p.monthlyTarget)} / month</span>}
               </div>
-              <EmployeeControls userId={p.userId} self={p.userId === u.id} active={p.status !== "Inactive"} role={p.role} managerId={p.managerId} target={p.monthlyTarget / 100} salary={p.salary} incentive={p.incentive} managers={mgrs} />
+              <EmployeeControls userId={p.userId} self={p.userId === u.id} active={p.status === "Active"} status={p.status} role={p.role} managerId={p.managerId} target={p.monthlyTarget / 100} salary={p.salary} incentive={p.incentive} managers={mgrs} />
             </article>
           );
         })}
