@@ -33,7 +33,7 @@ export const CONSOLE_SEGMENTS = [
   "accounting", "ai", "assets", "attendance", "audit", "autopay", "classes", "dashboard", "expenses", "fitron-admin", "invoices", "leads",
   "members", "notifications", "partnership", "payments", "plans", "pos", "products", "profile", "programs", "purchases", "receivables",
   "renewals", "reports", "settings", "staff", "whatsapp",
-  "onboarding", "plan-ended", "documents",
+  "onboarding", "plan-ended", "documents", "crm",
 ] as const;
 
 /** An address that belongs behind the sign-in: the console's pages and every API route that is not public. */

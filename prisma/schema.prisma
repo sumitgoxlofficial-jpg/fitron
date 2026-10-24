@@ -117,6 +117,7 @@ model User {
   emailVerifiedAt DateTime?       @db.Timestamptz
   authTokens      AuthToken[]
   authCodes       AuthCode[]
+  crmStaff        CrmStaff?
   /// Two-step sign-in (authenticator app): the secret, sealed with AES-GCM (src/lib/services/two-step.ts). Set while a
   /// person is setting it up, but only enforced once totpEnabledAt is set.
   totpSecret      Bytes?
@@ -1773,4 +1774,169 @@ model WindowsAiUsage {
   updatedAt    DateTime @updatedAt @db.Timestamptz
 
   @@unique([licenceId, day])
+}
+
+// ── FITRON sales CRM ───────────────────────────────────────────────────────
+// FITRON's own sales and marketing team (not a gym's front-desk Lead model above). Employees are ordinary `User` rows in the
+// internal "FITRON Team" organisation, so sign-in, sessions, two-step and password reset are the product's own; `CrmStaff`
+// adds the CRM role, manager and target. Money is integer paise. The rules are in src/lib/domain/crm.ts, the checks in
+// src/lib/services/crm*.ts (every route and action goes through them).
+
+model CrmStaff {
+  userId        String     @id
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// FIT-EMP-0001
+  empId         String     @unique
+  /// admin | marketing | manager | sales
+  role          String
+  managerId     String?
+  manager       CrmStaff?  @relation("CrmTeam", fields: [managerId], references: [userId])
+  reports       CrmStaff[] @relation("CrmTeam")
+  /// Active | Inactive
+  status        String     @default("Active")
+  /// Monthly target in paise; 0 = none set
+  monthlyTarget Int        @default(0)
+  createdAt     DateTime   @default(now()) @db.Timestamptz
+  updatedAt     DateTime   @updatedAt @db.Timestamptz
+
+  @@index([role])
+  @@index([managerId])
+}
+
+model CrmCampaign {
+  id        String    @id @default(cuid())
+  name      String
+  /// Meta Ads | Google Ads | Referral | Event | Website | Other
+  source    String
+  /// Paise; null = not recorded (never estimated)
+  spend     Int?
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  leads     CrmLead[]
+}
+
+model CrmLead {
+  id            String          @id
+  contactName   String
+  gymName       String
+  /// 10 digits, normalised; unique, so a duplicate can't be created even by two people at once
+  phone         String          @unique
+  altPhone      String?
+  email         String?
+  address       String?
+  city          String?
+  district      String?
+  state         String?
+  pin           String?
+  campaignId    String?
+  campaign      CrmCampaign?    @relation(fields: [campaignId], references: [id])
+  /// Copied from the campaign when the lead is made and never changed
+  source        String
+  /// SaaS | Partnership
+  product       String
+  ownerId       String?
+  /// Who made the lead; never changes
+  createdById   String
+  assignedAt    DateTime?       @db.Timestamptz
+  stage         String          @default("New Lead")
+  /// Low | Medium | High
+  priority      String          @default("Medium")
+  /// Paise
+  estValue      Int             @default(0)
+  lastContactAt DateTime?       @db.Timestamptz
+  closedById    String?
+  /// null | Pending | Verified | Rejected
+  verification  String?
+  verifiedById  String?
+  /// Payment reference | Partnership agreement
+  proofType     String?
+  proofRef      String?
+  closedDate    DateTime?       @db.Date
+  lossReason    String?
+  rejectReason  String?
+  demoDone      Boolean         @default(false)
+  /// Optimistic concurrency: every change bumps it, and a stale edit is refused
+  version       Int             @default(1)
+  createdAt     DateTime        @default(now()) @db.Timestamptz
+  updatedAt     DateTime        @updatedAt @db.Timestamptz
+  assignments   CrmAssignment[]
+  activities    CrmActivity[]
+  tasks         CrmTask[]
+
+  @@index([ownerId, stage])
+  @@index([campaignId])
+  @@index([createdAt])
+  @@index([verification])
+}
+
+model CrmAssignment {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      CrmLead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fromOwner String?
+  toOwner   String?
+  actorId   String
+  at        DateTime @default(now()) @db.Timestamptz
+
+  @@index([leadId])
+}
+
+model CrmActivity {
+  id         String   @id @default(cuid())
+  leadId     String
+  lead       CrmLead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  actorId    String
+  /// call | note
+  type       String
+  outcome    String?
+  notes      String?
+  objection  String?
+  nextAction String?
+  at         DateTime @default(now()) @db.Timestamptz
+
+  @@index([leadId, at])
+  @@index([actorId, at])
+}
+
+model CrmTask {
+  id        String    @id @default(cuid())
+  leadId    String
+  lead      CrmLead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  ownerId   String
+  /// Call | Demo | Follow-up | Other
+  type      String
+  dueAt     DateTime  @db.Timestamptz
+  /// Low | Medium | High
+  priority  String    @default("Medium")
+  done      Boolean   @default(false)
+  doneAt    DateTime? @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+
+  @@index([ownerId, done, dueAt])
+  @@index([leadId])
+}
+
+model CrmNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  text      String
+  leadId    String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  @@index([userId, read, createdAt])
+}
+
+/// Append-only: the database refuses UPDATE and DELETE (migration trigger). Never holds phone numbers or emails.
+model CrmAudit {
+  id      BigInt   @id @default(autoincrement())
+  actorId String
+  leadId  String?
+  /// create | assign | stage | call | task | verify | export | import | user | denied
+  kind    String
+  text    String
+  meta    Json?
+  at      DateTime @default(now()) @db.Timestamptz
+
+  @@index([leadId, at])
+  @@index([at])
 }
