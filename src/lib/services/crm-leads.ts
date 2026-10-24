@@ -456,3 +456,34 @@ export async function listTasks(u: CrmUser, scope: "mine" | "team") {
   const nm = await names(rows.map((r) => r.ownerId));
   return rows.map((r) => ({ ...r, ownerName: nm.get(r.ownerId) ?? "—", overdue: isOverdue(r) }));
 }
+
+// ── Bulk changes from the leads list ───────────────────────────────────────
+
+export type BulkOp = { kind: "owner"; ownerId: string | null } | { kind: "priority"; value: string } | { kind: "stage"; to: string };
+export const MAX_BULK = 100;
+
+/** Applies one change to many leads, each through the same checks as a single change: what a person may not do is refused lead by lead, and the rest still go through. */
+export async function bulkUpdate(u: CrmUser, ids: string[], op: BulkOp) {
+  const list = [...new Set(ids)].slice(0, MAX_BULK);
+  if (!list.length) throw new UserError("Select some leads first.");
+  if (op.kind === "owner") need(u, "leads.assign");
+  if (op.kind === "stage") {
+    need(u, "activity.log");
+    // Closing needs a reason or proof, which only the lead's own page can ask for.
+    if (["Closed Won", "Closed Lost", "Disqualified"].includes(op.to)) throw new UserError("Closing a lead needs its details: open the lead.");
+  }
+  let done = 0;
+  const failed: { id: string; reason: string }[] = [];
+  for (const id of list) {
+    try {
+      if (op.kind === "owner") await assignLead(u, id, op.ownerId);
+      else if (op.kind === "priority") await updateLead(u, id, { priority: op.value });
+      else await changeStage(u, id, { to: op.to as StageChange["to"] });
+      done += 1;
+    } catch (e) {
+      if (e instanceof UserError) failed.push({ id, reason: e.message });
+      else throw e;
+    }
+  }
+  return { done, failed };
+}

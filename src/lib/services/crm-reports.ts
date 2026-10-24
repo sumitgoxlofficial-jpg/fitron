@@ -1,25 +1,21 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { STALE_DAYS, ageDays, costPerLead, funnel, isDueToday, isOverdue, targetProgress, type MetricLead } from "@/lib/domain/crm";
+import { DATE_RANGES, STALE_DAYS, ageDays, costPerLead, funnel, isDueToday, isOverdue, targetProgress, type MetricLead } from "@/lib/domain/crm";
 import { leadScope, type CrmUser } from "./crm-access";
 import { todayIso } from "./time";
+import { trendOf } from "./crm-insights";
 
 export type DashFilter = { range?: string; product?: string; campaignId?: string; ownerId?: string };
 
 const dayMs = 86_400_000;
-export const RANGES = [
-  ["all", "All time"],
-  ["7", "Last 7 days"],
-  ["30", "Last 30 days"],
-  ["month", "This month"],
-] as const;
+export const RANGES = DATE_RANGES;
 
 /** Filters apply to the lead's creation date, so each figure is a cohort, on top of what the person may see. */
 function where(u: CrmUser, f: DashFilter, now: Date): Prisma.CrmLeadWhereInput {
   const and: Prisma.CrmLeadWhereInput[] = [leadScope(u)];
   const today = todayIso(now);
-  if (f.range === "7" || f.range === "30") and.push({ createdAt: { gte: new Date(now.getTime() - Number(f.range) * dayMs) } });
+  if (f.range === "7" || f.range === "30" || f.range === "90") and.push({ createdAt: { gte: new Date(now.getTime() - Number(f.range) * dayMs) } });
   if (f.range === "month") and.push({ createdAt: { gte: new Date(`${today.slice(0, 7)}-01T00:00:00+05:30`) } });
   if (f.product) and.push({ product: f.product });
   if (f.campaignId) and.push({ campaignId: f.campaignId });
@@ -59,7 +55,8 @@ export async function dashboard(u: CrmUser, f: DashFilter = {}, now = new Date()
   const tasks = myTasks.map((t) => ({ ...t, overdue: isOverdue(t, now), today: isDueToday(t, now, today) }));
   const overdueAll = await db.crmTask.count({ where: { done: false, dueAt: { lt: now }, lead: leadScope(u), ...(u.role === "sales" ? { ownerId: u.id } : {}) } });
 
-  const out: Record<string, unknown> = { kpi, weeks, tasks, overdue: overdueAll, pendingDeals: kpi.pendingCount };
+  const trend = await trendOf(u, f, 12, now);
+  const out: Record<string, unknown> = { kpi, weeks, trend, tasks, overdue: overdueAll, pendingDeals: kpi.pendingCount };
 
   if (u.role === "sales" || u.role === "manager") {
     const staff = await db.crmStaff.findUnique({ where: { userId: u.id }, select: { monthlyTarget: true } });
@@ -110,6 +107,7 @@ export async function dashboard(u: CrmUser, f: DashFilter = {}, now = new Date()
 export type DashboardData = {
   kpi: ReturnType<typeof funnel>;
   weeks: { label: string; n: number }[];
+  trend: Awaited<ReturnType<typeof trendOf>>;
   tasks: { id: string; type: string; dueAt: Date; overdue: boolean; today: boolean; lead: { id: string; gymName: string } }[];
   overdue: number;
   pendingDeals: number;

@@ -7,9 +7,11 @@ import { destroySession } from "@/lib/auth/session";
 import { simpleAction } from "@/lib/form-action";
 import { isStage, type ImportField, type StageChange } from "@/lib/domain/crm";
 import type { FormState } from "@/lib/validation/common";
-import { addNote, addTask, approveDeal, assignLead, changeStage, completeTask, createLead, logCall, rejectDeal, updateLead } from "@/lib/services/crm-leads";
+import { addNote, addTask, bulkUpdate, approveDeal, assignLead, changeStage, completeTask, createLead, logCall, rejectDeal, updateLead } from "@/lib/services/crm-leads";
 import { commitImport, previewImport } from "@/lib/services/crm-io";
 import { removeCrmPhoto, saveProfile, setCrmPhoto } from "@/lib/services/crm-profile";
+import { addContact, deleteView, paletteSearch, saveLayout, saveView } from "@/lib/services/crm-insights";
+import { pagesFor } from "./nav-model";
 import { inviteEmployee, markAllRead, saveCampaign, updateEmployee } from "@/lib/services/crm-people";
 import { istInstant } from "@/lib/services/time";
 
@@ -164,4 +166,35 @@ export async function removePhotoAction(): Promise<FormState> {
   const r = await simpleAction(() => removeCrmPhoto(u), "Photo removed.");
   revalidatePath("/crm", "layout");
   return r;
+}
+
+export async function contactAction(leadId: string, _: FormState, fd: FormData): Promise<FormState> {
+  return run((u) => addContact(u, leadId, { name: s(fd, "name"), title: s(fd, "title"), phone: s(fd, "phone"), email: s(fd, "email") }), "Contact added.", lead(leadId));
+}
+
+export async function layoutAction(raw: unknown): Promise<FormState> {
+  return run((u) => saveLayout(u, raw), "Layout saved.", ["/crm"]);
+}
+
+export async function bulkAction(ids: string[], op: { kind: "owner"; ownerId: string | null } | { kind: "priority"; value: string } | { kind: "stage"; to: string }) {
+  const u = await requireCrm();
+  try {
+    const r = await bulkUpdate(u, ids.slice(0, 100), op);
+    revalidatePath("/crm", "layout");
+    return { ok: true as const, ...r };
+  } catch (e) {
+    return { ok: false as const, message: e instanceof Error ? e.message : "That didn't work.", done: 0, failed: [] as { id: string; reason: string }[] };
+  }
+}
+
+export async function saveViewAction(name: string, filters: Record<string, string | undefined>): Promise<FormState> {
+  return run((u) => saveView(u, name, filters), "View saved.", ["/crm/leads"]);
+}
+export async function deleteViewAction(id: string): Promise<FormState> {
+  return run((u) => deleteView(u, id), "View deleted.", ["/crm/leads"]);
+}
+
+export async function paletteAction(q: string) {
+  const u = await requireCrm();
+  return paletteSearch(u, String(q).slice(0, 80), pagesFor(u));
 }

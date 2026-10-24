@@ -4,12 +4,13 @@ import { requireCrm } from "@/lib/auth/crm";
 import { CALL_OUTCOMES, PRIORITIES, TASK_TYPES } from "@/lib/domain/crm";
 import { SELLABLE, planText } from "@/lib/domain/crm-plans";
 import { assignees, leadDetail } from "@/lib/services/crm-leads";
+import { listContacts } from "@/lib/services/crm-insights";
 import { mayVerify } from "@/lib/services/crm-access";
 import { listCampaigns } from "@/lib/services/crm-people";
 import { todayIso } from "@/lib/services/time";
 import { Button, Card, Empty, Field, Input, Notice, PageHeader, Select, Textarea } from "@/components/ui";
 import { fmtShort, fmtStamp, formatRupees } from "@/lib/format";
-import { approveAction, assignAction, callAction, doneAction, noteAction, rejectAction, saveLeadDetails, stageAction, taskAction } from "../../actions";
+import { approveAction, assignAction, callAction, contactAction, doneAction, noteAction, rejectAction, saveLeadDetails, stageAction, taskAction } from "../../actions";
 import { CrmForm } from "../../crm-form";
 import { StageBadge, VerificationBadge } from "../../parts";
 import { StageForm } from "./stage-form";
@@ -28,7 +29,7 @@ export default async function LeadPage({ params, searchParams }: PageProps<"/crm
   if (d === "denied") forbidden();
   if (!d) notFound();
   const { lead: l } = d;
-  const [owners, campaigns] = await Promise.all([u.can("leads.assign") ? assignees(u) : [], listCampaigns()]);
+  const [owners, campaigns, contacts] = await Promise.all([u.can("leads.assign") ? assignees(u) : [], listCampaigns(), listContacts(u, id)]);
   const canWork = u.can("activity.log") && !l.locked;
   const decide = l.verification === "Pending" && mayVerify(u, l);
   const today = todayIso();
@@ -138,6 +139,20 @@ export default async function LeadPage({ params, searchParams }: PageProps<"/crm
           )}
         </Card>
       </div>
+
+      <Card title={`Contacts · ${contacts.length}`} className="mb-5">
+        <ul className="m-0 mb-3 flex list-none flex-col divide-y divide-[var(--line-soft)] p-0">
+          {contacts.map((c) => <li key={c.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm"><span><b>{c.name}</b> <span className="text-[var(--muted)]">{c.title}</span></span><span className="text-[var(--muted)]">{[c.phone, c.email].filter(Boolean).join(" · ")}</span></li>)}
+        </ul>
+        {canWork && (
+          <CrmForm action={contactAction.bind(null, l.id)} submit="Add contact" reset className="flex flex-wrap items-end gap-2 border-t border-[var(--line-soft)] pt-3">
+            <Field label="Name"><Input name="name" required /></Field>
+            <Field label="Role at the gym"><Input name="title" placeholder="Owner, manager…" /></Field>
+            <Field label="Mobile"><Input name="phone" inputMode="tel" /></Field>
+            <Field label="Email"><Input name="email" type="email" /></Field>
+          </CrmForm>
+        )}
+      </Card>
 
       {!l.locked && (
         <Card title="Details" className="mb-5">

@@ -1806,6 +1806,8 @@ model CrmStaff {
   profile         Json?
   /// Bank account or UPI details for payouts, sealed with AES-GCM (sealSecret in two-step.ts); never shown in full
   payout          Bytes?
+  /// Their own settings: the dashboard's layout (which widgets, in what order)
+  prefs           Json?
   /// The terms and conditions version they accepted, and when
   termsVersion    String?
   termsAcceptedAt DateTime?  @db.Timestamptz
@@ -1881,6 +1883,7 @@ model CrmLead {
   assignments   CrmAssignment[]
   activities    CrmActivity[]
   tasks         CrmTask[]
+  contacts      CrmContact[]
 
   @@index([ownerId, stage])
   @@index([campaignId])
@@ -1959,4 +1962,30 @@ model CrmAudit {
 
   @@index([leadId, at])
   @@index([at])
+}
+
+/// More people at the same gym: the owner, the manager, the person who pays. The lead's own contact is the first.
+model CrmContact {
+  id          String   @id @default(cuid())
+  leadId      String
+  lead        CrmLead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  name        String
+  title       String?
+  phone       String?
+  email       String?
+  createdById String
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  @@index([leadId])
+}
+
+/// A saved set of lead filters, private to the person who made it
+model CrmSavedView {
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String
+  filters   Json
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  @@index([ownerId])
 }

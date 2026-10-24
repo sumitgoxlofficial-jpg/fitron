@@ -275,3 +275,12 @@ export function isDueToday(t: { done: boolean; dueAt: Date }, now = new Date(), 
   if (t.done || isOverdue(t, now)) return false;
   return new Date(t.dueAt.getTime() + 330 * 60_000).toISOString().slice(0, 10) === today;
 }
+
+/** The date ranges the dashboard and Reports can be limited to (the lead's creation date). */
+export const DATE_RANGES = [
+  ["all", "All time"],
+  ["7", "Last 7 days"],
+  ["30", "Last 30 days"],
+  ["month", "This month"],
+  ["90", "Last 90 days"],
+] as const;

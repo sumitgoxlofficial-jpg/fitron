@@ -4,11 +4,15 @@ import { requireCrm } from "@/lib/auth/crm";
 import { CRM_ROLE_LABEL } from "@/lib/domain/crm";
 import { db } from "@/lib/db";
 import { unreadCount } from "@/lib/services/crm-people";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeToggleRound } from "./theme-round";
+import { Crumb } from "./crumb";
+import { Palette } from "./palette";
+import { todayIso } from "@/lib/services/time";
 import { IdleSignout } from "@/components/idle-signout";
 import { initials } from "@/lib/format";
 import { crmLogout } from "./actions";
-import { CrmNav, type NavGroup, type NavItem } from "./crm-nav";
+import { CrmNav, type NavGroup } from "./crm-nav";
+import { navFor } from "./nav-model";
 import "./crm.css";
 
 export const metadata = { title: "FITRON CRM", robots: { index: false, follow: false } };
@@ -17,16 +21,9 @@ export default async function CrmLayout({ children }: LayoutProps<"/crm">) {
   // The profile page is where a new employee finishes setting up, so the layout lets them in; each page applies the gate itself.
   const u = await requireCrm(undefined, { setup: true });
   const [unread, pending] = await Promise.all([unreadCount(u), u.can("deal.verify") && !u.setupNeeded ? db.crmLead.count({ where: { verification: "Pending", ...(u.role === "admin" ? {} : { OR: [{ ownerId: { in: u.teamIds } }, { closedById: { in: u.teamIds } }], NOT: { closedById: u.id } }) } }) : 0]);
-  const item = (href: string, label: string, icon: NavItem["icon"], badge?: number): NavItem => ({ href, label, icon, badge });
-  const sales = u.role === "sales";
-  const full: NavGroup[] = [
-    { group: "Overview", items: [item("/crm", "Dashboard", "dashboard")] },
-    { group: "Sales", items: [item("/crm/leads", "Leads", "leads"), item("/crm/pipeline", "Pipeline", "pipeline"), item("/crm/tasks", "Tasks", "tasks"), ...(u.can("deal.verify") ? [item("/crm/verification", "Verification", "verify", pending)] : []), ...(sales ? [item("/crm/pricing", "Price list", "pricing")] : [])] },
-    { group: "Marketing", items: [...(u.can("leads.import") ? [item("/crm/import", "Import leads", "import")] : []), ...(u.can("campaigns.manage") ? [item("/crm/campaigns", "Campaigns", "campaigns")] : [])] },
-    { group: "Team", items: [...(u.role !== "marketing" ? [item("/crm/earnings", sales ? "My earnings" : "Commissions", "earnings")] : []), ...(u.can("employees.manage") ? [item("/crm/employees", "Employees", "team")] : []), item("/crm/id-card", "My ID card", "idcard")] },
-    { group: "Admin", items: [...(sales ? [] : [item("/crm/pricing", "Price list", "pricing")]), ...(u.can("audit.view") ? [item("/crm/audit", "Audit log", "audit")] : []), ...(sales ? [] : [item("/crm/roles", "Roles & permissions", "access")])] },
-  ].filter((g) => g.items.length);
-  const groups: NavGroup[] = u.setupNeeded ? [{ group: "Set up", items: [item("/crm/profile", "Complete your profile", "profile")] }] : full;
+  const full = navFor(u, pending);
+  const today = new Date(`${todayIso()}T00:00:00+05:30`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+  const groups: NavGroup[] = u.setupNeeded ? [{ group: "Set up", items: [{ href: "/crm/profile", label: "Complete your profile", icon: "profile" }] }] : full;
 
   return (
     <div className="crm flex min-h-screen">
@@ -46,19 +43,28 @@ export default async function CrmLayout({ children }: LayoutProps<"/crm">) {
         </Link>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-[var(--line)] bg-[var(--bg)] px-4 py-3 lg:px-10">
+        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--line)] bg-[var(--bg)] px-4 py-3 lg:px-10">
           <Link href="/crm" className="font-[var(--font-head)] text-lg font-semibold tracking-[0.06em] lg:hidden">FITRON CRM</Link>
-          <div className="min-w-0 flex-1 lg:hidden"><CrmNav groups={groups} inline /></div>
-          <div className="flex flex-none items-center gap-1.5 sm:gap-2.5 lg:ml-auto">
-            <ThemeToggle />
-            <Link href="/crm/notifications" aria-label={`Alerts${unread ? `, ${unread} unread` : ""}`} className="relative grid size-11 place-items-center rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]">
+          <div className="hidden min-w-0 flex-col lg:flex">
+            <Crumb />
+            <span className="text-[11px] font-semibold tracking-[0.2em] text-[var(--muted)] uppercase">{today}</span>
+          </div>
+          <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-2.5">
+            {!u.setupNeeded && <Palette />}
+            <ThemeToggleRound />
+            <Link href="/crm/profile" className="hidden min-h-11 items-center gap-2.5 rounded-full border border-[var(--line-2)] py-1 pr-4 pl-1 hover:border-[var(--accent)] sm:flex">
+              <span className="grid size-9 place-items-center rounded-full bg-gradient-to-b from-[#f3d88f] via-[#d9b45a] to-[#c49a3c] font-[var(--font-head)] text-xs font-semibold text-[#17140d]">{initials(u.name)}</span>
+              <span className="flex flex-col text-left text-xs leading-tight"><b className="text-[13px]">{u.name}</b><span className="text-[var(--muted)]">{CRM_ROLE_LABEL[u.role]}</span></span>
+            </Link>
+            <Link href="/crm/notifications" aria-label={`Alerts${unread ? `, ${unread} unread` : ""}`} className="relative grid size-11 shrink-0 place-items-center rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]">
               <BellIcon size={18} weight="duotone" />
-              {unread > 0 && <span className="absolute -top-0.5 -right-0.5 grid min-w-4 place-items-center rounded-full bg-[var(--alert)] px-1 text-[10px] font-bold text-white">{unread}</span>}
+              {unread > 0 && <span className="absolute -top-1 -right-1 grid min-w-4 place-items-center rounded-full bg-[var(--alert)] px-1 text-[10px] font-bold text-white">{unread}</span>}
             </Link>
             <form action={crmLogout}>
               <button aria-label="Sign out" title="Sign out" className="grid size-11 place-items-center rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]"><SignOutIcon size={18} weight="duotone" /></button>
             </form>
           </div>
+          <div className="min-w-0 basis-full lg:hidden"><CrmNav groups={groups} inline /></div>
         </header>
         <main id="ft-main" className="mx-auto w-full max-w-[1400px] flex-1 px-4 pt-6 pb-20 lg:px-10">{children}</main>
       </div>
