@@ -54,7 +54,7 @@ export const crmUserOf = (s: StaffRow, reports: string[]): CrmUser => {
     incentive: s.incentive,
     salary: s.salary,
     photo: s.user.photoKey ? `/api/crm/photo/${s.userId}?v=${s.user.photoKey.split("/").pop()?.split(".")[0] ?? ""}` : null,
-    setupNeeded: needsSetup(s, s.profile as Partial<Profile> | null, !!s.payout),
+    setupNeeded: role !== "admin" && needsSetup(s, s.profile as Partial<Profile> | null, !!s.payout), // the Super Admin earns no commission, so has no payout or terms to set up
     can: (p) => crmCan(role, p),
   };
 };

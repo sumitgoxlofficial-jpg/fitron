@@ -44,7 +44,7 @@ export default async function CrmLayout({ children }: LayoutProps<"/crm">) {
           ) : (
             <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--surface-2)] font-[var(--font-head)] text-sm font-semibold text-[var(--accent-strong)]">{initials(u.name)}</span>
           )}
-          <span className="min-w-0 text-xs leading-tight"><b className="block truncate text-[13px]">{u.name}</b><span className="text-[var(--muted)]">{CRM_ROLE_LABEL[u.role]} · Edit profile</span></span>
+          <span className="min-w-0 text-xs leading-tight"><b className="block truncate text-[13px]">{u.name}</b><span className="text-[var(--muted)]">{CRM_ROLE_LABEL[u.role]} · {u.role === "admin" ? "Account" : "Edit profile"}</span></span>
         </Link>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">

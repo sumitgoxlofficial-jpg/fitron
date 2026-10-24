@@ -94,6 +94,8 @@ export async function dashboard(u: CrmUser, f: DashFilter = {}, now = new Date()
   }
 
   if (u.role === "admin") {
+    const [pendingAccounts, activeStaff] = await Promise.all([db.crmStaff.count({ where: { status: "Pending" } }), db.crmStaff.count({ where: { status: "Active" } })]);
+    out.attention = { pendingDeals: kpi.pendingCount, pendingAccounts, activeStaff, overdue: overdueAll };
     const recent = await db.crmAudit.findMany({ orderBy: { id: "desc" }, take: 8 });
     const nm = await names([...new Set(recent.map((r) => r.actorId))]);
     out.recent = recent.map((r) => ({ id: String(r.id), text: r.text, at: r.at, actor: nm.get(r.actorId) ?? "—", leadId: r.leadId }));
@@ -111,6 +113,7 @@ export type DashboardData = {
   tasks: { id: string; type: string; dueAt: Date; overdue: boolean; today: boolean; lead: { id: string; gymName: string } }[];
   overdue: number;
   pendingDeals: number;
+  attention?: { pendingDeals: number; pendingAccounts: number; activeStaff: number; overdue: number };
   target?: { achieved: number; target: number; pct: number | null };
   byStage?: [string, number][];
   people?: { id: string; name: string; leads: number; calls: number; demos: number; won: number; revenue: number; conversion: number | null }[];
