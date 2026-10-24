@@ -7,6 +7,8 @@ import { isWorkEmail, passwordError, signInKey } from "@/lib/domain/crm-pay";
 import { rateLimit } from "@/lib/rate-limit";
 import { activeAdmins, crmAudit, nextEmpId, notify, teamOrg, teamRoleId } from "./crm-access";
 import { appUrl, issueCode, issueToken, redeemCode, redeemToken, setNewPassword } from "./accounts";
+import { isFitronAdmin } from "@/lib/integrations/fitron-team";
+import { crmUserFor } from "./crm-people";
 import { isUniqueViolation, UserError } from "./errors";
 import { todayIso, fromIso } from "./time";
 
@@ -24,7 +26,12 @@ export async function employeeSignIn(identifier: string, password: string, ip: s
   const who = "email" in key ? key.email : key.empId;
   if (!identifier.trim() || !password) return { ok: false, error: "Enter your email or employee ID and your password." };
   if (!rateLimit(`crm-login:${ip}:${who}`, 5, 60_000) || !rateLimit(`crm-login-ip:${ip}`, 30, 60_000)) return { ok: false, error: "Too many attempts. Sign-in is locked for a minute." };
-  const staff = await db.crmStaff.findFirst({ where: "email" in key ? { user: { email: key.email } } : { empId: key.empId }, include: { user: true } });
+  let staff = await db.crmStaff.findFirst({ where: "email" in key ? { user: { email: key.email } } : { empId: key.empId }, include: { user: true } });
+  // Someone on the FITRON team (FITRON_ADMIN_EMAILS) who already has a FITRON account, such as a gym owner, becomes the first Super Admin on their first sign-in here.
+  if (!staff && "email" in key && isFitronAdmin(key.email)) {
+    const acct = await db.user.findFirst({ where: { email: key.email, active: true, deletedAt: null } });
+    if (acct && (await verifyPassword(acct.passwordHash, password)) && (await crmUserFor(acct.id, acct.email))) staff = await db.crmStaff.findFirst({ where: { userId: acct.id }, include: { user: true } });
+  }
   const ok = await verifyPassword(staff?.user.passwordHash ?? (await dummyHash()), password);
   if (!staff || !ok || staff.user.deletedAt || !staff.user.active) {
     return { ok: false, error: staff?.status === "Invited" ? "This account was invited but not set up yet. Use Create account with this email." : "Email / employee ID or password is incorrect." };
@@ -61,7 +68,7 @@ export async function employeeSignUp(d: SignUp, ip: string): Promise<{ email: st
   try {
     const out = await db.$transaction(async (tx) => {
       const existing = await tx.user.findUnique({ where: { email }, include: { crmStaff: true } });
-      if (existing && existing.crmStaff?.status !== "Invited") throw new UserError("An account with this email already exists. Sign in instead.", "email");
+      if (existing && existing.crmStaff?.status !== "Invited") throw new UserError(isFitronAdmin(email) && !existing.crmStaff ? "This email already has a FITRON account. Sign in with that account's password and you'll be the Super Admin." : "An account with this email already exists. Sign in instead.", "email");
       const user = existing
         ? await tx.user.update({ where: { id: existing.id }, data: { name, phone, passwordHash, emailVerifiedAt: verifyNow ? new Date() : null, active: true } })
         : await tx.user.create({ data: { orgId, roleId, name, email, phone, passwordHash, emailVerifiedAt: verifyNow ? new Date() : null } });
