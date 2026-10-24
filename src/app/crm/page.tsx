@@ -56,6 +56,24 @@ export default async function CrmDashboard({ searchParams }: PageProps<"/crm">) 
         <dl className="m-0 flex flex-col border-t border-[var(--line)]">{st.filter((x) => x.label !== hero.label).map((x) => <div key={x.label} className="flex items-baseline justify-between gap-4 border-b border-[var(--line-soft)] py-2.5 text-sm"><dt className="text-[var(--muted)]">{x.label}{x.hint ? <span className="ml-2 text-xs text-[var(--faint)]">{x.hint}</span> : null}</dt><dd className={`m-0 font-semibold tabular-nums ${x.tone === "alert" ? "text-[var(--alert)]" : ""}`}>{x.value}</dd></div>)}</dl>
       </section>
     ) : <div className="lg:col-span-2"><KpiGrid>{st.map((x) => <Kpi key={x.label} label={x.label} value={x.value} hint={x.hint} tone={x.tone} />)}</KpiGrid></div>,
+    attention: () => d.attention && (
+      <Panel title="Needs your attention" wide>
+        <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-3">
+          {[
+            { n: d.attention.pendingAccounts, label: "New accounts waiting for approval", href: "/crm/employees", cta: "Review people" },
+            { n: d.attention.pendingDeals, label: "Deals waiting for approval", href: "/crm/verification", cta: "Approve deals" },
+            { n: d.attention.overdue, label: "Overdue follow-ups across the team", href: "/crm/activity", cta: "See activity" },
+          ].map((x) => (
+            <li key={x.label} className="flex flex-col gap-1 rounded-[14px] border border-[var(--line)] p-4">
+              <span className={`font-[var(--font-head)] text-4xl leading-none font-semibold tabular-nums ${x.n ? "text-[var(--accent-strong)]" : "text-[var(--muted)]"}`}>{x.n}</span>
+              <span className="text-[13px] text-[var(--muted)]">{x.label}</span>
+              <Link href={x.href} className="mt-1 text-sm underline">{x.cta}</Link>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 mb-0 text-xs text-[var(--muted)]">{d.attention.activeStaff} active employee{d.attention.activeStaff === 1 ? "" : "s"}.</p>
+      </Panel>
+    ),
     target: () => d.target && (
       <Panel title="This month's target">
         {d.target.target > 0 ? (<><div className="mb-0.5 flex justify-between text-sm"><span><Money paise={d.target.achieved} /> verified</span><span className="text-[var(--muted)]">of <Money paise={d.target.target} /> · {pctText(d.target.pct)}</span></div><div className="h-2.5 overflow-hidden rounded-full bg-[var(--line-soft)]"><div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${Math.min(100, d.target.pct ?? 0)}%` }} /></div></>) : <p className="m-0 text-sm text-[var(--muted)]">No monthly target is set for you yet. Verified revenue so far this month: <Money paise={d.target.achieved} />.</p>}

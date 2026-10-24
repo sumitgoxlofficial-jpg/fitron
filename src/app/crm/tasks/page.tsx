@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireCrm } from "@/lib/auth/crm";
 import { listTasks } from "@/lib/services/crm-leads";
 import { todayIso } from "@/lib/services/time";
@@ -12,6 +13,7 @@ export const metadata = { title: "Tasks · FITRON CRM" };
 
 export default async function TasksPage({ searchParams }: PageProps<"/crm/tasks">) {
   const u = await requireCrm();
+  if (u.role === "admin") redirect("/crm"); // follow-ups belong to the employees; the dashboard shows the team's
   const sp = await searchParams;
   const scope = sp.scope === "team" && u.role !== "sales" ? "team" : "mine";
   const tasks = await listTasks(u, scope);

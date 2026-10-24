@@ -5,6 +5,7 @@ const item = (href: string, label: string, icon: NavItem["icon"], badge?: number
 
 /** The pages this person's role opens, in the sidebar's groups. The palette searches the same list, so what it offers is what the role can open. */
 export function navFor(u: CrmUser, pending = 0): NavGroup[] {
+  if (u.role === "admin") return adminNav(u, pending);
   const sales = u.role === "sales";
   const reports = u.role !== "sales";
   return [
@@ -17,3 +18,14 @@ export function navFor(u: CrmUser, pending = 0): NavGroup[] {
 }
 
 export const pagesFor = (u: CrmUser) => navFor(u).flatMap((g) => g.items.map((i) => ({ label: i.label, sub: g.group, href: i.href })));
+
+/** The Super Admin runs the company: oversight and control, none of the employee's own tools (their tasks, ID card or earnings). */
+function adminNav(u: CrmUser, pending: number): NavGroup[] {
+  return [
+    { group: "Overview", items: [item("/crm", "Dashboard", "dashboard"), item("/crm/reports", "Reports", "reports")] },
+    { group: "Sales", items: [item("/crm/leads", "Leads", "leads"), item("/crm/companies", "Companies", "companies"), item("/crm/pipeline", "Pipeline", "pipeline"), item("/crm/verification", "Deal approvals", "verify", pending)] },
+    { group: "Marketing", items: [item("/crm/import", "Import leads", "import"), item("/crm/campaigns", "Campaigns", "campaigns")] },
+    { group: "People", items: [item("/crm/employees", "Employees", "team"), item("/crm/leaderboard", "Leaderboard", "leaderboard"), item("/crm/activity", "Activity", "activity"), item("/crm/earnings", "Commissions & payouts", "earnings")] },
+    { group: "Control", items: [item("/crm/roles", "Roles & permissions", "access"), item("/crm/pricing", "Price list", "pricing"), item("/crm/audit", "Audit log", "audit")] },
+  ];
+}

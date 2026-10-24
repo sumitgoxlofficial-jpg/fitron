@@ -3,10 +3,11 @@
 
 import type { CrmRole } from "./crm";
 
-export type Widget = "kpis" | "target" | "tasks" | "activity" | "trend" | "stages" | "people" | "products" | "sources" | "campaigns" | "geo" | "ageing";
+export type Widget = "kpis" | "attention" | "target" | "tasks" | "activity" | "trend" | "stages" | "people" | "products" | "sources" | "campaigns" | "geo" | "ageing";
 
 export const WIDGET_LABEL: Record<Widget, string> = {
   kpis: "Key figures",
+  attention: "Needs your attention",
   target: "Monthly target",
   tasks: "Follow-ups to clear",
   activity: "Recent activity",
@@ -22,7 +23,7 @@ export const WIDGET_LABEL: Record<Widget, string> = {
 
 /** What each role's dashboard can show, in the default order. */
 export const ROLE_WIDGETS: Record<CrmRole, Widget[]> = {
-  admin: ["kpis", "trend", "tasks", "activity", "stages", "people", "products", "sources", "campaigns", "geo", "ageing"],
+  admin: ["kpis", "attention", "trend", "activity", "stages", "people", "products", "sources", "campaigns", "geo", "ageing"],
   marketing: ["kpis", "trend", "campaigns", "sources", "geo", "ageing", "stages", "activity"],
   manager: ["kpis", "target", "trend", "tasks", "activity", "stages", "people", "products", "sources"],
   sales: ["kpis", "target", "tasks", "trend", "activity"],

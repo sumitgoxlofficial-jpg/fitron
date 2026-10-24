@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import QRCode from "qrcode";
 import { requireCrm } from "@/lib/auth/crm";
 import { CRM_ROLE_LABEL } from "@/lib/domain/crm";
@@ -10,6 +11,7 @@ const DEPT = { sales: "Sales", manager: "Sales", marketing: "Marketing", admin: 
 
 export default async function IdCardPage() {
   const u = await requireCrm();
+  if (u.role === "admin") redirect("/crm"); // the Super Admin has no employee card
   const me = await myProfile(u);
   const text = `FITRON EMPLOYEE\nID: ${me.empId}\nName: ${me.name}\nRole: ${CRM_ROLE_LABEL[u.role]}`;
   const svg = await QRCode.toString(text, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#0e0d0a", light: "#f6f2e9" } });
