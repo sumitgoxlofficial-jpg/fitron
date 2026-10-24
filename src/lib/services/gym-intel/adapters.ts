@@ -2,6 +2,7 @@ import "server-only";
 import { overpassQuery, parseOverpass } from "@/lib/domain/gym-intel/osm";
 import type { GymCategory } from "@/lib/domain/gym-intel/constants";
 import { robotsAllows, extractFromHtml, contactLinks } from "@/lib/domain/gym-intel/website";
+import { pageMentionsGym } from "@/lib/domain/gym-intel/ai";
 import { webUrl } from "@/lib/domain/gym-intel/text";
 import type { Observation } from "@/lib/domain/gym-intel/types";
 import { getText, politely, USER_AGENT, type FetchLike } from "./fetch";
@@ -49,7 +50,7 @@ export async function discoverOsmState(isoCode: string, stateName: string, categ
 const robotsCache = new Map<string, { at: number; text: string | null }>();
 
 /** What a gym's own site publishes: its contact numbers, if robots.txt allows reading it. Returns null when nothing may or can be read. */
-export async function readGymSite(siteUrl: string, o: { fetch: FetchLike; perMinute: number; checkHost?: (h: string) => Promise<void> }): Promise<{ observation: Pick<Observation, "sourceUrl" | "phonesRaw" | "evidence">; skipped?: string } | { skipped: string }> {
+export async function readGymSite(siteUrl: string, o: { fetch: FetchLike; perMinute: number; checkHost?: (h: string) => Promise<void>; /** A site an AI found: its text must speak of this gym, or nothing is taken from it */ verifyName?: string; choose?: (c: { e164: string; original: string; context: string }[]) => Promise<{ e164: string; original: string; context: string }[]> }): Promise<{ observation: Pick<Observation, "sourceUrl" | "phonesRaw" | "evidence">; skipped?: string } | { skipped: string }> {
   const base = webUrl(siteUrl);
   if (!base) return { skipped: "not a web address" };
   const u = new URL(base);
@@ -67,7 +68,10 @@ export async function readGymSite(siteUrl: string, o: { fetch: FetchLike; perMin
   const page = await getText(base, o.fetch, { checkHost: o.checkHost });
   if (page.status === 403 || page.status === 429) return { skipped: `the site refused (HTTP ${page.status}); not retried` };
   if (!page.text) return { skipped: `no readable page (HTTP ${page.status})` };
-  let phones = extractFromHtml(page.text).phones;
+  const first = extractFromHtml(page.text);
+  if (o.verifyName && !pageMentionsGym(`${first.title ?? ""} ${first.text}`, o.verifyName)) return { skipped: "the page doesn't mention this gym" };
+  let phones = first.phones;
+  let contexts = first.contexts;
   let readUrl = page.finalUrl;
   if (!phones.length) {
     for (const link of contactLinks(page.text, page.finalUrl)) {
@@ -76,7 +80,9 @@ export async function readGymSite(siteUrl: string, o: { fetch: FetchLike; perMin
       await politely(lu.host, o.perMinute);
       const sub = await getText(link, o.fetch, { checkHost: o.checkHost });
       if (sub.text) {
-        phones = extractFromHtml(sub.text).phones;
+        const more = extractFromHtml(sub.text);
+        phones = more.phones;
+        contexts = more.contexts;
         if (phones.length) {
           readUrl = sub.finalUrl;
           break;
@@ -85,5 +91,12 @@ export async function readGymSite(siteUrl: string, o: { fetch: FetchLike; perMin
     }
   }
   if (!phones.length) return { skipped: "no phone number published on the page" };
-  return { observation: { sourceUrl: readUrl, phonesRaw: phones.slice(0, 4).map((p) => p.original), evidence: { found: "page contact details", userAgent: USER_AGENT } } };
+  let chosen = phones.slice(0, 4).map((p) => ({ e164: p.e164, original: p.original, context: contexts[p.e164] ?? "" }));
+  let narrowedByAi = false;
+  if (o.choose && chosen.length > 1) {
+    const kept = await o.choose(chosen);
+    narrowedByAi = kept.length < chosen.length;
+    chosen = kept;
+  }
+  return { observation: { sourceUrl: readUrl, phonesRaw: chosen.map((p) => p.original), evidence: { found: "page contact details", userAgent: USER_AGENT, ...(o.verifyName ? { pageChecked: "the page mentions the gym" } : {}), ...(narrowedByAi ? { aiChoseFrom: phones.length } : {}) } } };
 }

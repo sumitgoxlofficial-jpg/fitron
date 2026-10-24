@@ -64,6 +64,7 @@ export async function saveSettingsAction(_: FormState, fd: FormData): Promise<Fo
     requestsPerMinute: n("requestsPerMinute"), concurrency: n("concurrency"), retryAttempts: n("retryAttempts"), retryBackoffSeconds: n("retryBackoffSeconds"),
     cacheHours: n("cacheHours"), batchSize: n("batchSize"), staleAfterDays: n("staleAfterDays"), retentionDays: n("retentionDays"), confirmAbove: n("confirmAbove"),
     sameNameThreshold: n("sameNameThreshold"), ambiguousNameThreshold: n("ambiguousNameThreshold"), nearMeters: n("nearMeters"),
+    aiEnabled: fd.get("aiEnabled") === "on", aiDailyCap: n("aiDailyCap"),
     enrichMissingPhones: fd.get("enrichMissingPhones") === "on", recheckDuplicates: fd.get("recheckDuplicates") === "on", acceptTollFree: fd.get("acceptTollFree") === "on",
     exportDefaults: { onlyWithPhone: fd.get("onlyWithPhone") === "on", includeConflicts: fd.get("includeConflicts") === "on" },
   };

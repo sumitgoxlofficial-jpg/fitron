@@ -41,7 +41,7 @@ export function robotsAllows(robotsTxt: string | null, path: string): boolean {
   return best ? best.allow : true;
 }
 
-export type PageContact = { phones: ParsedPhone[]; telLinks: string[]; title: string | null };
+export type PageContact = { phones: ParsedPhone[]; telLinks: string[]; title: string | null; /** The page's visible text, for checking it is about the gym */ text: string; /** A little of the text around each number, by E.164 */ contexts: Record<string, string> };
 
 /** The business phone numbers a page publishes: tel: links, schema.org telephone, and numbers printed in the visible text. */
 export function extractFromHtml(html: string): PageContact {
@@ -63,7 +63,13 @@ export function extractFromHtml(html: string): PageContact {
   }
   const text = html.replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/\s+/g, " ");
   const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]?.replace(/\s+/g, " ").trim() || null;
-  return { phones: extractPhones(`${ld.join(" ; ")} ; ${text}`, [...telLinks, ...ld]), telLinks, title };
+  const phones = extractPhones(`${ld.join(" ; ")} ; ${text}`, [...telLinks, ...ld]);
+  const contexts: Record<string, string> = {};
+  for (const p of phones) {
+    const i = text.indexOf(p.original);
+    contexts[p.e164] = i >= 0 ? text.slice(Math.max(0, i - 70), i + p.original.length + 40).trim() : "(in a call link, not in the visible text)";
+  }
+  return { phones, telLinks, title, text, contexts };
 }
 
 /** Contact-page links on a page, same site only. */

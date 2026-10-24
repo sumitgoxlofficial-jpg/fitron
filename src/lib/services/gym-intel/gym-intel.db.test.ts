@@ -1,6 +1,6 @@
 import { randomInt, randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import fixture from "@/lib/domain/gym-intel/fixtures/overpass-jharkhand.json";
 import { hasDb } from "@/test/db";
@@ -42,11 +42,18 @@ function fresh() {
     if (e.lat !== undefined) { e.lat += off; e.lon! += off; }
     if (e.center) { e.center.lat += off; e.center.lon += off; }
   }
+  // and the postcodes and towns: gyms at the same address with alike names are, correctly, one gym
+  const pins = j.elements.map(() => String(randomInt(100_000, 999_999)));
+  const town = `Town${tag}`;
+  j.elements.forEach((e, i) => {
+    if (e.tags["addr:postcode"]) e.tags["addr:postcode"] = pins[i]!;
+    if (e.tags["addr:city"]) e.tags["addr:city"] = town;
+  });
   const m1 = mobile();
   const m2 = mobile();
   j.elements[0]!.tags.phone = `+91 ${m1.slice(0, 5)} ${m1.slice(5)}; 0651 2345678`;
   j.elements[1]!.tags["contact:phone"] = m2;
-  return { json: j, tag, m1, m2, base };
+  return { json: j, tag, m1, m2, base, pins };
 }
 
 const okJson = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
@@ -100,7 +107,7 @@ describe.skipIf(!hasDb)("Gym Intelligence (database)", () => {
       const { rows } = await listGyms(admin, { q: f.tag });
       expect(rows).toHaveLength(4);
       const iron = rows.find((g) => g.name.startsWith("Iron Paradise"))!;
-      expect(iron).toMatchObject({ phoneNorm: `+91${f.m1}`, phoneKind: "MOBILE", phoneStatus: "SOURCE_CONFIRMED", pin: "834001", state: "Jharkhand", association: "GENERAL_BUSINESS", reachability: "NOT_TESTED" });
+      expect(iron).toMatchObject({ phoneNorm: `+91${f.m1}`, phoneKind: "MOBILE", phoneStatus: "SOURCE_CONFIRMED", pin: f.pins[0], state: "Jharkhand", association: "GENERAL_BUSINESS", reachability: "NOT_TESTED" });
       const d = await gymDetail(admin, iron.id);
       expect(d!.gym.sources).toHaveLength(1);
       expect(d!.gym.sources[0]).toMatchObject({ source: "osm_extract", sourceUrl: `https://www.openstreetmap.org/node/${f.base}`, phonesNorm: [`+91${f.m1}`, "+916512345678"] });
@@ -291,6 +298,123 @@ describe.skipIf(!hasDb)("Gym Intelligence (database)", () => {
       // never to a private address
       const { assertPublicHost } = await import("./fetch");
       for (const h of ["localhost", "127.0.0.1", "10.1.2.3", "192.168.0.5", "169.254.169.254"]) await expect(assertPublicHost(h), h).rejects.toThrow();
+    }, 60_000);
+  });
+
+
+  describe("AI help (the model is faked: it can find a site and choose numbers, never supply one)", () => {
+    const num = () => mobile();
+    const mkGym = (name: string) => recordObservation({ source: "manual_entry", sourceUrl: "https://example.test/ai", sourceRecordId: `ai-${randomUUID()}`, name, phonesRaw: [], state: "Jharkhand", city: `C${randomUUID().slice(0, 5)}` }, { settings: DEFAULT_SETTINGS });
+    const netFor = (pages: Record<string, string>, seen: string[] = []) => async (url: string) => {
+      seen.push(url);
+      const u = new URL(url);
+      if (u.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /admin\n", { status: 200, headers: { "content-type": "text/plain" } });
+      const body = pages[u.host];
+      return body ? new Response(body, { status: 200, headers: { "content-type": "text/html" } }) : new Response("no", { status: 404 });
+    };
+    const setAi = async (cap: number, on = true) => {
+      const cur = (await db.giSetting.findUnique({ where: { id: "default" } }))!.data as object;
+      await db.giSetting.update({ where: { id: "default" }, data: { data: { ...cur, aiEnabled: on, aiDailyCap: cap } } });
+    };
+    const reset = () => db.giSource.updateMany({ where: { key: "ai_assisted" }, data: { config: { requestsPerMinute: 60 } } });
+    beforeAll(async () => {
+      vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+      await setSource(admin, "ai_assisted", { enabled: true, reviewedTerms: true, requestsPerMinute: 60 });
+      await setSource(admin, "public_website", { enabled: true, reviewedTerms: true, requestsPerMinute: 60 });
+    });
+    afterAll(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("refuses a job while AI is off in settings", async () => {
+      await setAi(100, false);
+      await expect(createJob(admin, { source: "ai_assisted", states: [] })).rejects.toThrow(/switched off/);
+    });
+
+    it("finds a gym's own site, reads it, and keeps only the number the page printed", async () => {
+      await setAi(100);
+      await reset();
+      const t = randomUUID().slice(0, 6);
+      const printed = num();
+      const a = await mkGym(`Aurora ${t} Gym`);
+      const b = await mkGym(`Bolt ${t} Gym`);
+      const c = await mkGym(`Comet ${t} Gym`);
+      const d = await mkGym(`Delta ${t} Gym`);
+      const answers: Record<string, string> = {
+        [`Aurora ${t} Gym`]: `{"url":"https://aurora-${t}.example.com/","reason":"Official site","phone":"9111111111"}`,
+        [`Bolt ${t} Gym`]: `{"url":"https://www.justdial.com/Ranchi/Bolt","reason":"listing"}`,
+        [`Comet ${t} Gym`]: `You can call Comet on 98000 11111`,
+        [`Delta ${t} Gym`]: `{"url":"https://other-${t}.example.com/","reason":"maybe"}`,
+      };
+      const asked: string[] = [];
+      const ask = async (r: { prompt: string; webSearch?: boolean }) => {
+        const name = Object.keys(answers).find((n) => r.prompt.includes(n))!;
+        asked.push(name);
+        expect(r.webSearch).toBe(true);
+        return { text: answers[name]!, searches: ["q"] };
+      };
+      const pages = {
+        [`aurora-${t}.example.com`]: `<html><title>Aurora ${t} Gym</title><body>Aurora ${t} Gym, Ranchi <a href="tel:+91${printed}">Call</a></body></html>`,
+        [`other-${t}.example.com`]: `<html><title>Some Other Business</title><body><a href="tel:+91${num()}">Call</a></body></html>`,
+      };
+      const job = await createJob(admin, { source: "ai_assisted", states: [], gymIds: [a.gymId, b.gymId, c.gymId, d.gymId] });
+      const r = await runJobStep(job.id, { fetch: netFor(pages) as never, checkHost: async () => {}, ask: ask as never });
+      expect(r.ran).toBe(true);
+      const A = (await gymDetail(admin, a.gymId))!.gym;
+      expect(A.website).toBe(`https://aurora-${t}.example.com/`);
+      expect(A.phoneNorm).toBe(`+91${printed}`);
+      expect(A.phoneStatus).toBe("SOURCE_CONFIRMED");
+      expect(A.sources.map((x) => x.source).sort()).toEqual(["ai_assisted", "manual_entry", "public_website"]);
+      expect(A.sources.flatMap((x) => x.phonesNorm)).not.toContain("+919111111111");
+      // a directory listing, a number written in prose, and a site that isn't about the gym give no website and no number
+      for (const g of [b, c]) {
+        const G = (await gymDetail(admin, g.gymId))!.gym;
+        expect(G.website).toBeNull();
+        expect(G.phoneNorm).toBeNull();
+        expect(G.sources.some((x) => x.sourceUrl === "ai:no-site-found")).toBe(true);
+      }
+      const D = (await gymDetail(admin, d.gymId))!.gym;
+      expect(D.phoneNorm).toBeNull();
+      expect(D.website).toBe(`https://other-${t}.example.com/`);
+      expect(asked).toHaveLength(4);
+    }, 90_000);
+
+    it("lets the model choose among a page's numbers but never add one", async () => {
+      await setAi(100);
+      await reset();
+      const t = randomUUID().slice(0, 6);
+      const front = num();
+      const franchise = num();
+      const g = await recordObservation({ source: "manual_entry", sourceUrl: "https://example.test/c", sourceRecordId: `c-${randomUUID()}`, name: `Choice ${t} Gym`, phonesRaw: [], website: `https://choice-${t}.example.com/`, state: "Jharkhand", city: `C${t}` }, { settings: DEFAULT_SETTINGS });
+      const page = { [`choice-${t}.example.com`]: `<html><title>x</title><body>Front desk: ${front.slice(0, 5)} ${front.slice(5)}. Franchise enquiries: ${franchise.slice(0, 5)} ${franchise.slice(5)}</body></html>` };
+      const run = async (answer: string | Error) => {
+        await db.giGymSource.deleteMany({ where: { gymId: g.gymId, source: "public_website" } });
+        await db.giGym.update({ where: { id: g.gymId }, data: { phone: null, phoneNorm: null } });
+        const job = await createJob(admin, { source: "public_website", states: [], gymIds: [g.gymId], onlyMissingPhone: true });
+        await runJobStep(job.id, { fetch: netFor(page) as never, checkHost: async () => {}, ask: (async () => { if (answer instanceof Error) throw answer; return { text: answer }; }) as never });
+        return (await gymDetail(admin, g.gymId))!.gym.sources.find((x) => x.source === "public_website")?.phonesNorm ?? [];
+      };
+      expect(await run(`{"keep":[0]}`)).toEqual([`+91${front}`]);
+      expect(await run(`{"keep":[9,"+919000000000"]}`)).toEqual([`+91${front}`, `+91${franchise}`]);
+      expect(await run(new Error("API down"))).toEqual([`+91${front}`, `+91${franchise}`]);
+    }, 90_000);
+
+    it("stops at the daily cap and carries on after midnight instead of failing", async () => {
+      await setAi(1);
+      await db.giSource.updateMany({ where: { key: "ai_assisted" }, data: { config: { requestsPerMinute: 60 } } });
+      const t = randomUUID().slice(0, 6);
+      const one = await mkGym(`Cap ${t} One`);
+      const two = await mkGym(`Cap ${t} Two`);
+      let calls = 0;
+      const ask = async () => ((calls++), { text: `{"url":null}` });
+      const job = await createJob(admin, { source: "ai_assisted", states: [], gymIds: [one.gymId, two.gymId] });
+      await runJobStep(job.id, { fetch: netFor({}) as never, checkHost: async () => {}, ask: ask as never });
+      const j = await db.giJob.findUniqueOrThrow({ where: { id: job.id } });
+      expect(calls).toBe(1);
+      expect(j.status).toBe("QUEUED");
+      expect(j.attempts).toBe(0);
+      expect(j.leaseUntil!.getTime()).toBeGreaterThan(Date.now());
+      expect(j.errorSummary).toMatch(/allowance/);
     }, 60_000);
   });
 

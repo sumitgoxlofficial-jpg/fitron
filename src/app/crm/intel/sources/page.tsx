@@ -1,5 +1,6 @@
 import { requireCrm } from "@/lib/auth/crm";
 import { listSources } from "@/lib/services/gym-intel/core";
+import { aiUsedToday, aiAvailable } from "@/lib/services/gym-intel/ai";
 import { Badge, Card, Field, Input, PageHeader } from "@/components/ui";
 import { CrmForm } from "../../crm-form";
 import { when } from "../parts";
@@ -10,6 +11,8 @@ export const metadata = { title: "Sources & integrations · FITRON CRM" };
 export default async function SourcesPage() {
   const u = await requireCrm("intel.manage");
   const sources = await listSources(u);
+  const aiUsed = await aiUsedToday();
+  const aiKey = aiAvailable();
   return (
     <>
       <PageHeader kicker="Gym Intelligence" title="Sources & integrations" subtitle="Every source starts off. Turn one on only after you have read its terms. Credentials are never shown here." />
@@ -24,6 +27,7 @@ export default async function SourcesPage() {
               <dt className="text-[var(--muted)]">Permitted</dt><dd className="m-0">{s.permitted}</dd>
               <dt className="text-[var(--muted)]">Last success</dt><dd className="m-0">{when(s.lastSuccessAt)}</dd>
               <dt className="text-[var(--muted)]">Found</dt><dd className="m-0">{s.recordsFound.toLocaleString("en-IN")} records · {s.phonesFound.toLocaleString("en-IN")} with phones · {s.errorCount} errors</dd>
+              {s.key === "ai_assisted" && <><dt className="text-[var(--muted)]">Claude today</dt><dd className="m-0">{aiUsed} call{aiUsed === 1 ? "" : "s"} used{aiKey ? "" : " · the server has no ANTHROPIC_API_KEY"}. The daily cap is in Collection settings; AI is off until you tick it there.</dd></>}
               {s.lastError && <><dt className="text-[var(--muted)]">Latest error</dt><dd className="m-0 text-[var(--alert)]">{s.lastError}</dd></>}
               {s.reviewedAt && <><dt className="text-[var(--muted)]">Terms reviewed</dt><dd className="m-0">{when(s.reviewedAt)}</dd></>}
             </dl>

@@ -8,6 +8,8 @@ import { SOURCES, isSourceKey, type SourceKey } from "@/lib/domain/gym-intel/sou
 import { need, type CrmUser } from "../crm-access";
 import { UserError } from "../errors";
 import { DEFAULT_OVERPASS, SourceError, discoverOsmState, readGymSite } from "./adapters";
+import { aiAvailable, askClaude, chooseGymNumbers, findGymWebsite, type AiAsk } from "./ai";
+import { todayIso, istInstant } from "../time";
 import { getSettings, intelAudit, noteSourceRun, sourceEnabled } from "./core";
 import type { FetchLike } from "./fetch";
 import { seedStates } from "./geo";
@@ -29,8 +31,10 @@ export async function createJob(u: CrmUser, i: { source: string; kind?: string; 
   if (!isSourceKey(i.source) || !SOURCES[i.source].live) throw new UserError("Choose a source that collects from the internet: OpenStreetMap or gym websites.");
   const source = i.source as SourceKey;
   if (!(await sourceEnabled(source))) throw new UserError(`${SOURCES[source].name} is switched off. Turn it on in Sources and integrations once you have read its terms.`);
-  const kind: JobKind = source === "public_website" ? "ENRICHMENT" : i.kind === "REFRESH" ? "REFRESH" : "DISCOVERY";
+  const kind: JobKind = source === "public_website" || source === "ai_assisted" ? "ENRICHMENT" : i.kind === "REFRESH" ? "REFRESH" : "DISCOVERY";
   const settings = await getSettings();
+  if (source === "ai_assisted" && !settings.aiEnabled) throw new UserError("AI help is switched off. Turn it on in Collection settings (and set a daily cap) first.");
+  if (source === "ai_assisted" && !aiAvailable()) throw new UserError("The server has no ANTHROPIC_API_KEY, so the AI finder can't run.");
   const states = [...new Set(i.states)];
   if (states.some((s) => !stateByCode(s))) throw new UserError("One of the states isn't on the list.");
   if (source === "osm_overpass" && !states.length) throw new UserError("Choose at least one state or union territory.");
@@ -101,7 +105,7 @@ async function stateCount(name: string) {
   return { gyms, withPhone };
 }
 
-type Deps = { fetch?: FetchLike; now?: Date; /** Tests only: replaces the public-address check, which needs real DNS */ checkHost?: (h: string) => Promise<void> };
+type Deps = { fetch?: FetchLike; now?: Date; /** Tests only: replaces the call to Claude */ ask?: AiAsk; /** Tests only: replaces the public-address check, which needs real DNS */ checkHost?: (h: string) => Promise<void> };
 
 /** Does one step of a job (one state, or one batch of gym sites). Returns whether there is more to do. */
 export async function runJobStep(jobId: string, deps: Deps = {}): Promise<{ ran: boolean; more: boolean }> {
@@ -117,7 +121,7 @@ export async function runJobStep(jobId: string, deps: Deps = {}): Promise<{ ran:
   const source = job.source as SourceKey;
   try {
     if (!(await sourceEnabled(source))) throw new SourceError(`${SOURCES[source].name} was switched off.`, false);
-    const more = source === "public_website" ? await enrichStep(job, scope, cp, settings, f, now, deps.checkHost) : await osmStep(job, scope, cp, settings, f, now);
+    const more = source === "ai_assisted" ? await aiFindStep(job, scope, cp, settings, f, now, deps) : source === "public_website" ? await enrichStep(job, scope, cp, settings, f, now, deps.checkHost, deps.ask) : await osmStep(job, scope, cp, settings, f, now);
     const after = await db.giJob.findUniqueOrThrow({ where: { id: jobId }, select: { status: true } });
     if (after.status === "CANCELLED" || after.status === "PAUSED") return { ran: true, more: false };
     if (more) {
@@ -128,6 +132,12 @@ export async function runJobStep(jobId: string, deps: Deps = {}): Promise<{ ran:
     await db.giJob.update({ where: { id: jobId }, data: { status: failedAreas.length ? "FAILED" : "COMPLETED", completedAt: new Date(), leaseUntil: null, errorSummary: failedAreas.length ? `${failedAreas.length} area${failedAreas.length === 1 ? "" : "s"} failed: ${failedAreas.map((x) => x.code).join(", ")}` : null } });
     return { ran: true, more: false };
   } catch (e) {
+    if (e instanceof AiAllowanceSpent) {
+      // Not a failure: carry on after the next India midnight, when the allowance renews.
+      const next = istInstant(todayIso(new Date(now.getTime() + 86_400_000)), "00:10");
+      await db.giJob.update({ where: { id: jobId }, data: { status: "QUEUED", leaseUntil: next, errorSummary: "Today's AI allowance is used up; this carries on after midnight (India time)." } });
+      return { ran: true, more: false };
+    }
     const retryable = !(e instanceof SourceError) || e.retryable;
     const msg = (e as Error).message;
     await noteSourceRun(source, { ok: false, error: msg });
@@ -181,7 +191,7 @@ async function osmStep(job: { id: string; attempts: number; errors: Prisma.JsonV
   return scope.states.some((s) => s !== code && !doneCodes.has(s) && !failedCodes.has(s));
 }
 
-async function enrichStep(job: { id: string; attempts: number; errors: Prisma.JsonValue | null }, scope: JobScope, cp: Checkpoint, settings: GiSettings, f: FetchLike, now: Date, checkHost?: (h: string) => Promise<void>) {
+async function enrichStep(job: { id: string; attempts: number; errors: Prisma.JsonValue | null }, scope: JobScope, cp: Checkpoint, settings: GiSettings, f: FetchLike, now: Date, checkHost?: (h: string) => Promise<void>, ask?: AiAsk) {
   const names = scope.states.map((s) => stateByCode(s)?.name).filter(Boolean) as string[];
   const where: Prisma.GiGymWhereInput = { website: { not: null }, id: { gt: cp.cursor ?? "", ...(scope.gymIds ? { in: scope.gymIds } : {}) }, ...(names.length ? { state: { in: names } } : {}), ...(scope.onlyMissingPhone ? { phoneNorm: null } : { lastChecked: { lt: new Date(now.getTime() - settings.cacheHours * 3_600_000) } }), promotion: { not: "DO_NOT_CONTACT" } };
   const gyms = await db.giGym.findMany({ where, orderBy: { id: "asc" }, take: settings.batchSize });
@@ -190,9 +200,12 @@ async function enrichStep(job: { id: string; attempts: number; errors: Prisma.Js
   let records = 0;
   let phones = 0;
   const skipNotes: string[] = [];
+  const useAi = settings.aiEnabled && aiAvailable() && (await sourceEnabled("ai_assisted"));
   for (const g of gyms) {
     try {
-      const r = await readGymSite(g.website!, { fetch: f, perMinute: cfg.requestsPerMinute ?? settings.requestsPerMinute, checkHost });
+      // A site an AI found is only read if its text speaks of this gym; a site already on the record (from OpenStreetMap) is trusted.
+      const byAi = !!(await db.giGymSource.findFirst({ where: { gymId: g.id, source: "ai_assisted" }, select: { id: true } }));
+      const r = await readGymSite(g.website!, { fetch: f, perMinute: cfg.requestsPerMinute ?? settings.requestsPerMinute, checkHost, ...(byAi ? { verifyName: g.name } : {}), ...(useAi ? { choose: (c) => chooseGymNumbers(g.name, c, { ask: ask ?? askClaude, cap: settings.aiDailyCap, perMinute: 30 }) } : {}) });
       if ("skipped" in r && !("observation" in r)) {
         skipNotes.push(`${g.id}: ${r.skipped}`);
         continue;
@@ -267,3 +280,52 @@ export async function importOsmFile(u: CrmUser, text: string, fileName: string) 
 }
 
 export const allStates = () => INDIA_STATES;
+
+class AiAllowanceSpent extends Error {}
+
+/** Looks for the websites of gyms that have none and no phone, with Claude's web search, then reads each site found. */
+async function aiFindStep(job: { id: string; attempts: number; errors: Prisma.JsonValue | null }, scope: JobScope, cp: Checkpoint, settings: GiSettings, f: FetchLike, now: Date, deps: Deps) {
+  if (!settings.aiEnabled) throw new SourceError("AI help was switched off in Collection settings.", false);
+  if (!aiAvailable()) throw new SourceError("The server has no ANTHROPIC_API_KEY.", false);
+  const names = scope.states.map((s) => stateByCode(s)?.name).filter(Boolean) as string[];
+  const where: Prisma.GiGymWhereInput = { website: null, phoneNorm: null, id: { gt: cp.cursor ?? "", ...(scope.gymIds ? { in: scope.gymIds } : {}) }, ...(names.length ? { state: { in: names } } : {}), promotion: { not: "DO_NOT_CONTACT" }, sources: { none: { source: "ai_assisted", collectedAt: { gt: new Date(now.getTime() - 180 * 86_400_000) } } } };
+  const gyms = await db.giGym.findMany({ where, orderBy: { id: "asc" }, take: Math.min(settings.batchSize, 10) });
+  if (!gyms.length) return false;
+  const cfg = ((await db.giSource.findUnique({ where: { key: "ai_assisted" } }))?.config ?? {}) as { requestsPerMinute?: number };
+  const ask = deps.ask ?? askClaude;
+  const siteCfg = ((await db.giSource.findUnique({ where: { key: "public_website" } }))?.config ?? {}) as { requestsPerMinute?: number };
+  const readSites = await sourceEnabled("public_website");
+  let records = 0;
+  let phones = 0;
+  let cursor = cp.cursor ?? null;
+  const notes: string[] = [];
+  for (const g of gyms) {
+    const found = await findGymWebsite(g, { ask, cap: settings.aiDailyCap, perMinute: cfg.requestsPerMinute ?? 10, now });
+    if (found.spent) {
+      await db.giJob.update({ where: { id: job.id }, data: { recordsFound: { increment: records }, phonesFound: { increment: phones }, checkpoint: { ...cp, cursor, processed: (cp.processed ?? 0) + (cursor === cp.cursor ? 0 : 1) } } });
+      throw new AiAllowanceSpent();
+    }
+    cursor = g.id;
+    if (!found.url) {
+      // Remember that we looked (for six months), so the next job doesn't pay to look again. It shows in the gym's evidence as "no site found".
+      await db.giGymSource.create({ data: { gymId: g.id, source: "ai_assisted", sourceUrl: "ai:no-site-found", sourceRecordId: `ai-none:${g.id}:${todayIso(now)}`, originalName: g.name, originalPhones: [], phonesNorm: [], evidence: { searches: found.searches, reason: found.reason, result: "no website found" }, licenseRef: "Anthropic commercial terms", jobId: job.id, collectedAt: now, lastCheckedAt: now } });
+      notes.push(`${g.id}: no site found`);
+      continue;
+    }
+    await recordObservation({ source: "ai_assisted", sourceUrl: found.url, sourceRecordId: `ai:${g.id}`, name: g.name, phonesRaw: [], website: found.url, evidence: { searches: found.searches, reason: found.reason, note: "Address found by AI web search; any phone comes only from the page itself" } }, { jobId: job.id, settings, now, attachTo: g.id });
+    records++;
+    if (!readSites) continue;
+    try {
+      const r = await readGymSite(found.url, { fetch: deps.fetch ?? fetch, perMinute: siteCfg.requestsPerMinute ?? settings.requestsPerMinute, checkHost: deps.checkHost, verifyName: g.name, choose: (c) => chooseGymNumbers(g.name, c, { ask, cap: settings.aiDailyCap, perMinute: 30, now }) });
+      if ("observation" in r) {
+        const res = await recordObservation({ source: "public_website", sourceUrl: r.observation.sourceUrl, sourceRecordId: `site:${g.id}`, name: g.name, phonesRaw: r.observation.phonesRaw, website: found.url, evidence: r.observation.evidence }, { jobId: job.id, settings, now, attachTo: g.id });
+        phones += res.phones ? 1 : 0;
+      } else notes.push(`${g.id}: ${r.skipped}`);
+    } catch (e) {
+      notes.push(`${g.id}: ${(e as Error).message.slice(0, 80)}`);
+    }
+  }
+  await db.giJob.update({ where: { id: job.id }, data: { recordsFound: { increment: records }, phonesFound: { increment: phones }, checkpoint: { ...cp, cursor, processed: (cp.processed ?? 0) + gyms.length }, ...(notes.length ? { errors: notes.reduce<string[]>((acc, n) => pushError(acc, n), (job.errors as string[] | null) ?? []) } : {}) } });
+  await noteSourceRun("ai_assisted", { ok: true, records, phones });
+  return gyms.length === Math.min(settings.batchSize, 10);
+}

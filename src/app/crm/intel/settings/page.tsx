@@ -32,8 +32,10 @@ export default async function SettingsPage() {
             {num("sameNameThreshold", "Same-gym name match", "0.70–1.00 at the same place", "0.01")}
             {num("ambiguousNameThreshold", "Send-to-review name match", "0.50–0.99", "0.01")}
             {num("nearMeters", "Same place within (metres)")}
+            {num("aiDailyCap", "Claude calls per day (cap)", "0 turns AI off. Each call costs a little through your Anthropic key.")}
           </div>
           <div className="flex flex-col gap-2">
+            {chk("aiEnabled", "Let Claude find gym websites and choose between a page's numbers (it can never supply a number)", s.aiEnabled)}
             {chk("enrichMissingPhones", "Look for missing phones on the gym's own website", s.enrichMissingPhones)}
             {chk("recheckDuplicates", "Recheck duplicates after each job", s.recheckDuplicates)}
             {chk("acceptTollFree", "Accept toll-free numbers as a gym's number", s.acceptTollFree)}
