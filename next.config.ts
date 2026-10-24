@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
     APP_COMMIT: (process.env.VERCEL_GIT_COMMIT_SHA || process.env.RENDER_GIT_COMMIT || process.env.SOURCE_VERSION || process.env.GIT_COMMIT || "").slice(0, 7),
   },
   experimental: {
+    // forbidden() renders the CRM's "Access denied" (403) page: src/app/crm/forbidden.tsx.
+    authInterrupts: true,
     // Data import sends up to 5,000 CSV rows, member documents up to 10 MB, and backup files
     // (Settings › Backup › Restore from file) up to 60 MB, to server actions.
     serverActions: { bodySizeLimit: "64mb" },
@@ -21,10 +23,9 @@ const nextConfig: NextConfig = {
     "/invoices/[id]/pdf": ["./node_modules/dejavu-fonts-ttf/ttf/DejaVuSans.ttf", "./node_modules/dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf"],
   },
   // fitron.in itself is the static marketing site in public/site; the console lives under its own paths.
-  // The sales team's CRM is a static, self-contained prototype in public/site/crm, opened from "Employee login" on the website.
-  // A redirect, not a rewrite: its in-browser compiler needs a looser script policy than the one the proxy puts on pages.
+  // "Employee login" on the website: the one sign-in, which then opens the sales CRM (src/app/crm).
   async redirects() {
-    return [{ source: "/employee-login", destination: "/site/crm/index.html", permanent: false }];
+    return [{ source: "/employee-login", destination: "/login?next=/crm", permanent: false }];
   },
   async rewrites() {
     return {
