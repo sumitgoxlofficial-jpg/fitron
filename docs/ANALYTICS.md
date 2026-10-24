@@ -35,6 +35,7 @@ Some links are named automatically (WhatsApp, e-mail, sign-in, sign-up plans, co
 | `pricing_view` | The pricing section scrolled into view (once per page view) |
 | `pricing_click` | A plan's button in the pricing section (`plan` = the plan name) |
 | `signin_click` | Any link to `/signin` |
+| `employee_login_click` | The "Employee login" link in the website header or menu |
 | `whatsapp_click` | Any link to `wa.me` |
 | `email_click` | Any `mailto:` link |
 | `faq_interaction` | A question opened (`question` = its text) |
