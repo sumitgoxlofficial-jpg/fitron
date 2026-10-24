@@ -1,7 +1,7 @@
 // The register of permitted sources. A source starts switched off; a Super Admin turns it on only after reading its terms
 // (the register records who and when). Nothing here collects anything: the adapters in src/lib/services/gym-intel do.
 
-export const SOURCE_KEYS = ["osm_overpass", "osm_extract", "public_website", "licensed_directory", "manual_entry"] as const;
+export const SOURCE_KEYS = ["osm_overpass", "osm_extract", "public_website", "ai_assisted", "licensed_directory", "manual_entry"] as const;
 export type SourceKey = (typeof SOURCE_KEYS)[number];
 
 export type SourceInfo = {
@@ -61,6 +61,19 @@ export const SOURCES: Record<SourceKey, SourceInfo> = {
     permitted: "Sites whose robots.txt allows it. Never bypasses a CAPTCHA, login or anti-bot control; gives up on a 403 or 429.",
     needsReview: true,
     defaultRate: 6,
+    live: true,
+  },
+  ai_assisted: {
+    key: "ai_assisted",
+    name: "AI website finder (Claude web search)",
+    type: "AI-assisted search",
+    location: "Anthropic's Claude API with its web search tool, using this server's own key",
+    access: "For a gym with no website, Claude searches the public web for the gym's own website and returns an address. Nothing else from the model is kept: no phone number it writes is ever used.",
+    license: "Anthropic's commercial terms and usage policy; the pages it points to keep their own terms",
+    licenseUrl: "https://www.anthropic.com/legal/commercial-terms",
+    permitted: "Finding a gym's own site. Directory and social pages (Google, Facebook, Instagram, Justdial, Sulekha, IndiaMART…) are refused because their terms forbid automated reading. The site is then read by the website reader, which obeys robots.txt and keeps only numbers printed on the page. Costs money per search; a daily cap applies.",
+    needsReview: true,
+    defaultRate: 10,
     live: true,
   },
   licensed_directory: {

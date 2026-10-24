@@ -24,6 +24,10 @@ export const SettingsSchema = z.object({
   /** Only mobile and landline numbers that parse as Indian numbers are format-valid */
   acceptTollFree: z.boolean().default(false),
   exportDefaults: z.object({ onlyWithPhone: z.boolean().default(true), includeConflicts: z.boolean().default(false) }).default({ onlyWithPhone: true, includeConflicts: false }),
+  /** Let Claude find websites and choose between a page's numbers; it can never supply a number */
+  aiEnabled: z.boolean().default(false),
+  /** Most Claude calls in one India day, so a nationwide job can't run up a bill */
+  aiDailyCap: z.number().int().min(0).max(5000).default(200),
   retentionDays: z.number().int().min(90).max(3650).default(1095),
   confirmAbove: z.number().int().min(1).max(36).default(3),
 });

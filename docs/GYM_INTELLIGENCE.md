@@ -61,11 +61,21 @@ Every source starts **off**. A Super Admin turns one on in Sources and integrati
 | OpenStreetMap through Overpass | ODbL 1.0, © OpenStreetMap contributors. https://www.openstreetmap.org/copyright | One state per query, at most 60 requests a minute (default 6), identified user agent. The public Nominatim geocoder is **not** used. Attribution is kept in each record and in every export. |
 | OpenStreetMap extract (upload) | ODbL 1.0 | An Overpass JSON file a Super Admin uploads (up to about 4 MB); nothing is fetched. |
 | A gym's own website | The site's terms and robots.txt | Only for a website already on the gym record. robots.txt is read first and obeyed. A 403 or 429 is not retried or worked around. Private addresses are refused. |
+| AI website finder (Claude web search) | Anthropic commercial terms; each page keeps its own terms | For a gym with no website and no phone, Claude searches the web for the gym's **own** website and returns an address. Directory, map and social pages (Google, Facebook, Instagram, Justdial, Sulekha, IndiaMART…) are refused. The site is then read like any other (robots.txt obeyed), and only if its text mentions the gym. A phone number the model writes is never used. Off until a Super Admin ticks AI in Collection settings; a daily cap limits cost. |
 | Licensed directory dataset | Your licence with the provider, recorded per source | Not built as a fetcher; reserved for a file you are licensed to use. |
 | Manual entry | Collected by staff from the gym | |
 
 Not used, on purpose: Google Maps and Google Business Profile scraping, any CAPTCHA or anti-bot bypass, unsolicited WhatsApp or robocalls,
 OTP "verification" of other people's numbers.
+
+## AI help
+
+Uses the project's existing `ANTHROPIC_API_KEY` (and `AI_MODEL` if set). Two uses, both off until **Collection settings → AI help** is ticked, and both capped by "Claude calls per day" (India day; the job pauses until after midnight when it is spent):
+
+1. **Finding a gym's own website** (source "AI website finder"): Claude web search, strict JSON answer, address checked against a refuse list, then the site is read by the normal website reader, only if its text mentions the gym.
+2. **Choosing between a page's numbers**: when a page prints several, Claude is shown each number with the text around it and returns *indexes* to keep (front desk kept; franchise, careers, app lines dropped). It can only pick from numbers the page printed; a failed or odd answer keeps them all.
+
+The model never supplies a number. Every number still has to be extracted from a real page's text by the phone parser. Not run live: no `ANTHROPIC_API_KEY` is available in the development sandbox, so these calls were tested with a faked model only; the first live run should be a small job (a few gyms) while watching Sources → Claude today.
 
 ## Using it
 
@@ -92,7 +102,7 @@ format; none were invalid or unnamed. That is what the source holds for that sta
 number**, so the number of phones this source can ever give is a small fraction of the gyms it lists. More numbers come from gym websites
 (read only when allowed), licensed datasets and staff entry. No count of "all gyms in India" is promised.
 
-Not yet run live: the full database path on the production site (it needs the migration applied there, a Super Admin signed in, the source
+Not yet run live: the AI help (needs the production key), the full database path on the production site (it needs the migration applied there, a Super Admin signed in, the source
 switched on, and the worker running), the website reader against real sites, and the India Post PIN directory import.
 
 ## Tests
