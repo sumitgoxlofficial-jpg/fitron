@@ -1,0 +1,13 @@
+{
+  "_note": "TEST FIXTURE in the Overpass JSON format. The names, numbers and ids are invented for tests. It is not data collected from any source.",
+  "version": 0.6,
+  "generator": "fixture",
+  "elements": [
+    { "type": "node", "id": 900000001, "lat": 23.3441, "lon": 85.3096, "tags": { "leisure": "fitness_centre", "name": "Iron Paradise Gym & Fitness Centre", "phone": "+91 98765 43210; 0651 2345678", "website": "www.ironparadise.example", "addr:street": "Main Road", "addr:city": "Ranchi", "addr:state": "Jharkhand", "addr:postcode": "834001" } },
+    { "type": "way", "id": 900000002, "center": { "lat": 23.3702, "lon": 85.3250 }, "tags": { "leisure": "fitness_centre", "name": "Muscle Factory", "contact:phone": "9123456780", "addr:city": "Ranchi", "addr:postcode": "834002" } },
+    { "type": "node", "id": 900000003, "lat": 22.8046, "lon": 86.2029, "tags": { "amenity": "gym", "name": "Steel City Gym", "addr:city": "Jamshedpur", "addr:postcode": "831001" } },
+    { "type": "node", "id": 900000004, "lat": 22.81, "lon": 86.19, "tags": { "leisure": "fitness_centre", "phone": "9876500000" } },
+    { "type": "node", "id": 900000005, "lat": 23.6, "lon": 86.1, "tags": { "leisure": "park", "name": "City Park" } },
+    { "type": "node", "id": 900000006, "lat": 23.8, "lon": 86.4, "tags": { "leisure": "fitness_centre", "name": "Dhanbad Fit Club", "phone": "12345", "addr:city": "Dhanbad" } }
+  ]
+}
