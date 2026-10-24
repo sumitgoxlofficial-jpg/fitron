@@ -63,6 +63,24 @@ describe.skipIf(!hasDb)("employee accounts (database)", () => {
     }
   });
 
+  it("approves a pending sign-up whose address is on the admin list, and signs an admin-list address up as Super Admin", async () => {
+    const early = `${randomUUID().slice(0, 8)}@gmail.com`;
+    await employeeSignUp(base(early), ip());
+    expect((await db.crmStaff.findFirstOrThrow({ where: { user: { email: early } } })).status).toBe("Pending");
+    const prev = process.env.FITRON_ADMIN_EMAILS;
+    const direct = `${randomUUID().slice(0, 8)}@gmail.com`;
+    process.env.FITRON_ADMIN_EMAILS = `${early},${direct}`;
+    try {
+      expect((await employeeSignIn(early, "Wrong-Pass-9", ip())).ok).toBe(false);
+      expect((await employeeSignIn(early, PW, ip())).ok).toBe(true);
+      expect(await db.crmStaff.findFirstOrThrow({ where: { user: { email: early } } })).toMatchObject({ role: "admin", status: "Active" });
+      await employeeSignUp(base(direct), ip());
+      expect(await db.crmStaff.findFirstOrThrow({ where: { user: { email: direct } } })).toMatchObject({ role: "admin", status: "Active" });
+    } finally {
+      process.env.FITRON_ADMIN_EMAILS = prev;
+    }
+  });
+
   it("makes a Sales Employee with an employee ID, tells the Super Admins, and signs in by email or by ID", async () => {
     const email = mail();
     await employeeSignUp(base(email), ip());
