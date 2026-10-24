@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { crmCan, isCrmRole, type CrmPermission, type CrmRole } from "@/lib/domain/crm";
+import { needsSetup, type Profile } from "@/lib/domain/crm-pay";
 import { UserError } from "./errors";
 
 type Tx = Prisma.TransactionClient;
@@ -19,6 +20,13 @@ export type CrmUser = {
   managerId: string | null;
   /** This person plus, for a manager, everyone who reports to them. */
   teamIds: string[];
+  /** The day they joined (India date): the first 30 days earn the first-month commission. */
+  joinedAt: string;
+  /** Incentive percentage after the first month, and the monthly salary in paise (null = not set). */
+  incentive: number;
+  salary: number | null;
+  /** Until the profile, a payout account and the accepted terms are in, they can only open their profile. */
+  setupNeeded: boolean;
   can: (p: CrmPermission) => boolean;
 };
 
@@ -28,7 +36,9 @@ export class CrmDenied extends UserError {}
 export const TEAM_ORG_NAME = "FITRON Team";
 export const TEAM_ROLE_NAME = "CRM Staff";
 
-export const crmUserOf = (s: { userId: string; empId: string; role: string; managerId: string | null; user: { name: string; email: string } }, reports: string[]): CrmUser => {
+type StaffRow = { userId: string; empId: string; role: string; managerId: string | null; joinedAt: Date; incentive: number; salary: number | null; profile: unknown; payout: Uint8Array | null; termsVersion: string | null; termsAcceptedAt: Date | null; user: { name: string; email: string } };
+
+export const crmUserOf = (s: StaffRow, reports: string[]): CrmUser => {
   const role: CrmRole = isCrmRole(s.role) ? s.role : "sales";
   return {
     id: s.userId,
@@ -38,6 +48,10 @@ export const crmUserOf = (s: { userId: string; empId: string; role: string; mana
     role,
     managerId: s.managerId,
     teamIds: role === "manager" ? [s.userId, ...reports] : [s.userId],
+    joinedAt: s.joinedAt.toISOString().slice(0, 10),
+    incentive: s.incentive,
+    salary: s.salary,
+    setupNeeded: needsSetup(s, s.profile as Partial<Profile> | null, !!s.payout),
     can: (p) => crmCan(role, p),
   };
 };

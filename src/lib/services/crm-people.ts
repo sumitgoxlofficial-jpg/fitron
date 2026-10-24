@@ -55,14 +55,14 @@ export async function inviteEmployee(u: CrmUser, i: { name: string; email: strin
   try {
     const staff = await db.$transaction(async (tx) => {
       const user = await tx.user.create({ data: { orgId, name, email, phone: "", passwordHash, roleId } });
-      const s = await tx.crmStaff.create({ data: { userId: user.id, empId: await nextEmpId(tx), role: i.role, managerId: i.role === "sales" ? i.managerId || null : null, monthlyTarget: Math.max(0, Math.round((i.target ?? 0) * 100)) } });
+      const s = await tx.crmStaff.create({ data: { userId: user.id, empId: await nextEmpId(tx), status: "Invited", role: i.role, managerId: i.role === "sales" ? i.managerId || null : null, monthlyTarget: Math.max(0, Math.round((i.target ?? 0) * 100)) } });
       await crmAudit(tx, { actorId: u.id, kind: "user", text: `Invited ${name} (${s.empId}) as ${CRM_ROLE_LABEL[i.role as CrmRole]}`, meta: { userId: user.id } });
       return s;
     });
     await sendEmail({
       to: email,
       subject: "Your FITRON CRM account",
-      text: `Hi ${name},\n\nYou've been added to the FITRON sales CRM as ${CRM_ROLE_LABEL[i.role as CrmRole]}. Your employee ID is ${staff.empId}.\n\nSet your password: open ${appUrl()}/forgot-password, enter this email address and follow the steps. Then sign in at ${appUrl()}/employee-login.\n\nFITRON`,
+      text: `Hi ${name},\n\nYou've been added to the FITRON sales CRM as ${CRM_ROLE_LABEL[i.role as CrmRole]}. Your employee ID is ${staff.empId}.\n\nCreate your account: open ${appUrl()}/employee-login, choose Create account and use this email address (${email}). Then sign in with it or your employee ID.\n\nFITRON`,
     }).catch(() => undefined);
     return staff;
   } catch (e) {

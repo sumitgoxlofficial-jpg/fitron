@@ -23,10 +23,6 @@ const nextConfig: NextConfig = {
     "/invoices/[id]/pdf": ["./node_modules/dejavu-fonts-ttf/ttf/DejaVuSans.ttf", "./node_modules/dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf"],
   },
   // fitron.in itself is the static marketing site in public/site; the console lives under its own paths.
-  // "Employee login" on the website: the one sign-in, which then opens the sales CRM (src/app/crm).
-  async redirects() {
-    return [{ source: "/employee-login", destination: "/login?next=/crm", permanent: false }];
-  },
   async rewrites() {
     return {
       beforeFiles: [

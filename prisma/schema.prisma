@@ -1783,21 +1783,34 @@ model WindowsAiUsage {
 // src/lib/services/crm*.ts (every route and action goes through them).
 
 model CrmStaff {
-  userId        String     @id
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String     @id
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// FIT-EMP-0001
-  empId         String     @unique
+  empId           String     @unique
   /// admin | marketing | manager | sales
-  role          String
-  managerId     String?
-  manager       CrmStaff?  @relation("CrmTeam", fields: [managerId], references: [userId])
-  reports       CrmStaff[] @relation("CrmTeam")
-  /// Active | Inactive
-  status        String     @default("Active")
+  role            String
+  managerId       String?
+  manager         CrmStaff?  @relation("CrmTeam", fields: [managerId], references: [userId])
+  reports         CrmStaff[] @relation("CrmTeam")
+  /// Active | Inactive | Invited (added by an admin; they finish by creating their account)
+  status          String     @default("Active")
   /// Monthly target in paise; 0 = none set
-  monthlyTarget Int        @default(0)
-  createdAt     DateTime   @default(now()) @db.Timestamptz
-  updatedAt     DateTime   @updatedAt @db.Timestamptz
+  monthlyTarget   Int        @default(0)
+  /// The day they joined: their first 30 days earn the first-month commission
+  joinedAt        DateTime   @default(now()) @db.Date
+  /// Monthly salary in paise after the first month; null = not set
+  salary          Int?
+  /// Incentive percentage on verified deals after the first month (0 to 5)
+  incentive       Int        @default(5)
+  /// Name, address, city, state, PIN and mobile, from the profile page
+  profile         Json?
+  /// Bank account or UPI details for payouts, sealed with AES-GCM (sealSecret in two-step.ts); never shown in full
+  payout          Bytes?
+  /// The terms and conditions version they accepted, and when
+  termsVersion    String?
+  termsAcceptedAt DateTime?  @db.Timestamptz
+  createdAt       DateTime   @default(now()) @db.Timestamptz
+  updatedAt       DateTime   @updatedAt @db.Timestamptz
 
   @@index([role])
   @@index([managerId])

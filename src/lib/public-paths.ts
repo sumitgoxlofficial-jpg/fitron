@@ -10,7 +10,7 @@ import { TRAINER_PAGE } from "@/lib/domain/trainer-page";
 // A path matches by whole segments: "/contact" and "/contact/x", not "/contacts".
 const PUBLIC = [
   "auth", "login", "signin", "signup", "verify-email", "forgot-password", "reset-password",
-  "contact", "about", "privacy", "terms", "refund", "c",
+  "contact", "employee-login", "about", "privacy", "terms", "refund", "c",
   "robots.txt", "sitemap.xml", "favicon.ico", "fitron-mark.png", "fitron-mark-v2.png", "fitron-mark-light-v2.png", "fitron-logo.png", "fitron-logo-v2.png", "site", "_next",
   "trainer", "api/trainer", "api/coach", "api/gym-demo", "api/assistant",
   // FITRON for Windows: buying its licence, the computer collecting it, and Fitron AI for a licensed computer

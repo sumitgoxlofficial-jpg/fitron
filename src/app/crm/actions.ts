@@ -9,6 +9,7 @@ import { isStage, type ImportField, type StageChange } from "@/lib/domain/crm";
 import type { FormState } from "@/lib/validation/common";
 import { addNote, addTask, approveDeal, assignLead, changeStage, completeTask, createLead, logCall, rejectDeal, updateLead } from "@/lib/services/crm-leads";
 import { commitImport, previewImport } from "@/lib/services/crm-io";
+import { saveProfile } from "@/lib/services/crm-profile";
 import { inviteEmployee, markAllRead, saveCampaign, updateEmployee } from "@/lib/services/crm-people";
 import { istInstant } from "@/lib/services/time";
 
@@ -91,7 +92,7 @@ export async function rejectAction(id: string, _: FormState, fd: FormData): Prom
 }
 
 export async function inviteAction(_: FormState, fd: FormData): Promise<FormState> {
-  return run((u) => inviteEmployee(u, { name: s(fd, "name"), email: s(fd, "email"), role: s(fd, "role"), managerId: s(fd, "managerId") || undefined, target: num(fd, "target") }), "Invited. They get an email to set a password.", ["/crm/employees"]);
+  return run((u) => inviteEmployee(u, { name: s(fd, "name"), email: s(fd, "email"), role: s(fd, "role"), managerId: s(fd, "managerId") || undefined, target: num(fd, "target") }), "Invited. They get an email to create their account.", ["/crm/employees"]);
 }
 
 export async function employeeAction(userId: string, patch: { active?: boolean; role?: string; managerId?: string | null; target?: number }): Promise<FormState> {
@@ -134,4 +135,17 @@ export async function importCommit(text: string, mapping: Partial<Record<ImportF
 export async function crmLogout() {
   await destroySession();
   redirect("/login");
+}
+
+export async function saveProfileAction(_: FormState, fd: FormData): Promise<FormState> {
+  const u = await requireCrm(undefined, { setup: true });
+  const g = (k: string) => (typeof fd.get(k) === "string" ? (fd.get(k) as string) : "");
+  let first = false;
+  const r = await simpleAction(async () => {
+    first = (await saveProfile(u, { fullName: g("fullName"), phone: g("phone"), address: g("address"), city: g("city"), state: g("state"), pin: g("pin"), payMethod: g("payMethod") === "upi" ? "upi" : "bank", accName: g("accName"), bankName: g("bankName"), accNo: g("accNo").replace(/\s/g, ""), accNo2: g("accNo2").replace(/\s/g, ""), ifsc: g("ifsc"), upi: g("upi"), upiName: g("upiName"), agree: g("agree") === "on" })).firstTime;
+  }, "Profile saved.");
+  if (!r?.ok) return { ...r, values: Object.fromEntries([...fd].filter(([k, v]) => typeof v === "string" && !/accNo|password/i.test(k))) as Record<string, string> };
+  revalidatePath("/crm", "layout");
+  if (first) redirect("/crm");
+  return r;
 }

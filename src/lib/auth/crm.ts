@@ -16,7 +16,7 @@ export const getCrmUser = cache(async (): Promise<CrmUser | null> => {
 });
 
 /** For every CRM page and action: sign in first, then be an employee (anyone else gets the plain 404 a wrong address gets), then hold the permission (else 403). */
-export async function requireCrm(p?: CrmPermission): Promise<CrmUser> {
+export async function requireCrm(p?: CrmPermission, opts: { setup?: boolean } = {}): Promise<CrmUser> {
   const u = await getCrmUser();
   if (!u) {
     if (!(await readSession())) {
@@ -25,6 +25,8 @@ export async function requireCrm(p?: CrmPermission): Promise<CrmUser> {
     }
     notFound();
   }
+  // A new employee works nowhere else until their profile, a payout account and the terms are in.
+  if (u.setupNeeded && !opts.setup) redirect("/crm/profile");
   if (p && !u.can(p)) forbidden();
   return u;
 }
