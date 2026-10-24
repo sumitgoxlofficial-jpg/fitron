@@ -69,7 +69,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/crm/repo
         <Panel title="Open pipeline by stage">{r.stageValue.map((s) => <Bar key={s.stage} label={`${s.label} · ${s.n}`} w={(s.value / topStage) * 100} right={formatRupees(s.value)} />)}</Panel>
       </div>
       <Panel title="Source effectiveness">
-        <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-[13px]">
+        <div role="region" aria-label="Table" tabIndex={0} className="overflow-x-auto"><table className="w-full min-w-[720px] text-[13px]">
           <thead><tr className="border-b border-[var(--line-2)] text-left text-[11px] font-semibold tracking-[0.12em] text-[var(--muted)] uppercase">{["Source", "Leads", "Contacted", "Demos", "Won", "Verified rev."].map((h) => <th key={h} className="py-2 pr-2.5">{h}</th>)}</tr></thead>
           <tbody>{r.sources.map((s) => <tr key={s.source} className="border-b border-[var(--line-soft)]"><td className="py-2.5 pr-2.5 font-semibold">{s.source}</td><td>{s.leads}</td><td>{s.contacted}</td><td>{s.demos}</td><td>{s.won}</td><td className="tabular-nums">{formatRupees(s.revenue)}</td></tr>)}</tbody>
         </table></div>

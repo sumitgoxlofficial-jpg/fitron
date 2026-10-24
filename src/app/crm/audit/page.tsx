@@ -18,7 +18,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/crm/audit"
     <>
       <PageHeader kicker="Append-only" title="Audit log" subtitle="Nobody can edit or remove an entry. It never holds phone numbers or email addresses." />
       <form className="mb-4 flex gap-2">
-        <Select name="kind" defaultValue={kind} className="w-auto!"><option value="">All events</option>{KINDS.map((k) => <option key={k}>{k}</option>)}</Select>
+        <Select name="kind" aria-label="Event type" defaultValue={kind} className="w-auto!"><option value="">All events</option>{KINDS.map((k) => <option key={k}>{k}</option>)}</Select>
         <Button>Filter</Button>
         {kind && <Link href="/crm/audit" className="self-center text-sm underline">Clear</Link>}
       </form>

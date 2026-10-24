@@ -23,7 +23,7 @@ export function CrmNav({ groups, inline }: { groups: NavGroup[]; inline?: boolea
       <Link key={i.href} href={i.href} aria-current={on(i.href) ? "page" : undefined}
         className={cx("flex min-h-11 items-center justify-between gap-2.5 rounded-[10px] px-3 text-sm whitespace-nowrap", on(i.href) ? "bg-[rgba(217,180,90,.14)] font-semibold text-[var(--accent-strong)] shadow-[inset_2px_0_0_var(--accent)]" : "font-medium text-[var(--text-2)] hover:bg-[var(--neutral-100)]")}>
         <span className="flex items-center gap-2.5"><I size={inline ? 18 : 20} weight="duotone" className={on(i.href) ? "text-[var(--accent)]" : "text-[var(--muted)]"} />{i.label}</span>
-        {!!i.badge && <span className={cx("rounded-full px-2 text-[11px] font-bold", i.badgeTone === "alert" ? "bg-[var(--alert)] text-white" : "bg-[var(--accent)] text-[var(--accent-ink)]")}>{i.badge}</span>}
+        {!!i.badge && <span className={cx("rounded-full px-2 text-[11px] font-bold", i.badgeTone === "alert" ? "bg-[var(--alert)] text-[var(--on-alert)]" : "bg-[var(--accent)] text-[var(--accent-ink)]")}>{i.badge}</span>}
       </Link>
     );
   };

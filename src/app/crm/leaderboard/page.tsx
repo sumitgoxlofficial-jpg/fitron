@@ -43,7 +43,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/crm/
               </div>
             ))}
           </div>
-          <div className="overflow-x-auto rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5">
+          <div role="region" aria-label="Table" tabIndex={0} className="overflow-x-auto rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5">
             <table className="w-full min-w-[760px] text-[13px]">
               <thead><tr className="border-b border-[var(--line-2)] text-left text-[11px] font-semibold tracking-[0.12em] text-[var(--muted)] uppercase">{["#", "Employee", "Verified rev.", "Won", "Calls", "Demos", "Conversion"].map((h) => <th key={h} className="py-2 pr-2.5">{h}</th>)}</tr></thead>
               <tbody>{rows.map((r) => (

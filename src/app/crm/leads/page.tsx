@@ -42,10 +42,10 @@ export default async function LeadsPage({ searchParams }: PageProps<"/crm/leads"
       />
       <form className="mb-4 flex flex-wrap items-center gap-2">
         <Input name="q" defaultValue={f.q} placeholder={u.can("phone.full") ? "Search gym, contact, ID, city or phone" : "Search gym, contact, ID or city"} className="max-w-[320px] flex-[1_1_240px]" />
-        <Select name="stage" defaultValue={f.stage} className="w-auto!"><option value="">All stages</option>{STAGES.map((s) => <option key={s} value={s}>{stageLabel(s)}</option>)}</Select>
-        <Select name="product" defaultValue={f.product} className="w-auto!"><option value="">All products</option>{PRODUCTS.map((p) => <option key={p}>{p}</option>)}</Select>
-        {u.role !== "sales" && <Select name="owner" defaultValue={f.ownerId} className="w-auto!"><option value="">All owners</option><option value="none">Unassigned</option>{owners.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select>}
-        <Select name="verification" defaultValue={f.verification} className="w-auto!"><option value="">Any verification</option><option>Pending</option><option>Verified</option><option>Rejected</option></Select>
+        <Select name="stage" aria-label="Stage" defaultValue={f.stage} className="w-auto!"><option value="">All stages</option>{STAGES.map((s) => <option key={s} value={s}>{stageLabel(s)}</option>)}</Select>
+        <Select name="product" aria-label="Product" defaultValue={f.product} className="w-auto!"><option value="">All products</option>{PRODUCTS.map((p) => <option key={p}>{p}</option>)}</Select>
+        {u.role !== "sales" && <Select name="owner" aria-label="Owner" defaultValue={f.ownerId} className="w-auto!"><option value="">All owners</option><option value="none">Unassigned</option>{owners.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select>}
+        <Select name="verification" aria-label="Verification" defaultValue={f.verification} className="w-auto!"><option value="">Any verification</option><option>Pending</option><option>Verified</option><option>Rejected</option></Select>
         <Button>Filter</Button>
         {(f.q || f.stage || f.product || f.ownerId || f.verification) && <Link href="/crm/leads" className="text-sm underline">Clear</Link>}
       </form>

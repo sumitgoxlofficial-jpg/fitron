@@ -58,7 +58,7 @@ export default async function CrmLayout({ children }: LayoutProps<"/crm">) {
             </Link>
             <Link href="/crm/notifications" aria-label={`Alerts${unread ? `, ${unread} unread` : ""}`} className="relative grid size-11 shrink-0 place-items-center rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]">
               <BellIcon size={18} weight="duotone" />
-              {unread > 0 && <span className="absolute -top-1 -right-1 grid min-w-4 place-items-center rounded-full bg-[var(--alert)] px-1 text-[10px] font-bold text-white">{unread}</span>}
+              {unread > 0 && <span className="absolute -top-1 -right-1 grid min-w-4 place-items-center rounded-full bg-[var(--alert)] px-1 text-[10px] font-bold text-[var(--on-alert)]">{unread}</span>}
             </Link>
             <form action={crmLogout}>
               <button aria-label="Sign out" title="Sign out" className="grid size-11 place-items-center rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]"><SignOutIcon size={18} weight="duotone" /></button>

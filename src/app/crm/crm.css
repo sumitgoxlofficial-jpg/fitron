@@ -50,6 +50,7 @@
   --accent: #d9b45a;
   --accent-hover: #efd79a;
   --accent-ink: #17140d;
+  --on-alert: #1a0f0c;
   --accent-soft: rgba(217, 180, 90, 0.14);
   --accent-strong: #efd79a;
   --accent-500: #a9791f;
@@ -95,15 +96,16 @@
   --faint: #6f6652;
   --accent: #8a6413;
   --accent-hover: #6f510f;
-  --accent-ink: #17140d;
+  --accent-ink: #ffffff;
+  --on-alert: #ffffff;
   --accent-soft: rgba(180, 134, 39, 0.14);
-  --accent-strong: #8a6413;
-  --accent-700: #8a6413;
-  --alert: #c0533f;
+  --accent-strong: #75540f;
+  --accent-700: #75540f;
+  --alert: #ad3f2c;
   --alert-soft: rgba(192, 83, 63, 0.12);
   --alert-strong: #ad3f2c;
   --alert-700: #ad3f2c;
-  --ok: #1d7a45;
+  --ok: #17663a;
   --ok-soft: rgba(29, 122, 69, 0.12);
   --line: rgba(70, 52, 18, 0.1);
   --line-soft: rgba(70, 52, 18, 0.07);
@@ -135,3 +137,5 @@
 @media (max-width: 760px) {
   .crm h1 { font-size: 28px; }
 }
+
+.crm th { color: var(--muted); }

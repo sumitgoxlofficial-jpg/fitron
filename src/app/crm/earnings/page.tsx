@@ -66,7 +66,7 @@ export default async function EarningsPage() {
       {!mine && (
         <div className="flex flex-col gap-3 rounded-[14px] border border-[var(--line)] bg-[var(--surface)] p-5">
           <h2 className="m-0">By employee</h2>
-          <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-[13px]">
+          <div role="region" aria-label="Earnings by deal" tabIndex={0} className="overflow-x-auto"><table className="w-full min-w-[620px] text-[13px]">
             <thead><tr className="border-b border-[var(--line-2)] text-left text-[11px] font-semibold tracking-[0.12em] text-[var(--muted)] uppercase">{["Employee", "Today", "This month", "Total earned", "Pending", "Payout"].map((h) => <th key={h} className="py-2 pr-2.5">{h}</th>)}</tr></thead>
             <tbody>{e.people.map((p) => (
               <tr key={p.userId} className="border-b border-[var(--line)]">
@@ -80,7 +80,7 @@ export default async function EarningsPage() {
       <div className="flex flex-col gap-3">
         <h2 className="m-0">Earnings statement</h2>
         {e.rows.length === 0 ? <div className="rounded-[14px] border border-dashed border-[var(--line-2)] px-5 py-8 text-center text-[var(--muted)]">No closed deals yet. Commission appears here once a Closed Won deal is submitted.</div> : (
-          <div className="overflow-x-auto rounded-[14px] border border-[var(--line)] bg-[var(--surface)] px-4">
+          <div role="region" aria-label="Payouts" tabIndex={0} className="overflow-x-auto rounded-[14px] border border-[var(--line)] bg-[var(--surface)] px-4">
             <table className="w-full min-w-[940px] text-[13px]">
               <thead><tr className="border-b border-[var(--line-2)] text-left text-[11px] font-semibold tracking-[0.12em] text-[var(--muted)] uppercase">{["Date", "Gym", "Closed by", "Plan", "Sale", "Commission", "Status"].map((h) => <th key={h} className="py-3 pr-2.5">{h}</th>)}</tr></thead>
               <tbody>{e.rows.map((r) => (
