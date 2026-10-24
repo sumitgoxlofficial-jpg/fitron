@@ -22,7 +22,7 @@ export function StageForm({ action, current, initial, today, version, value }: {
           <Select name="lossReason" required defaultValue=""><option value="" disabled>Choose…</option>{LOSS_REASONS.map((r) => <option key={r}>{r}</option>)}</Select>
         </Field>
       )}
-      {to === "Closed Won" && (
+      {to === "Closed Won" && current !== "Closed Won" && (
         <>
           <p className="text-[13px] text-muted">A closed deal waits for a manager&apos;s approval and is not counted as revenue until it is approved.</p>
           <Field label="Proof"><Select name="proofType" required defaultValue=""><option value="" disabled>Choose…</option>{PROOF_TYPES.map((p) => <option key={p}>{p}</option>)}</Select></Field>

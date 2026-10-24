@@ -39,10 +39,10 @@ export default async function LeadsPage({ searchParams }: PageProps<"/crm/leads"
       />
       <form className="mb-4 flex flex-wrap items-center gap-2">
         <Input name="q" defaultValue={f.q} placeholder={u.can("phone.full") ? "Search gym, contact, ID, city or phone" : "Search gym, contact, ID or city"} className="max-w-[320px] flex-[1_1_240px]" />
-        <Select name="stage" defaultValue={f.stage} className="w-auto"><option value="">All stages</option>{STAGES.map((s) => <option key={s} value={s}>{stageLabel(s)}</option>)}</Select>
-        <Select name="product" defaultValue={f.product} className="w-auto"><option value="">All products</option>{PRODUCTS.map((p) => <option key={p}>{p}</option>)}</Select>
-        {u.role !== "sales" && <Select name="owner" defaultValue={f.ownerId} className="w-auto"><option value="">All owners</option><option value="none">Unassigned</option>{owners.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select>}
-        <Select name="verification" defaultValue={f.verification} className="w-auto"><option value="">Any verification</option><option>Pending</option><option>Verified</option><option>Rejected</option></Select>
+        <Select name="stage" defaultValue={f.stage} className="w-auto!"><option value="">All stages</option>{STAGES.map((s) => <option key={s} value={s}>{stageLabel(s)}</option>)}</Select>
+        <Select name="product" defaultValue={f.product} className="w-auto!"><option value="">All products</option>{PRODUCTS.map((p) => <option key={p}>{p}</option>)}</Select>
+        {u.role !== "sales" && <Select name="owner" defaultValue={f.ownerId} className="w-auto!"><option value="">All owners</option><option value="none">Unassigned</option>{owners.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select>}
+        <Select name="verification" defaultValue={f.verification} className="w-auto!"><option value="">Any verification</option><option>Pending</option><option>Verified</option><option>Rejected</option></Select>
         <Button>Filter</Button>
         {(f.q || f.stage || f.product || f.ownerId || f.verification) && <Link href="/crm/leads" className="text-sm underline">Clear</Link>}
       </form>
@@ -85,7 +85,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/crm/leads"
               <Field label="Product"><Select name="product" required>{PRODUCTS.map((p) => <option key={p} value={p}>{p === "SaaS" ? "Gym Accounting" : "Gym Partnership"}</option>)}</Select></Field>
               <Field label="Estimated value (₹)"><Input name="estValue" inputMode="numeric" /></Field>
               <Field label="Campaign"><Select name="campaignId"><option value="">None</option>{campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
-              <Field label="Source (if no campaign)"><Select name="source">{SOURCES.map((s) => <option key={s}>{s}</option>)}</Select></Field>
+              <Field label="Source (if no campaign)"><Select name="source" defaultValue="Other">{SOURCES.map((s) => <option key={s}>{s}</option>)}</Select></Field>
             </div>
           </CrmForm>
         </Dialog>

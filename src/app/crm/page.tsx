@@ -25,19 +25,19 @@ export default async function CrmDashboard({ searchParams }: PageProps<"/crm">) 
       <PageHeader kicker={`${CRM_ROLE_LABEL[u.role]}${u.role === "admin" ? " · all teams" : u.role === "manager" ? " · your team" : ""}`} title={title} />
       {u.role !== "sales" && (
         <form className="mb-5 flex flex-wrap items-center gap-2">
-          <Select name="range" defaultValue={f.range} className="w-auto">
+          <Select name="range" defaultValue={f.range} className="w-auto!">
             {RANGES.map(([v, l]) => <option key={v} value={v === "all" ? "" : v}>{l}</option>)}
           </Select>
-          <Select name="product" defaultValue={f.product} className="w-auto">
+          <Select name="product" defaultValue={f.product} className="w-auto!">
             <option value="">All products</option><option>SaaS</option><option>Partnership</option>
           </Select>
           {campaigns.length > 0 && (
-            <Select name="campaign" defaultValue={f.campaignId} className="w-auto">
+            <Select name="campaign" defaultValue={f.campaignId} className="w-auto!">
               <option value="">All campaigns</option>
               {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           )}
-          <Select name="owner" defaultValue={f.ownerId} className="w-auto">
+          <Select name="owner" defaultValue={f.ownerId} className="w-auto!">
             <option value="">All employees</option>
             {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </Select>

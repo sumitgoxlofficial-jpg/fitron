@@ -31,9 +31,9 @@ export default async function CampaignsPage() {
                 <td className={TD}>{c.name}</td><td className={TD}>{c.source}</td><td className={`${TD} text-right`}>{c.leads}</td>
                 <td className={TD}>
                   <CrmForm action={campaignAction.bind(null, c.id)} submit="Save" variant="default" className="flex flex-wrap items-center gap-2">
-                    <Input name="name" defaultValue={c.name} aria-label="Name" className="w-44" required />
-                    <Select name="source" defaultValue={c.source} aria-label="Source" className="w-auto">{SOURCES.map((s) => <option key={s}>{s}</option>)}</Select>
-                    <Input name="spend" defaultValue={c.spend == null ? "" : String(c.spend / 100)} aria-label="Spend in rupees" placeholder="Not recorded" inputMode="decimal" className="w-32" />
+                    <Input name="name" defaultValue={c.name} aria-label="Name" className="w-44!" required />
+                    <Select name="source" defaultValue={c.source} aria-label="Source" className="w-auto!">{SOURCES.map((s) => <option key={s}>{s}</option>)}</Select>
+                    <Input name="spend" defaultValue={c.spend == null ? "" : String(c.spend / 100)} aria-label="Spend in rupees" placeholder="Not recorded" inputMode="decimal" className="w-32!" />
                   </CrmForm>
                 </td>
               </tr>
