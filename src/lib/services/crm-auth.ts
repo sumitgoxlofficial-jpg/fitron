@@ -37,6 +37,11 @@ export async function employeeSignIn(identifier: string, password: string, ip: s
     return { ok: false, error: staff?.status === "Invited" ? "This account was invited but not set up yet. Use Create account with this email." : "Email / employee ID or password is incorrect." };
   }
   if (staff.status === "Invited") return { ok: false, error: "This account was invited but not set up yet. Use Create account with this email." };
+  // An address added to FITRON_ADMIN_EMAILS after it signed up is approved by the right password.
+  if (staff.status === "Pending" && isFitronAdmin(staff.user.email)) {
+    staff = await db.crmStaff.update({ where: { userId: staff.userId }, data: { status: "Active", role: "admin" }, include: { user: true } });
+    await crmAudit(db, { actorId: staff.userId, kind: "user", text: `${staff.user.name} approved as Super Admin (FITRON admin list)` });
+  }
   if (staff.status === "Pending") return { ok: false, error: "Your account is waiting for a Super Admin to approve it. You'll be able to sign in once they do." };
   if (staff.status === "Inactive") return { ok: false, error: "This account is deactivated. Contact your Super Admin." };
   if (!staff.user.emailVerifiedAt) return { ok: false, error: "Confirm your email first: open the link we sent you, or enter the code.", unverified: staff.user.email };
@@ -75,10 +80,11 @@ export async function employeeSignUp(d: SignUp, ip: string): Promise<{ email: st
       const empId = existing?.crmStaff?.empId ?? (await nextEmpId(tx));
       const profile = { fullName: name, phone };
       // @fitron.in addresses and invited people are trusted; anyone else waits for a Super Admin, because the CRM holds customers' phone numbers.
-      const status = existing?.crmStaff || isWorkEmail(email) ? "Active" : "Pending";
+      const owner = isFitronAdmin(email); // on FITRON_ADMIN_EMAILS: the first Super Admin
+      const status = existing?.crmStaff || isWorkEmail(email) || owner ? "Active" : "Pending";
       const staff = existing?.crmStaff
         ? await tx.crmStaff.update({ where: { userId: user.id }, data: { status, joinedAt: fromIso(today), profile: { ...((existing.crmStaff.profile as object | null) ?? {}), ...profile } } })
-        : await tx.crmStaff.create({ data: { userId: user.id, empId, role: "sales", status, joinedAt: fromIso(today), profile } });
+        : await tx.crmStaff.create({ data: { userId: user.id, empId, role: owner ? "admin" : "sales", status, joinedAt: fromIso(today), profile } });
       await crmAudit(tx, { actorId: user.id, kind: "user", text: `${name} created an account as Sales Employee${existing ? " (from invite)" : ""} · employee ID ${staff.empId}`, meta: { userId: user.id } });
       await notify(tx, await activeAdmins(tx), status === "Pending" ? `${name} signed up and needs your approval (Employees page)` : `New account: ${name} (${staff.role === "sales" ? "Sales Employee" : staff.role})`);
       return user;
