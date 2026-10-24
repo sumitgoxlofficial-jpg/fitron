@@ -38,7 +38,12 @@ export default async function CrmLayout({ children }: LayoutProps<"/crm">) {
         </Link>
         <CrmNav groups={groups} />
         <Link href="/crm/profile" className="mt-auto flex items-center gap-3 rounded-[14px] border border-[var(--line)] p-3 hover:border-[var(--accent)]">
-          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--surface-2)] font-[var(--font-head)] text-sm font-semibold text-[var(--accent-strong)]">{initials(u.name)}</span>
+          {u.photo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- a private photo streamed by our own route
+            <img src={u.photo} alt="" className="size-10 shrink-0 rounded-full border border-[var(--line-2)] object-cover" />
+          ) : (
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--surface-2)] font-[var(--font-head)] text-sm font-semibold text-[var(--accent-strong)]">{initials(u.name)}</span>
+          )}
           <span className="min-w-0 text-xs leading-tight"><b className="block truncate text-[13px]">{u.name}</b><span className="text-[var(--muted)]">{CRM_ROLE_LABEL[u.role]} · Edit profile</span></span>
         </Link>
       </aside>
@@ -53,7 +58,12 @@ export default async function CrmLayout({ children }: LayoutProps<"/crm">) {
             {!u.setupNeeded && <Palette />}
             <ThemeToggleRound />
             <Link href="/crm/profile" className="hidden min-h-11 items-center gap-2.5 rounded-full border border-[var(--line-2)] py-1 pr-4 pl-1 hover:border-[var(--accent)] sm:flex">
-              <span className="grid size-9 place-items-center rounded-full bg-gradient-to-b from-[#f3d88f] via-[#d9b45a] to-[#c49a3c] font-[var(--font-head)] text-xs font-semibold text-[#17140d]">{initials(u.name)}</span>
+              {u.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a private photo streamed by our own route
+                <img src={u.photo} alt="" className="size-9 rounded-full border border-[var(--line-2)] object-cover" />
+              ) : (
+                <span className="grid size-9 place-items-center rounded-full bg-gradient-to-b from-[#f3d88f] via-[#d9b45a] to-[#c49a3c] font-[var(--font-head)] text-xs font-semibold text-[#17140d]">{initials(u.name)}</span>
+              )}
               <span className="flex flex-col text-left text-xs leading-tight"><b className="text-[13px]">{u.name}</b><span className="text-[var(--muted)]">{CRM_ROLE_LABEL[u.role]}</span></span>
             </Link>
             <Link href="/crm/notifications" aria-label={`Alerts${unread ? `, ${unread} unread` : ""}`} className="relative grid size-11 shrink-0 place-items-center rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]">

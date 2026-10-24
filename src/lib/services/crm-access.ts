@@ -27,6 +27,8 @@ export type CrmUser = {
   salary: number | null;
   /** Until the profile, a payout account and the accepted terms are in, they can only open their profile. */
   setupNeeded: boolean;
+  /** The profile photo's address (changes when a new one is uploaded), or null. */
+  photo: string | null;
   can: (p: CrmPermission) => boolean;
 };
 
@@ -36,7 +38,7 @@ export class CrmDenied extends UserError {}
 export const TEAM_ORG_NAME = "FITRON Team";
 export const TEAM_ROLE_NAME = "CRM Staff";
 
-type StaffRow = { userId: string; empId: string; role: string; managerId: string | null; joinedAt: Date; incentive: number; salary: number | null; profile: unknown; payout: Uint8Array | null; termsVersion: string | null; termsAcceptedAt: Date | null; user: { name: string; email: string } };
+type StaffRow = { userId: string; empId: string; role: string; managerId: string | null; joinedAt: Date; incentive: number; salary: number | null; profile: unknown; payout: Uint8Array | null; termsVersion: string | null; termsAcceptedAt: Date | null; user: { name: string; email: string; photoKey?: string | null } };
 
 export const crmUserOf = (s: StaffRow, reports: string[]): CrmUser => {
   const role: CrmRole = isCrmRole(s.role) ? s.role : "sales";
@@ -51,6 +53,7 @@ export const crmUserOf = (s: StaffRow, reports: string[]): CrmUser => {
     joinedAt: s.joinedAt.toISOString().slice(0, 10),
     incentive: s.incentive,
     salary: s.salary,
+    photo: s.user.photoKey ? `/api/crm/photo/${s.userId}?v=${s.user.photoKey.split("/").pop()?.split(".")[0] ?? ""}` : null,
     setupNeeded: needsSetup(s, s.profile as Partial<Profile> | null, !!s.payout),
     can: (p) => crmCan(role, p),
   };
@@ -60,7 +63,7 @@ export const crmUserOf = (s: StaffRow, reports: string[]): CrmUser => {
 export async function loadCrmUser(userId: string): Promise<CrmUser | null> {
   const s = await db.crmStaff.findFirst({
     where: { userId, status: "Active", user: { active: true, deletedAt: null } },
-    include: { user: { select: { name: true, email: true } } },
+    include: { user: { select: { name: true, email: true, photoKey: true } } },
   });
   if (!s) return null;
   const reports = s.role === "manager" ? (await db.crmStaff.findMany({ where: { managerId: userId, status: "Active" }, select: { userId: true } })).map((r) => r.userId) : [];
