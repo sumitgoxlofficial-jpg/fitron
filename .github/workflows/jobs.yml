@@ -26,7 +26,7 @@ on:
       job:
         description: Which job to run now
         type: choice
-        options: [daily, dispatch, trainer, weekly, gym-intel]
+        options: [daily, dispatch, trainer, weekly, intel]
         default: dispatch
 
 permissions: {}
@@ -51,7 +51,7 @@ jobs:
             dispatch|"*/15 * * * *") job=dispatch ;;
             trainer|"0 * * * *") job=trainer ;;
             weekly|"0 21 * * 6") job=weekly ;;
-            gym-intel|"10,40 * * * *") job=gym-intel ;;
+            intel|"10,40 * * * *") job=intel ;;
             *) echo "::error::Unknown job or schedule: ${CHOSEN:-$SCHEDULE}"; exit 1 ;;
           esac
           if [ -z "$CRON_SECRET" ]; then

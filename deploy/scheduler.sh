@@ -3,6 +3,7 @@
 #   01:00 UTC = 06:30 India time: daily jobs (reminders, autopay, risk scores, device sync…)
 #   20:30 UTC = 02:00 India time: backup of the database and member files, keeping KEEP_DAYS days
 #   every 15 minutes: WhatsApp messages held by quiet hours or a rule's send time go out once their time has come
+#   every 30 minutes: Gym Intelligence collection jobs take their next step
 #   every hour: AI Trainer push reminders (each one goes once a day, in its own window)
 #   Saturday 21:00 UTC = Sunday 02:30 India time: restore test of every gym's latest backup (rolled back; holds the gym's rows briefly)
 set -u
@@ -59,6 +60,15 @@ while true; do
       mark trainer "$hour"
     else
       echo "$(date -u) trainer reminders failed; retrying in 5 minutes"
+    fi
+  fi
+  # Gym Intelligence collection jobs advance a step every half hour (it only does anything while a job is queued).
+  half=$(date -u +%F-%H)-$(( ${min:-0} / 30 ))
+  if [ "$(last intel)" != "$half" ]; then
+    if wget -q -O /dev/null --header "Authorization: Bearer $CRON_SECRET" http://app:3000/api/jobs/intel; then
+      mark intel "$half"
+    else
+      echo "$(date -u) gym intelligence worker failed; retrying in 5 minutes"
     fi
   fi
   # %u is the weekday, 1 = Monday: 6 is Saturday. At 21:00 UTC that is already Sunday morning in India, the quietest time.

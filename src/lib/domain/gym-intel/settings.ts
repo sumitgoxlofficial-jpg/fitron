@@ -1,3 +1,4 @@
+import "@/lib/zod-config";
 import { z } from "zod";
 import { GYM_CATEGORIES } from "./constants";
 import { DEFAULT_MATCH } from "./match";
