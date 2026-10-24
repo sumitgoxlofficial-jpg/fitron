@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
+import { hashPassword } from "@/lib/auth/password";
 import { hasDb } from "@/test/db";
 import { loadCrmUser, nextEmpId, teamOrg, teamRoleId, type CrmUser } from "./crm-access";
 import { confirmEmployeeEmail, employeeSignIn, employeeSignUp, requestEmployeeReset, resetEmployeePassword } from "./crm-auth";
@@ -42,6 +43,24 @@ describe.skipIf(!hasDb)("employee accounts (database)", () => {
     expect(await loadCrmUser(staff.userId)).toBeNull();
     await db.crmStaff.update({ where: { userId: staff.userId }, data: { status: "Active" } });
     expect((await employeeSignIn(email, PW, ip())).ok).toBe(true);
+  });
+
+  it("makes a FITRON-team person with an existing FITRON account the Super Admin on first sign-in", async () => {
+    const email = `${randomUUID().slice(0, 8)}@gmail.com`;
+    const orgId = await teamOrg();
+    const roleId = await teamRoleId();
+    await db.user.create({ data: { orgId, roleId, name: "Owner", email, phone: "", passwordHash: await hashPassword(PW), emailVerifiedAt: new Date() } });
+    expect((await employeeSignIn(email, PW, ip())).ok).toBe(false); // not on the list yet
+    const prev = process.env.FITRON_ADMIN_EMAILS;
+    process.env.FITRON_ADMIN_EMAILS = email;
+    try {
+      expect((await employeeSignIn(email, "Wrong-Pass-9", ip())).ok).toBe(false);
+      const r = await employeeSignIn(email, PW, ip());
+      expect(r.ok).toBe(true);
+      expect(await db.crmStaff.findFirstOrThrow({ where: { user: { email } } })).toMatchObject({ role: "admin", status: "Active" });
+    } finally {
+      process.env.FITRON_ADMIN_EMAILS = prev;
+    }
   });
 
   it("makes a Sales Employee with an employee ID, tells the Super Admins, and signs in by email or by ID", async () => {
