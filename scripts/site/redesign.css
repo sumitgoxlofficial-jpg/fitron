@@ -47,6 +47,8 @@ body .hero-visual.duo{order:0;position:relative;display:block;aspect-ratio:auto;
 .nav-right{display:flex;align-items:center;gap:12px;flex:none}
 .nav-signin{display:inline-flex;align-items:center;min-height:44px;padding:0 6px;font-size:.8rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;color:var(--text)}
 .nav-signin:hover{color:var(--gold-2)}
+/* "Employee Login" is in the phone menu and the footer; it joins the header only when there is room, so the menu button never leaves the screen. */
+.nav-employee{display:none}@media (min-width:1280px){.nav-employee{display:inline-flex}}
 @media (max-width:1120px){body .nav .nav-cta{display:inline-flex}}
 @media (max-width:440px){body .nav{gap:8px}body .nav .brand{font-size:1.05rem;gap:8px}body .nav .brand img{width:30px!important;height:30px!important}.nav-right{gap:6px}.nav-signin{font-size:.72rem;padding:0 4px}body .nav .nav-cta{padding:0 13px;font-size:.76rem}.menu-btn{width:42px;height:42px}}
 @media (max-width:359px){.nav-signin{display:none}}
