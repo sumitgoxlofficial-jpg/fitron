@@ -30,6 +30,7 @@ export async function employeeSignIn(identifier: string, password: string, ip: s
     return { ok: false, error: staff?.status === "Invited" ? "This account was invited but not set up yet. Use Create account with this email." : "Email / employee ID or password is incorrect." };
   }
   if (staff.status === "Invited") return { ok: false, error: "This account was invited but not set up yet. Use Create account with this email." };
+  if (staff.status === "Pending") return { ok: false, error: "Your account is waiting for a Super Admin to approve it. You'll be able to sign in once they do." };
   if (staff.status === "Inactive") return { ok: false, error: "This account is deactivated. Contact your Super Admin." };
   if (!staff.user.emailVerifiedAt) return { ok: false, error: "Confirm your email first: open the link we sent you, or enter the code.", unverified: staff.user.email };
   await crmAudit(db, { actorId: staff.userId, kind: "user", text: `${staff.user.name} signed in` });
@@ -48,7 +49,7 @@ export async function employeeSignUp(d: SignUp, ip: string): Promise<{ email: st
   const email = d.email.trim().toLowerCase();
   const name = d.name.trim();
   if (name.length < 3) throw new UserError("Enter your full name.", "name");
-  if (!isWorkEmail(email)) throw new UserError("Use your @fitron.in work email.", "email");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new UserError("Enter a valid email address.", "email");
   const phone = normalizePhone(d.phone);
   if (!phone) throw new UserError("Enter a valid 10-digit mobile number.", "phone");
   const pe = passwordError(d.password, email);
@@ -66,11 +67,13 @@ export async function employeeSignUp(d: SignUp, ip: string): Promise<{ email: st
         : await tx.user.create({ data: { orgId, roleId, name, email, phone, passwordHash, emailVerifiedAt: verifyNow ? new Date() : null } });
       const empId = existing?.crmStaff?.empId ?? (await nextEmpId(tx));
       const profile = { fullName: name, phone };
+      // @fitron.in addresses and invited people are trusted; anyone else waits for a Super Admin, because the CRM holds customers' phone numbers.
+      const status = existing?.crmStaff || isWorkEmail(email) ? "Active" : "Pending";
       const staff = existing?.crmStaff
-        ? await tx.crmStaff.update({ where: { userId: user.id }, data: { status: "Active", joinedAt: fromIso(today), profile: { ...((existing.crmStaff.profile as object | null) ?? {}), ...profile } } })
-        : await tx.crmStaff.create({ data: { userId: user.id, empId, role: "sales", status: "Active", joinedAt: fromIso(today), profile } });
+        ? await tx.crmStaff.update({ where: { userId: user.id }, data: { status, joinedAt: fromIso(today), profile: { ...((existing.crmStaff.profile as object | null) ?? {}), ...profile } } })
+        : await tx.crmStaff.create({ data: { userId: user.id, empId, role: "sales", status, joinedAt: fromIso(today), profile } });
       await crmAudit(tx, { actorId: user.id, kind: "user", text: `${name} created an account as Sales Employee${existing ? " (from invite)" : ""} · employee ID ${staff.empId}`, meta: { userId: user.id } });
-      await notify(tx, await activeAdmins(tx), `New account: ${name} (${staff.role === "sales" ? "Sales Employee" : staff.role})`);
+      await notify(tx, await activeAdmins(tx), status === "Pending" ? `${name} signed up and needs your approval (Employees page)` : `New account: ${name} (${staff.role === "sales" ? "Sales Employee" : staff.role})`);
       return user;
     });
     if (!verifyNow) await sendEmployeeVerification(out.id);

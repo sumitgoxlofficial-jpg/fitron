@@ -7,7 +7,7 @@ import { INCENTIVE_MAX } from "@/lib/domain/crm-pay";
 import { employeeAction } from "../actions";
 
 /** Role, manager, target, salary, incentive and activation for one employee. The server refuses what isn't allowed (yourself, the last Super Admin). */
-export function EmployeeControls({ userId, self, active, role, managerId, target, salary, incentive, managers }: { userId: string; self: boolean; active: boolean; role: string; managerId: string | null; target: number; salary: number | null; incentive: number; managers: { id: string; name: string }[] }) {
+export function EmployeeControls({ userId, self, active, status, role, managerId, target, salary, incentive, managers }: { userId: string; self: boolean; active: boolean; status: string; role: string; managerId: string | null; target: number; salary: number | null; incentive: number; managers: { id: string; name: string }[] }) {
   const [r, setR] = useState(role);
   const [m, setM] = useState(managerId ?? "");
   const [t, setT] = useState(String(target || ""));
@@ -24,7 +24,7 @@ export function EmployeeControls({ userId, self, active, role, managerId, target
       <Input aria-label="Monthly salary in rupees, from day 31" value={sal} onChange={(e) => setSal(e.target.value)} inputMode="numeric" placeholder="Salary ₹/mo" className="w-28!" />
       <Input aria-label={`Incentive percent, 0 to ${INCENTIVE_MAX}`} value={inc} onChange={(e) => setInc(e.target.value)} inputMode="numeric" placeholder="Incentive %" className="w-24!" />
       <Button disabled={pending} onClick={() => save({ role: r, managerId: r === "sales" ? m || null : null, target: Number(t) || 0, salary: sal.trim() === "" ? null : Number(sal), incentive: Number(inc) })}>Save</Button>
-      {!self && <Button variant={active ? "danger" : "default"} disabled={pending} onClick={() => save({ active: !active })}>{active ? "Deactivate" : "Reactivate"}</Button>}
+      {!self && <Button variant={active ? "danger" : "default"} disabled={pending} onClick={() => save({ active: !active })}>{active ? "Deactivate" : status === "Pending" ? "Approve" : "Reactivate"}</Button>}
       {msg && <span role="status" className="text-xs text-[var(--muted)]">{msg}</span>}
     </div>
   );

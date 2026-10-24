@@ -15,7 +15,7 @@ function Input(p: ComponentProps<"input">) {
 
 const TITLES: Record<Mode, [string, string]> = {
   login: ["Welcome back", "Sign in with your work email or employee ID and the password you set."],
-  signup: ["Create your account", "Use your @fitron.in work email. You'll get an employee ID right away."],
+  signup: ["Create your account", "Use your email. @fitron.in addresses get in right away; any other address waits for a Super Admin to approve it."],
   verify: ["Confirm your email", "Enter the six-digit code we sent you."],
   forgot: ["Forgot password", "We'll email you a code and a link to choose a new one."],
   reset: ["Choose a new password", "Enter the code from the email and your new password."],
@@ -104,7 +104,7 @@ export function AuthCard({ initial, notice, resetToken, email: initialEmail }: {
             <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[11px]">{rules.map((r) => <span key={r.key} className={r.ok ? "text-[var(--ok)]" : "text-[var(--faint)]"}>{r.ok ? "✓" : "○"} {r.text}</span>)}</div>
           </div>
           <label className={label}>Confirm password<Input name="confirm" type={show ? "text" : "password"} autoComplete="new-password" required {...bind("confirm")} /></label>
-          <span className="text-xs text-[var(--faint)]">You&apos;ll use this email and password to sign in. Only @fitron.in addresses can register. Invited employees: use the email your admin invited.</span>
+          <span className="text-xs text-[var(--faint)]">You&apos;ll use this email and password to sign in. Other than @fitron.in, a Super Admin approves new accounts. Invited employees: use the email your admin invited.</span>
           {sUp?.error && <span role="alert" className="text-[13px] text-[var(--alert-strong)]">{sUp.error}</span>}
           <button className={cta} disabled={upPending}>{upPending ? "Creating…" : "Create account"}</button>
           <span className="text-center text-xs text-[var(--muted)]">Already have an account? <button type="button" onClick={() => go("login")} className={linkBtn}>Sign in</button></span>

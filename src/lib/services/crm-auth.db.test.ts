@@ -23,12 +23,25 @@ describe.skipIf(!hasDb)("employee accounts (database)", () => {
     admin = (await loadCrmUser(u.id))!;
   });
 
-  it("creates an account for a work email only, and refuses weak passwords and a mismatch", async () => {
-    await expect(employeeSignUp(base("someone@gmail.com"), ip())).rejects.toThrow(/@fitron\.in/);
+  it("refuses weak passwords and a mismatch", async () => {
+    await expect(employeeSignUp(base("not-an-email"), ip())).rejects.toThrow(/valid email/);
     await expect(employeeSignUp({ ...base(mail()), password: "weak", confirm: "weak" }, ip())).rejects.toThrow(/at least 8/);
     await expect(employeeSignUp({ ...base(mail()), confirm: "Different-Pass1" }, ip())).rejects.toThrow(/do not match/);
     await expect(employeeSignUp({ ...base(mail()), phone: "123" }, ip())).rejects.toThrow(/10-digit/);
     await expect(employeeSignUp({ ...base(mail()), name: "Al" }, ip())).rejects.toThrow(/full name/);
+  });
+
+  it("lets any email register, but keeps a non-work address out of the CRM until a Super Admin approves it", async () => {
+    const email = `${randomUUID().slice(0, 8)}@gmail.com`;
+    await employeeSignUp(base(email), ip());
+    const staff = await db.crmStaff.findFirstOrThrow({ where: { user: { email } } });
+    expect(staff.status).toBe("Pending");
+    const r = await employeeSignIn(email, PW, ip());
+    expect(r.ok).toBe(false);
+    expect(r.ok === false && r.error).toMatch(/approve/);
+    expect(await loadCrmUser(staff.userId)).toBeNull();
+    await db.crmStaff.update({ where: { userId: staff.userId }, data: { status: "Active" } });
+    expect((await employeeSignIn(email, PW, ip())).ok).toBe(true);
   });
 
   it("makes a Sales Employee with an employee ID, tells the Super Admins, and signs in by email or by ID", async () => {
