@@ -1884,6 +1884,7 @@ model CrmLead {
   activities    CrmActivity[]
   tasks         CrmTask[]
   contacts      CrmContact[]
+  gym           GiGym?
 
   @@index([ownerId, stage])
   @@index([campaignId])
@@ -1988,4 +1989,192 @@ model CrmSavedView {
   createdAt DateTime @default(now()) @db.Timestamptz
 
   @@index([ownerId])
+}
+
+// ── Gym Intelligence: publicly listed gym business phone numbers, with the evidence for each ──────────────────────────
+
+/// A gym business found in a permitted source. Discovery status lives here; the sales pipeline stays on CrmLead.
+model GiGym {
+  /// GG-0000001, from the "GiGymSeq" sequence
+  id           String        @id
+  name         String
+  nameNorm     String
+  /// The primary published business number, as the source printed it, and in E.164
+  phone        String?
+  phoneNorm    String?
+  /// MOBILE | LANDLINE | TOLL_FREE | OTHER
+  phoneKind    String?
+  /// UNTESTED | FORMAT_VALID | SOURCE_CONFIRMED | REACHABILITY_CONFIRMED | INVALID_FORMAT | CONFLICTING_SOURCES | STALE | UNAVAILABLE
+  phoneStatus  String        @default("UNTESTED")
+  /// GENERAL_BUSINESS | OWNER_DIRECT (only with explicit public evidence) | UNKNOWN
+  association  String        @default("GENERAL_BUSINESS")
+  /// NOT_TESTED | CONFIRMED | UNREACHABLE: set only by lawful, recorded verification
+  reachability String        @default("NOT_TESTED")
+  website      String?
+  domain       String?
+  address      String?
+  state        String?
+  district     String?
+  city         String?
+  locality     String?
+  pin          String?
+  lat          Float?
+  lon          Float?
+  category     String        @default("gym")
+  dupGroup     String?
+  /// NEW | REVIEWED | REJECTED
+  reviewStatus String        @default("NEW")
+  /// NOT_PROMOTED | PROMOTED | SKIPPED | DUPLICATE_FLAGGED | DO_NOT_CONTACT
+  promotion    String        @default("NOT_PROMOTED")
+  leadId       String?       @unique
+  lead         CrmLead?      @relation(fields: [leadId], references: [id])
+  firstSeen    DateTime      @default(now()) @db.Timestamptz
+  lastSeen     DateTime      @default(now()) @db.Timestamptz
+  lastChecked  DateTime      @default(now()) @db.Timestamptz
+  createdAt    DateTime      @default(now()) @db.Timestamptz
+  updatedAt    DateTime      @updatedAt @db.Timestamptz
+  sources      GiGymSource[]
+  dupA         GiDup[]       @relation("DupA")
+  dupB         GiDup[]       @relation("DupB")
+
+  @@index([state, district, city])
+  @@index([pin])
+  @@index([phoneNorm])
+  @@index([nameNorm])
+  @@index([phoneStatus])
+  @@index([promotion])
+  @@index([domain])
+}
+
+/// One observation of a gym in one source: what the source said, where, and when. Never edited, only added to or re-checked.
+model GiGymSource {
+  id              String   @id @default(cuid())
+  gymId           String
+  gym             GiGym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  /// A key from the source registry (src/lib/domain/gym-intel/sources.ts)
+  source          String
+  sourceUrl       String
+  /// e.g. node/12345 in OpenStreetMap
+  sourceRecordId  String
+  originalName    String
+  /// Exactly as published
+  originalPhones  String[] @default([])
+  phonesNorm      String[] @default([])
+  originalAddress String?
+  /// The few source fields kept as evidence (OpenStreetMap tags, the page's contact snippet)
+  evidence        Json?
+  licenseRef      String
+  jobId           String?
+  collectedAt     DateTime @default(now()) @db.Timestamptz
+  lastCheckedAt   DateTime @default(now()) @db.Timestamptz
+
+  @@unique([source, sourceRecordId])
+  @@index([gymId])
+  @@index([jobId])
+}
+
+/// A collection job: where to look, in which source, how far it got.
+model GiJob {
+  id           String    @id @default(cuid())
+  /// A source key, or "all"
+  source       String
+  /// DISCOVERY | ENRICHMENT | REFRESH | IMPORT
+  kind         String
+  scope        Json
+  /// DRAFT | QUEUED | RUNNING | PAUSED | COMPLETED | FAILED | CANCELLED
+  status       String    @default("QUEUED")
+  attempts     Int       @default(0)
+  /// Where to resume: the areas done and the next one
+  checkpoint   Json?
+  /// A worker holds the job until this time; another can take it after
+  leaseUntil   DateTime? @db.Timestamptz
+  recordsFound Int       @default(0)
+  phonesFound  Int       @default(0)
+  duplicates   Int       @default(0)
+  errorSummary String?
+  /// The most recent errors, capped
+  errors       Json?
+  createdById  String
+  startedAt    DateTime? @db.Timestamptz
+  completedAt  DateTime? @db.Timestamptz
+  createdAt    DateTime  @default(now()) @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @db.Timestamptz
+
+  @@index([status])
+}
+
+/// Reference geography (states and union territories, then PIN codes from the official directory) with how far the search has got.
+model GiGeo {
+  id         String    @id @default(cuid())
+  /// STATE | PIN
+  level      String
+  /// ISO 3166-2 code for a state (IN-JH); the PIN for a PIN row
+  code       String    @unique
+  name       String
+  state      String
+  district   String?
+  /// The post office for a PIN row
+  locality   String?
+  /// NOT_STARTED | QUEUED | IN_PROGRESS | COMPLETED_WITH_RESULTS | COMPLETED_NO_RESULTS | PARTIALLY_COMPLETED | FAILED | REQUIRES_REVIEW
+  status     String    @default("NOT_STARTED")
+  lastJobId  String?
+  gymsFound  Int       @default(0)
+  refSource  String
+  refUpdated DateTime  @default(now()) @db.Timestamptz
+  checkedAt  DateTime? @db.Timestamptz
+
+  @@index([level, state])
+  @@index([state, district])
+}
+
+/// The source registry's saved state: whether a source is on, and how it has been doing.
+model GiSource {
+  key           String    @id
+  enabled       Boolean   @default(false)
+  /// Limits the Super Admin may change: requests per minute, endpoint
+  config        Json?
+  lastSuccessAt DateTime? @db.Timestamptz
+  lastError     String?
+  lastErrorAt   DateTime? @db.Timestamptz
+  errorCount    Int       @default(0)
+  recordsFound  Int       @default(0)
+  phonesFound   Int       @default(0)
+  /// Who reviewed the source's terms, and when, before it was turned on
+  reviewedById  String?
+  reviewedAt    DateTime? @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @db.Timestamptz
+}
+
+/// Collection settings: one row, validated on the way in.
+model GiSetting {
+  id        String   @id
+  data      Json
+  updatedAt DateTime @updatedAt @db.Timestamptz
+}
+
+/// Two gym records that might be the same business, waiting for a person's decision.
+model GiDup {
+  id          String    @id @default(cuid())
+  aId         String
+  a           GiGym     @relation("DupA", fields: [aId], references: [id], onDelete: Cascade)
+  bId         String
+  b           GiGym     @relation("DupB", fields: [bId], references: [id], onDelete: Cascade)
+  score       Float
+  reasons     String[]  @default([])
+  /// OPEN | MERGED | KEPT_SEPARATE | DISMISSED
+  status      String    @default("OPEN")
+  decidedById String?
+  decidedAt   DateTime? @db.Timestamptz
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+
+  @@unique([aId, bId])
+  @@index([status])
+}
+
+/// A number that must never be promoted to a lead or exported for outreach.
+model GiSuppression {
+  phoneNorm String   @id
+  reason    String
+  addedById String
+  createdAt DateTime @default(now()) @db.Timestamptz
 }
