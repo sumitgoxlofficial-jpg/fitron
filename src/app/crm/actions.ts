@@ -9,7 +9,7 @@ import { isStage, type ImportField, type StageChange } from "@/lib/domain/crm";
 import type { FormState } from "@/lib/validation/common";
 import { addNote, addTask, approveDeal, assignLead, changeStage, completeTask, createLead, logCall, rejectDeal, updateLead } from "@/lib/services/crm-leads";
 import { commitImport, previewImport } from "@/lib/services/crm-io";
-import { saveProfile } from "@/lib/services/crm-profile";
+import { removeCrmPhoto, saveProfile, setCrmPhoto } from "@/lib/services/crm-profile";
 import { inviteEmployee, markAllRead, saveCampaign, updateEmployee } from "@/lib/services/crm-people";
 import { istInstant } from "@/lib/services/time";
 
@@ -36,7 +36,7 @@ export async function saveNewLead(_: FormState, fd: FormData): Promise<FormState
   const u = await requireCrm();
   let id = "";
   const r = await simpleAction(async () => {
-    id = (await createLead(u, { contactName: s(fd, "contactName"), gymName: s(fd, "gymName"), phone: s(fd, "phone"), altPhone: s(fd, "altPhone"), email: s(fd, "email"), city: s(fd, "city"), state: s(fd, "state"), pin: s(fd, "pin"), product: s(fd, "product"), campaignId: s(fd, "campaignId") || undefined, source: s(fd, "source"), estValue: (num(fd, "estValue") ?? 0) * 100 })).id;
+    id = (await createLead(u, { contactName: s(fd, "contactName"), gymName: s(fd, "gymName"), phone: s(fd, "phone"), altPhone: s(fd, "altPhone"), email: s(fd, "email"), city: s(fd, "city"), state: s(fd, "state"), pin: s(fd, "pin"), plan: s(fd, "plan"), billing: s(fd, "billing"), campaignId: s(fd, "campaignId") || undefined, source: s(fd, "source") })).id;
   }, "Lead added.");
   if (!r?.ok) return { ...r, values: Object.fromEntries([...fd].filter(([, v]) => typeof v === "string")) as Record<string, string>, nonce: r?.nonce };
   revalidatePath("/crm/leads");
@@ -44,7 +44,7 @@ export async function saveNewLead(_: FormState, fd: FormData): Promise<FormState
 }
 
 export async function saveLeadDetails(id: string, _: FormState, fd: FormData): Promise<FormState> {
-  return run((u) => updateLead(u, id, { priority: s(fd, "priority") || undefined, product: s(fd, "product") || undefined, contactName: s(fd, "contactName"), gymName: s(fd, "gymName"), city: s(fd, "city"), district: s(fd, "district"), state: s(fd, "state"), pin: s(fd, "pin"), address: s(fd, "address"), ...(fd.has("phone") ? { phone: s(fd, "phone"), altPhone: s(fd, "altPhone"), email: s(fd, "email") } : {}), campaignId: fd.has("campaignId") ? s(fd, "campaignId") : undefined }, version(fd)), "Saved.", lead(id));
+  return run((u) => updateLead(u, id, { priority: s(fd, "priority") || undefined, plan: s(fd, "plan") || undefined, billing: s(fd, "billing") || undefined, contactName: s(fd, "contactName"), gymName: s(fd, "gymName"), city: s(fd, "city"), district: s(fd, "district"), state: s(fd, "state"), pin: s(fd, "pin"), address: s(fd, "address"), ...(fd.has("phone") ? { phone: s(fd, "phone"), altPhone: s(fd, "altPhone"), email: s(fd, "email") } : {}), campaignId: fd.has("campaignId") ? s(fd, "campaignId") : undefined }, version(fd)), "Saved.", lead(id));
 }
 
 export async function assignAction(id: string, _: FormState, fd: FormData): Promise<FormState> {
@@ -54,7 +54,8 @@ export async function assignAction(id: string, _: FormState, fd: FormData): Prom
 export async function stageAction(id: string, _: FormState, fd: FormData): Promise<FormState> {
   const to = s(fd, "to");
   if (!isStage(to)) return { message: "Choose a stage." };
-  const c: StageChange = { to, lossReason: s(fd, "lossReason") || undefined, proofType: s(fd, "proofType") || undefined, proofRef: s(fd, "proofRef") || undefined, value: num(fd, "value") === undefined ? undefined : Math.round(num(fd, "value")! * 100), closedDate: s(fd, "closedDate") || undefined };
+  // The deal's value is not read from the form: the service works it out from the plan and add-ons.
+  const c: StageChange = { to, lossReason: s(fd, "lossReason") || undefined, proofType: s(fd, "proofType") || undefined, proofRef: s(fd, "proofRef") || undefined, closedDate: s(fd, "closedDate") || undefined, plan: s(fd, "plan") || undefined, billing: s(fd, "billing") || undefined, addons: fd.getAll("addons").map(String) };
   return run((u) => changeStage(u, id, c, version(fd)), "Stage updated.", lead(id));
 }
 
@@ -95,7 +96,7 @@ export async function inviteAction(_: FormState, fd: FormData): Promise<FormStat
   return run((u) => inviteEmployee(u, { name: s(fd, "name"), email: s(fd, "email"), role: s(fd, "role"), managerId: s(fd, "managerId") || undefined, target: num(fd, "target") }), "Invited. They get an email to create their account.", ["/crm/employees"]);
 }
 
-export async function employeeAction(userId: string, patch: { active?: boolean; role?: string; managerId?: string | null; target?: number }): Promise<FormState> {
+export async function employeeAction(userId: string, patch: { active?: boolean; role?: string; managerId?: string | null; target?: number; salary?: number | null; incentive?: number }): Promise<FormState> {
   return run((u) => updateEmployee(u, userId, patch), "Saved.", ["/crm/employees"]);
 }
 
@@ -147,5 +148,20 @@ export async function saveProfileAction(_: FormState, fd: FormData): Promise<For
   if (!r?.ok) return { ...r, values: Object.fromEntries([...fd].filter(([k, v]) => typeof v === "string" && !/accNo|password/i.test(k))) as Record<string, string> };
   revalidatePath("/crm", "layout");
   if (first) redirect("/crm");
+  return r;
+}
+
+export async function savePhotoAction(fd: FormData): Promise<FormState> {
+  const u = await requireCrm(undefined, { setup: true });
+  const file = fd.get("photo");
+  const r = await simpleAction(() => setCrmPhoto(u, file as File), "Profile photo updated.");
+  revalidatePath("/crm", "layout");
+  return r;
+}
+
+export async function removePhotoAction(): Promise<FormState> {
+  const u = await requireCrm(undefined, { setup: true });
+  const r = await simpleAction(() => removeCrmPhoto(u), "Photo removed.");
+  revalidatePath("/crm", "layout");
   return r;
 }

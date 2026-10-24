@@ -5,6 +5,8 @@ import {
   CALL_OUTCOMES, MIN_REJECT_REASON, PRIORITIES, PRODUCTS, TASK_TYPES, checkStageChange, isLocked, isOverdue, maskEmail, normalizePhone, showPhone,
   type StageChange,
 } from "@/lib/domain/crm";
+import { ADD_ON_LABEL, cleanAddons, dealValue, isBilling, isPlanKey, planOf, planText } from "@/lib/domain/crm-plans";
+import { formatRupees } from "@/lib/format";
 import { activeAdmins, CrmDenied, crmAudit, inScope, leadScope, mayVerify, need, noteDenied, notify, type CrmUser } from "./crm-access";
 import { isUniqueViolation, UserError } from "./errors";
 import { fromIso, todayIso } from "./time";
@@ -126,7 +128,7 @@ async function change(tx: Tx, l: CrmLead, expected: number | undefined, data: Pr
 
 const clean = (v: string | null | undefined, max: number) => (v ?? "").trim().slice(0, max);
 
-export type NewLead = { contactName: string; gymName: string; phone: string; altPhone?: string; email?: string; city?: string; district?: string; state?: string; pin?: string; address?: string; product: string; campaignId?: string; source?: string; estValue?: number; priority?: string };
+export type NewLead = { contactName: string; gymName: string; phone: string; altPhone?: string; email?: string; city?: string; district?: string; state?: string; pin?: string; address?: string; product?: string; plan?: string; billing?: string; campaignId?: string; source?: string; estValue?: number; priority?: string };
 
 /** Anyone in the CRM can add a lead. A salesperson's or manager's own lead is theirs to work; one from marketing or the Super Admin starts unassigned. */
 export async function createLead(u: CrmUser, i: NewLead) {
@@ -136,7 +138,11 @@ export async function createLead(u: CrmUser, i: NewLead) {
   if (!phone) throw new UserError("Enter a valid 10-digit mobile number.", "phone");
   const alt = i.altPhone?.trim() ? normalizePhone(i.altPhone) : null;
   if (i.altPhone?.trim() && !alt) throw new UserError("The alternate number isn't a valid mobile number.", "altPhone");
-  if (!(PRODUCTS as readonly string[]).includes(i.product)) throw new UserError("Choose a product.", "product");
+  // The plan being pitched decides the product and the estimated value; without one, the product is chosen directly.
+  const plan = i.plan && isPlanKey(i.plan) ? i.plan : null;
+  const billing = isBilling(i.billing) ? i.billing : "MONTHLY";
+  const product = plan ? planOf(plan).product : i.product;
+  if (!product || !(PRODUCTS as readonly string[]).includes(product)) throw new UserError("Choose a plan or a product.", "plan");
   if (i.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(i.email.trim())) throw new UserError("That email address isn't valid.", "email");
   const priority = (PRIORITIES as readonly string[]).includes(i.priority ?? "") ? i.priority! : "Medium";
   const campaign = i.campaignId ? await db.crmCampaign.findUnique({ where: { id: i.campaignId } }) : null;
@@ -149,7 +155,7 @@ export async function createLead(u: CrmUser, i: NewLead) {
         data: {
           id: `FL-${n}`, contactName: clean(i.contactName, 120), gymName: clean(i.gymName, 160), phone, altPhone: alt, email: clean(i.email, 160) || null,
           city: clean(i.city, 80) || null, district: clean(i.district, 80) || null, state: clean(i.state, 80) || null, pin: clean(i.pin, 6).replace(/\D/g, "") || null, address: clean(i.address, 300) || null,
-          campaignId: campaign?.id ?? null, source: campaign?.source ?? ((i.source ?? "").trim() || "Other"), product: i.product, priority, estValue: Math.max(0, Math.round(i.estValue ?? 0)),
+          campaignId: campaign?.id ?? null, source: campaign?.source ?? ((i.source ?? "").trim() || "Other"), product, priority, plan: plan ?? "starter", billing, estValue: plan ? dealValue({ plan, billing }) : Math.max(0, Math.round(i.estValue ?? 0)),
           ownerId: owner, assignedAt: owner ? new Date() : null, createdById: u.id,
         },
       });
@@ -166,7 +172,7 @@ export async function createLead(u: CrmUser, i: NewLead) {
   }
 }
 
-export type LeadEdit = { priority?: string; product?: string; contactName?: string; gymName?: string; city?: string; district?: string; state?: string; pin?: string; address?: string; phone?: string; altPhone?: string; email?: string; estValue?: number; campaignId?: string };
+export type LeadEdit = { plan?: string; billing?: string; priority?: string; product?: string; contactName?: string; gymName?: string; city?: string; district?: string; state?: string; pin?: string; address?: string; phone?: string; altPhone?: string; email?: string; estValue?: number; campaignId?: string };
 
 /** Edits the lead's details. The source, the creator and (for anyone but the Super Admin, once verified) the deal are never changed here. Contact numbers can only be changed by a role that sees them in full. */
 export async function updateLead(u: CrmUser, id: string, e: LeadEdit, expectedVersion?: number) {
@@ -196,7 +202,20 @@ export async function updateLead(u: CrmUser, id: string, e: LeadEdit, expectedVe
       }
     }
     if (e.pin !== undefined) data.pin = clean(e.pin, 6).replace(/\D/g, "") || null;
-    if (e.estValue !== undefined && Math.round(e.estValue) !== l.estValue) {
+    if ((e.plan !== undefined && e.plan !== l.plan) || (e.billing !== undefined && e.billing !== l.billing)) {
+      const plan = e.plan ?? l.plan;
+      const billing = e.billing ?? l.billing;
+      if (!isPlanKey(plan)) throw new UserError("Choose a plan.", "plan");
+      if (!isBilling(billing)) throw new UserError("Choose monthly or yearly billing.", "billing");
+      if (l.verification === "Pending") throw new UserError("The plan is fixed while the deal waits for approval.");
+      const value = dealValue({ plan, billing, addons: l.addons });
+      data.plan = plan;
+      data.billing = billing;
+      data.product = planOf(plan).product;
+      data.estValue = value;
+      notes.push(`Plan: ${planText(l.plan, l.billing)} → ${planText(plan, billing)} (${formatRupees(value)})`);
+    }
+    if (e.estValue !== undefined && e.plan === undefined && Math.round(e.estValue) !== l.estValue) {
       if (l.verification === "Pending") throw new UserError("The deal value is fixed while it waits for approval.");
       data.estValue = Math.max(0, Math.round(e.estValue));
       notes.push("Estimated value updated");
@@ -279,20 +298,30 @@ export async function assignLead(u: CrmUser, id: string, toOwner: string | null,
 
 // ── Stage changes, deals and verification ─────────────────────────────────
 
-export async function changeStage(u: CrmUser, id: string, c: StageChange, expectedVersion?: number) {
+export async function changeStage(u: CrmUser, id: string, change0: StageChange, expectedVersion?: number) {
+  let c = change0;
   need(u, "activity.log");
   if (c.to === "Closed Won") need(u, "deal.submit");
   await db.$transaction(async (tx) => {
     const l = await mine(u, tx, id);
+    // What a Closed Won deal is worth comes from the plan and add-ons chosen, worked out here.
+    let sold: { plan: string; billing: string; addons: string[]; value: number } | null = null;
+    if (c.to === "Closed Won") {
+      if (!isPlanKey(c.plan)) throw new UserError("Choose the plan that was sold.", "plan");
+      if (!isBilling(c.billing)) throw new UserError("Choose monthly or yearly billing.", "billing");
+      const addons = cleanAddons(c.addons);
+      sold = { plan: c.plan, billing: c.billing, addons, value: dealValue({ plan: c.plan, billing: c.billing, addons }) };
+      c = { ...c, value: sold.value };
+    }
     const chk = checkStageChange(l, c, u.role, todayIso());
     if (!chk.ok) throw new UserError(chk.error, chk.field);
     const data: Prisma.CrmLeadUncheckedUpdateManyInput = { stage: c.to };
     const wasVerified = l.verification === "Verified";
-    if (c.to === "Closed Won") {
-      Object.assign(data, { verification: "Pending", proofType: c.proofType, proofRef: c.proofRef!.trim(), estValue: c.value, closedDate: fromIso(c.closedDate!), closedById: u.id, lossReason: null, rejectReason: null, verifiedById: null });
+    if (c.to === "Closed Won" && sold) {
+      Object.assign(data, { verification: "Pending", proofType: c.proofType, proofRef: c.proofRef!.trim(), estValue: sold.value, plan: sold.plan, billing: sold.billing, addons: sold.addons, product: planOf(sold.plan).product, closedDate: fromIso(c.closedDate!), closedById: u.id, lossReason: null, rejectReason: null, verifiedById: null, verifiedAt: null });
     } else {
       // Leaving Closed Won takes the submission back (or, for a Super Admin, corrects an approved deal).
-      if (l.stage === "Closed Won") Object.assign(data, { verification: null, proofType: null, proofRef: null, closedDate: null, closedById: null, verifiedById: null });
+      if (l.stage === "Closed Won") Object.assign(data, { verification: null, proofType: null, proofRef: null, closedDate: null, closedById: null, verifiedById: null, verifiedAt: null });
       if (c.to === "Closed Lost" || c.to === "Disqualified") Object.assign(data, { lossReason: c.lossReason, rejectReason: null });
       else data.lossReason = null;
     }
@@ -301,7 +330,7 @@ export async function changeStage(u: CrmUser, id: string, c: StageChange, expect
     const base = `Stage: ${l.stage} → ${c.to}`;
     await crmAudit(tx, {
       actorId: u.id, leadId: id, kind: "stage", meta: { from: l.stage, to: c.to },
-      text: wasVerified ? `Correction by Super Admin · ${base}` : c.to === "Closed Won" ? `${base} (pending verification) · ${c.proofType}: ${c.proofRef!.trim()}` : c.to === "Closed Lost" || c.to === "Disqualified" ? `${base} · ${c.lossReason}` : chk.withdraws ? `${base} · submission withdrawn` : base,
+      text: wasVerified ? `Correction by Super Admin · ${base}` : c.to === "Closed Won" && sold ? `${base} (pending verification) · ${planText(sold.plan, sold.billing)}${sold.addons.length ? ` + ${sold.addons.map((a) => ADD_ON_LABEL[a as keyof typeof ADD_ON_LABEL]).join(", ")}` : ""} · ${formatRupees(sold.value)} · ${c.proofType}: ${c.proofRef!.trim()}` : c.to === "Closed Lost" || c.to === "Disqualified" ? `${base} · ${c.lossReason}` : chk.withdraws ? `${base} · submission withdrawn` : base,
     });
     if (c.to === "Closed Won") {
       const mgr = l.ownerId ? await tx.crmStaff.findUnique({ where: { userId: l.ownerId }, select: { managerId: true } }) : await tx.crmStaff.findUnique({ where: { userId: u.id }, select: { managerId: true } });
@@ -319,7 +348,7 @@ export async function approveDeal(u: CrmUser, id: string) {
       await noteDenied(u, "approved a deal they may not approve", id);
       throw new CrmDenied(l.closedById === u.id ? "You can't approve a deal you closed yourself. Ask a Super Admin." : "You can only approve your own team's deals.");
     }
-    await change(tx, l, undefined, { verification: "Verified", verifiedById: u.id, rejectReason: null });
+    await change(tx, l, undefined, { verification: "Verified", verifiedById: u.id, verifiedAt: new Date(), rejectReason: null });
     await crmAudit(tx, { actorId: u.id, leadId: id, kind: "verify", text: "Deal verified · counted toward revenue" });
     await notify(tx, [l.closedById], `Your deal was verified: ${l.gymName} (${l.id})`, id, u.id);
   });

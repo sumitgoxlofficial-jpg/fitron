@@ -1,3 +1,4 @@
+import { forbidden } from "next/navigation";
 import { requireCrm } from "@/lib/auth/crm";
 import { CRM_PERMISSIONS, CRM_ROLES, CRM_ROLE_LABEL, crmCan, type CrmPermission } from "@/lib/domain/crm";
 import { Notice, PageHeader, ScrollRegion, TABLE, TD, TH, TR } from "@/components/ui";
@@ -5,7 +6,8 @@ import { Notice, PageHeader, ScrollRegion, TABLE, TD, TH, TR } from "@/component
 export const metadata = { title: "Roles & permissions · FITRON CRM" };
 
 export default async function RolesPage() {
-  await requireCrm("employees.manage");
+  const u = await requireCrm();
+  if (u.role === "sales") forbidden();
   return (
     <>
       <PageHeader kicker="Read-only" title="Roles & permissions" subtitle="Every permission is checked on the server for each page, action and download. The browser never supplies its own role." />

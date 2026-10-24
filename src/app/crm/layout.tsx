@@ -18,12 +18,13 @@ export default async function CrmLayout({ children }: LayoutProps<"/crm">) {
   const u = await requireCrm(undefined, { setup: true });
   const [unread, pending] = await Promise.all([unreadCount(u), u.can("deal.verify") && !u.setupNeeded ? db.crmLead.count({ where: { verification: "Pending", ...(u.role === "admin" ? {} : { OR: [{ ownerId: { in: u.teamIds } }, { closedById: { in: u.teamIds } }], NOT: { closedById: u.id } }) } }) : 0]);
   const item = (href: string, label: string, icon: NavItem["icon"], badge?: number): NavItem => ({ href, label, icon, badge });
+  const sales = u.role === "sales";
   const full: NavGroup[] = [
     { group: "Overview", items: [item("/crm", "Dashboard", "dashboard")] },
-    { group: "Sales", items: [item("/crm/leads", "Leads", "leads"), item("/crm/pipeline", "Pipeline", "pipeline"), item("/crm/tasks", "Tasks", "tasks"), ...(u.can("deal.verify") ? [item("/crm/verification", "Verification", "verify", pending)] : [])] },
+    { group: "Sales", items: [item("/crm/leads", "Leads", "leads"), item("/crm/pipeline", "Pipeline", "pipeline"), item("/crm/tasks", "Tasks", "tasks"), ...(u.can("deal.verify") ? [item("/crm/verification", "Verification", "verify", pending)] : []), ...(sales ? [item("/crm/pricing", "Price list", "pricing")] : [])] },
     { group: "Marketing", items: [...(u.can("leads.import") ? [item("/crm/import", "Import leads", "import")] : []), ...(u.can("campaigns.manage") ? [item("/crm/campaigns", "Campaigns", "campaigns")] : [])] },
-    { group: "Team", items: [...(u.can("employees.manage") ? [item("/crm/employees", "Employees", "team")] : [])] },
-    { group: "Admin", items: [...(u.can("audit.view") ? [item("/crm/audit", "Audit log", "audit")] : []), ...(u.can("employees.manage") ? [item("/crm/roles", "Roles & permissions", "access")] : [])] },
+    { group: "Team", items: [...(u.role !== "marketing" ? [item("/crm/earnings", sales ? "My earnings" : "Commissions", "earnings")] : []), ...(u.can("employees.manage") ? [item("/crm/employees", "Employees", "team")] : []), item("/crm/id-card", "My ID card", "idcard")] },
+    { group: "Admin", items: [...(sales ? [] : [item("/crm/pricing", "Price list", "pricing")]), ...(u.can("audit.view") ? [item("/crm/audit", "Audit log", "audit")] : []), ...(sales ? [] : [item("/crm/roles", "Roles & permissions", "access")])] },
   ].filter((g) => g.items.length);
   const groups: NavGroup[] = u.setupNeeded ? [{ group: "Set up", items: [item("/crm/profile", "Complete your profile", "profile")] }] : full;
 

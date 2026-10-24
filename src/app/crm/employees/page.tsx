@@ -1,8 +1,8 @@
 import { requireCrm } from "@/lib/auth/crm";
 import { CRM_ROLES, CRM_ROLE_LABEL } from "@/lib/domain/crm";
 import { listEmployees, managers } from "@/lib/services/crm-people";
-import { Card, Field, Input, PageHeader, ScrollRegion, Select, TABLE, TD, TH, TR } from "@/components/ui";
-import { fmtStamp, formatRupees } from "@/lib/format";
+import { Card, Field, Input, PageHeader, Select } from "@/components/ui";
+import { fmtShort, fmtStamp, formatRupees, initials } from "@/lib/format";
 import { inviteAction } from "../actions";
 import { CrmForm } from "../crm-form";
 import { EmployeeControls } from "./controls";
@@ -26,24 +26,34 @@ export default async function EmployeesPage() {
           </div>
         </CrmForm>
       </Card>
-      <ScrollRegion label="Employees">
-        <table className={TABLE}>
-          <thead><tr><th className={TH}>Employee</th><th className={TH}>Role</th><th className={TH}>Reports to</th><th className={`${TH} text-right`}>Target</th><th className={TH}>Last sign-in</th><th className={TH}>Status</th><th className={TH}><span className="sr-only">Actions</span></th></tr></thead>
-          <tbody>
-            {people.map((p) => (
-              <tr key={p.userId} className={TR}>
-                <td className={TD}><div className="font-semibold">{p.name}</div><div className="text-xs text-muted">{p.empId} · {p.email}</div></td>
-                <td className={TD}>{CRM_ROLE_LABEL[p.role]}</td>
-                <td className={TD}>{p.managerName ?? "—"}</td>
-                <td className={`${TD} text-right tabular-nums`}>{p.monthlyTarget ? formatRupees(p.monthlyTarget) : "—"}</td>
-                <td className={TD}>{p.lastLoginAt ? fmtStamp(p.lastLoginAt) : "Never"}</td>
-                <td className={TD}>{p.status}</td>
-                <td className={TD}><EmployeeControls userId={p.userId} self={p.userId === u.id} active={p.status === "Active"} role={p.role} managerId={p.managerId} target={p.monthlyTarget / 100} managers={mgrs} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </ScrollRegion>
+      <div className="flex flex-col gap-3">
+        {people.map((p) => {
+          const first = p.inFirstMonth && p.role !== "marketing";
+          return (
+            <article key={p.userId} className="flex flex-col gap-3 rounded-[14px] border border-[var(--line)] bg-[var(--surface)] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  {p.hasPhoto ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- private, session-checked image
+                    <img src={`/api/crm/photo/${p.userId}`} alt="" className="size-11 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--surface-2)] font-[var(--font-head)] font-semibold text-[var(--accent-strong)]">{initials(p.name)}</span>
+                  )}
+                  <div className="min-w-0"><div className="font-semibold">{p.name} <span className="ml-1 text-xs font-semibold tracking-[0.06em] text-[var(--accent)]">{p.empId}</span></div><div className="truncate text-xs text-[var(--muted)]">{p.email} · {CRM_ROLE_LABEL[p.role]}{p.managerName ? ` · reports to ${p.managerName}` : ""}</div></div>
+                </div>
+                <div className="text-right text-xs text-[var(--muted)]"><div>{p.status} · last sign-in {p.lastLoginAt ? fmtStamp(p.lastLoginAt) : "never"}</div><div>{p.profileComplete ? `Profile complete · terms accepted ${p.termsAcceptedAt ? fmtStamp(p.termsAcceptedAt) : ""}` : "Profile incomplete · payouts on hold"}</div></div>
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--text-2)]">
+                <span>{p.account}</span>
+                <span>Joined {fmtShort(new Date(`${p.joinedAt}T00:00:00+05:30`))}</span>
+                {p.role !== "marketing" && (first ? <span>First month: 20% commission until {fmtShort(new Date(`${p.firstMonthEnds}T00:00:00+05:30`))}. Then {p.salary ? `salary ${formatRupees(p.salary)} + ` : ""}{p.incentive}% incentive</span> : <span>{p.salary ? `Salary ${formatRupees(p.salary)} + ` : "No salary set · "}{p.incentive}% incentive</span>)}
+                {p.monthlyTarget > 0 && <span>Target {formatRupees(p.monthlyTarget)} / month</span>}
+              </div>
+              <EmployeeControls userId={p.userId} self={p.userId === u.id} active={p.status !== "Inactive"} role={p.role} managerId={p.managerId} target={p.monthlyTarget / 100} salary={p.salary} incentive={p.incentive} managers={mgrs} />
+            </article>
+          );
+        })}
+      </div>
     </>
   );
 }

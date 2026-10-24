@@ -95,9 +95,13 @@ export type StageChange = {
   lossReason?: string;
   proofType?: string;
   proofRef?: string;
-  /** Paise */
+  /** Paise: for Closed Won the services work it out from the plan, never from what the browser says */
   value?: number;
   closedDate?: string;
+  /** Closed Won: the plan sold, how it is billed, and the one-time add-ons (src/lib/domain/crm-plans.ts) */
+  plan?: string;
+  billing?: string;
+  addons?: string[];
 };
 export type StageCheck =
   | { ok: true; /** Leaving Closed Won while it waits for approval takes the submission back. */ withdraws: boolean }

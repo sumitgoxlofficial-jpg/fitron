@@ -12,7 +12,8 @@ import { todayIso } from "./time";
 
 const phone = () => `9${String(randomInt(0, 1e9)).padStart(9, "0")}`;
 const base = (over: Record<string, unknown> = {}) => ({ contactName: "Asha", gymName: `Gym ${randomUUID().slice(0, 6)}`, phone: phone(), product: "SaaS", ...over });
-const won = { to: "Closed Won" as const, proofType: "Payment reference", proofRef: "UTR 123456", value: 1999900, closedDate: todayIso() };
+const won = { to: "Closed Won" as const, proofType: "Payment reference", proofRef: "UTR 123456", plan: "professional", billing: "YEARLY", closedDate: todayIso() };
+const WON_VALUE = 19_99_000; // Accounting Professional, yearly: ₹19,990
 
 async function staff(role: "admin" | "marketing" | "manager" | "sales", managerId?: string): Promise<CrmUser> {
   const [orgId, roleId] = await Promise.all([teamOrg(), teamRoleId()]);
@@ -157,15 +158,15 @@ describe.skipIf(!hasDb)("sales CRM (database)", () => {
       await expect(changeStage(rahul, l.id, { ...won, proofRef: "x" })).rejects.toThrow(/at least 4/);
       await changeStage(rahul, l.id, won);
       const row = await db.crmLead.findUniqueOrThrow({ where: { id: l.id } });
-      expect(row).toMatchObject({ stage: "Closed Won", verification: "Pending", closedById: rahul.id, estValue: 1999900 });
+      expect(row).toMatchObject({ stage: "Closed Won", verification: "Pending", closedById: rahul.id, estValue: WON_VALUE });
       // The manager and the Super Admin are told; revenue is still zero for this cohort.
       expect(await db.crmNotification.count({ where: { userId: mgrW.id, leadId: l.id } })).toBe(1);
       expect(await db.crmNotification.count({ where: { userId: admin.id, leadId: l.id } })).toBe(1);
       const d = await dashboard(rahul, {});
-      expect(d.kpi.pendingValue).toBeGreaterThanOrEqual(1999900);
+      expect(d.kpi.pendingValue).toBeGreaterThanOrEqual(WON_VALUE);
       const before = (await dashboard(admin, {})).kpi.verifiedRevenue;
       await approveDeal(mgrW, l.id);
-      expect((await dashboard(admin, {})).kpi.verifiedRevenue).toBe(before + 1999900);
+      expect((await dashboard(admin, {})).kpi.verifiedRevenue).toBe(before + WON_VALUE);
     });
 
     it("lets a manager approve only their own team's deals, never their own, and a salesperson nothing", async () => {

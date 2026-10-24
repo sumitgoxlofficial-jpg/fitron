@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { isFitronAdmin } from "@/lib/integrations/fitron-team";
 import { sendEmail } from "@/lib/integrations/email";
+import { FIRST_DAYS, INCENTIVE_MAX, firstMonthEnds, needsSetup, payToText, type Profile } from "@/lib/domain/crm-pay";
+import { openPayout } from "./crm-profile";
 import { CRM_ROLE_LABEL, SOURCES, isCrmRole, type CrmRole } from "@/lib/domain/crm";
 import { crmAudit, loadCrmUser, need, nextEmpId, teamOrg, teamRoleId, type CrmUser } from "./crm-access";
 import { appUrl } from "./accounts";
@@ -29,8 +31,13 @@ export async function crmUserFor(userId: string, email: string): Promise<CrmUser
 
 export async function listEmployees(u: CrmUser) {
   need(u, "employees.manage");
-  const rows = await db.crmStaff.findMany({ include: { user: { select: { name: true, email: true, lastLoginAt: true, phone: true } }, manager: { include: { user: { select: { name: true } } } } }, orderBy: { empId: "asc" } });
-  return rows.map((r) => ({ userId: r.userId, empId: r.empId, name: r.user.name, email: r.user.email, role: r.role as CrmRole, status: r.status, managerId: r.managerId, managerName: r.manager?.user.name ?? null, monthlyTarget: r.monthlyTarget, lastLoginAt: r.user.lastLoginAt }));
+  const rows = await db.crmStaff.findMany({ include: { user: { select: { name: true, email: true, lastLoginAt: true, phone: true, photoKey: true } }, manager: { include: { user: { select: { name: true } } } } }, orderBy: { empId: "asc" } });
+  return rows.map((r) => ({
+    userId: r.userId, empId: r.empId, name: r.user.name, email: r.user.email, role: r.role as CrmRole, status: r.status, managerId: r.managerId, managerName: r.manager?.user.name ?? null, monthlyTarget: r.monthlyTarget, lastLoginAt: r.user.lastLoginAt,
+    joinedAt: r.joinedAt.toISOString().slice(0, 10), salary: r.salary, incentive: r.incentive, inFirstMonth: Date.now() < new Date(`${r.joinedAt.toISOString().slice(0, 10)}T00:00:00+05:30`).getTime() + FIRST_DAYS * 86_400_000, firstMonthEnds: firstMonthEnds(r.joinedAt.toISOString().slice(0, 10)),
+    profileComplete: !needsSetup(r, r.profile as Partial<Profile> | null, !!r.payout), termsAcceptedAt: r.termsAcceptedAt, hasPhoto: !!r.user.photoKey,
+    account: r.payout ? payToText(openPayout(r.payout)) : "No payout account", hasAccount: !!r.payout,
+  }));
 }
 
 /** People a lead can be handed to, and managers to report to: for forms. */
@@ -77,11 +84,11 @@ async function keepAnAdmin(exceptUserId: string) {
   if (!others) throw new UserError("There must be at least one active Super Admin.");
 }
 
-export async function updateEmployee(u: CrmUser, userId: string, p: { role?: string; managerId?: string | null; target?: number; active?: boolean }) {
+export async function updateEmployee(u: CrmUser, userId: string, p: { role?: string; managerId?: string | null; target?: number; active?: boolean; salary?: number | null; incentive?: number }) {
   need(u, "employees.manage");
   const s = await db.crmStaff.findUnique({ where: { userId }, include: { user: { select: { name: true } } } });
   if (!s) throw new UserError("Employee not found.");
-  const data: { role?: string; managerId?: string | null; monthlyTarget?: number; status?: string } = {};
+  const data: { role?: string; managerId?: string | null; monthlyTarget?: number; status?: string; salary?: number | null; incentive?: number } = {};
   const notes: string[] = [];
   if (p.active !== undefined && (p.active ? "Active" : "Inactive") !== s.status) {
     if (!p.active) {
@@ -107,6 +114,20 @@ export async function updateEmployee(u: CrmUser, userId: string, p: { role?: str
   if (p.target !== undefined && Math.round(p.target * 100) !== s.monthlyTarget) {
     data.monthlyTarget = Math.max(0, Math.round(p.target * 100));
     notes.push("monthly target changed");
+  }
+  if (p.salary !== undefined) {
+    const paise = p.salary === null || Number.isNaN(p.salary) ? null : Math.max(0, Math.round(p.salary * 100));
+    if (paise !== s.salary) {
+      data.salary = paise;
+      notes.push("monthly salary changed");
+    }
+  }
+  if (p.incentive !== undefined) {
+    if (!Number.isFinite(p.incentive) || p.incentive < 0 || p.incentive > INCENTIVE_MAX) throw new UserError(`The incentive is a percentage from 0 to ${INCENTIVE_MAX}.`);
+    if (Math.round(p.incentive) !== s.incentive) {
+      data.incentive = Math.round(p.incentive);
+      notes.push("incentive changed");
+    }
   }
   if (!notes.length) return;
   await db.$transaction(async (tx) => {

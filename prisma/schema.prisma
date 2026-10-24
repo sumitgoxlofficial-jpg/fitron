@@ -1855,6 +1855,13 @@ model CrmLead {
   priority      String          @default("Medium")
   /// Paise
   estValue      Int             @default(0)
+  /// The plan being sold (a key from src/lib/domain/pricing.ts) and how it is billed (MONTHLY | YEARLY); the deal value follows from them
+  plan          String          @default("starter")
+  billing       String          @default("MONTHLY")
+  /// One-time add-ons sold with the plan: setup, brand
+  addons        String[]        @default([])
+  /// When a manager or Super Admin approved the deal: commission is earned from this day
+  verifiedAt    DateTime?       @db.Timestamptz
   lastContactAt DateTime?       @db.Timestamptz
   closedById    String?
   /// null | Pending | Verified | Rejected

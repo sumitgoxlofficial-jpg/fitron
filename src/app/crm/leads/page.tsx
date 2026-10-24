@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireCrm } from "@/lib/auth/crm";
 import { PRODUCTS, SOURCES, STAGES, stageLabel } from "@/lib/domain/crm";
+import { SELLABLE } from "@/lib/domain/crm-plans";
 import { assignees, listLeads, type LeadFilter } from "@/lib/services/crm-leads";
 import { listCampaigns } from "@/lib/services/crm-people";
 import { Dialog } from "@/components/dialog";
@@ -82,8 +83,8 @@ export default async function LeadsPage({ searchParams }: PageProps<"/crm/leads"
               <Field label="City"><Input name="city" /></Field>
               <Field label="State"><Input name="state" /></Field>
               <Field label="PIN code"><Input name="pin" inputMode="numeric" maxLength={6} /></Field>
-              <Field label="Product"><Select name="product" required>{PRODUCTS.map((p) => <option key={p} value={p}>{p === "SaaS" ? "Gym Accounting" : "Gym Partnership"}</option>)}</Select></Field>
-              <Field label="Estimated value (₹)"><Input name="estValue" inputMode="numeric" /></Field>
+              <Field label="Plan pitched"><Select name="plan" defaultValue="starter">{SELLABLE.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}</Select></Field>
+              <Field label="Billing"><Select name="billing" defaultValue="MONTHLY"><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></Select></Field>
               <Field label="Campaign"><Select name="campaignId"><option value="">None</option>{campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
               <Field label="Source (if no campaign)"><Select name="source" defaultValue="Other">{SOURCES.map((s) => <option key={s}>{s}</option>)}</Select></Field>
             </div>
