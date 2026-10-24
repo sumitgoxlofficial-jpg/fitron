@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { forbidden, notFound } from "next/navigation";
 import { requireCrm } from "@/lib/auth/crm";
-import { CALL_OUTCOMES, PRIORITIES, PRODUCTS, TASK_TYPES } from "@/lib/domain/crm";
+import { CALL_OUTCOMES, PRIORITIES, TASK_TYPES } from "@/lib/domain/crm";
+import { SELLABLE, planText } from "@/lib/domain/crm-plans";
 import { assignees, leadDetail } from "@/lib/services/crm-leads";
+import { listContacts } from "@/lib/services/crm-insights";
 import { mayVerify } from "@/lib/services/crm-access";
 import { listCampaigns } from "@/lib/services/crm-people";
 import { todayIso } from "@/lib/services/time";
 import { Button, Card, Empty, Field, Input, Notice, PageHeader, Select, Textarea } from "@/components/ui";
 import { fmtShort, fmtStamp, formatRupees } from "@/lib/format";
-import { approveAction, assignAction, callAction, doneAction, noteAction, rejectAction, saveLeadDetails, stageAction, taskAction } from "../../actions";
+import { approveAction, assignAction, callAction, contactAction, doneAction, noteAction, rejectAction, saveLeadDetails, stageAction, taskAction } from "../../actions";
 import { CrmForm } from "../../crm-form";
 import { StageBadge, VerificationBadge } from "../../parts";
 import { StageForm } from "./stage-form";
@@ -27,7 +29,7 @@ export default async function LeadPage({ params, searchParams }: PageProps<"/crm
   if (d === "denied") forbidden();
   if (!d) notFound();
   const { lead: l } = d;
-  const [owners, campaigns] = await Promise.all([u.can("leads.assign") ? assignees(u) : [], listCampaigns()]);
+  const [owners, campaigns, contacts] = await Promise.all([u.can("leads.assign") ? assignees(u) : [], listCampaigns(), listContacts(u, id)]);
   const canWork = u.can("activity.log") && !l.locked;
   const decide = l.verification === "Pending" && mayVerify(u, l);
   const today = todayIso();
@@ -61,7 +63,7 @@ export default async function LeadPage({ params, searchParams }: PageProps<"/crm
 
       <div className="mb-5 grid gap-5 lg:grid-cols-2">
         <Card title="Status">
-          {canWork ? <StageForm action={stageAction.bind(null, l.id)} current={l.stage} initial={move} today={today} version={l.version} value={l.estValue} /> : <p className="text-sm text-muted">{l.locked ? "Locked." : "Your role can't change the stage."}</p>}
+          {canWork ? <StageForm action={stageAction.bind(null, l.id)} current={l.stage} initial={move} today={today} version={l.version} plan={l.plan} billing={l.billing} /> : <p className="text-sm text-muted">{l.locked ? "Locked." : "Your role can't change the stage."}</p>}
           {u.can("leads.assign") && !l.locked && (
             <div className="mt-5 border-t border-fg/8 pt-4">
               <CrmForm action={assignAction.bind(null, l.id)} submit="Assign">
@@ -77,6 +79,7 @@ export default async function LeadPage({ params, searchParams }: PageProps<"/crm
             <Row k="Owner" v={l.ownerName ?? "Unassigned"} />
             <Row k="Source" v={l.source} />
             <Row k="Campaign" v={l.campaignName} />
+            <Row k="Plan" v={planText(l.plan, l.billing) + (l.addons.length ? ` + ${l.addons.join(", ")}` : "")} />
             <Row k="Estimated / deal value" v={l.estValue ? formatRupees(l.estValue) : ""} />
             <Row k="Added" v={fmtShort(l.createdAt)} />
             <Row k="Closed by" v={l.closedByName} />
@@ -137,6 +140,20 @@ export default async function LeadPage({ params, searchParams }: PageProps<"/crm
         </Card>
       </div>
 
+      <Card title={`Contacts · ${contacts.length}`} className="mb-5">
+        <ul className="m-0 mb-3 flex list-none flex-col divide-y divide-[var(--line-soft)] p-0">
+          {contacts.map((c) => <li key={c.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm"><span><b>{c.name}</b> <span className="text-[var(--muted)]">{c.title}</span></span><span className="text-[var(--muted)]">{[c.phone, c.email].filter(Boolean).join(" · ")}</span></li>)}
+        </ul>
+        {canWork && (
+          <CrmForm action={contactAction.bind(null, l.id)} submit="Add contact" reset className="flex flex-wrap items-end gap-2 border-t border-[var(--line-soft)] pt-3">
+            <Field label="Name"><Input name="name" required /></Field>
+            <Field label="Role at the gym"><Input name="title" placeholder="Owner, manager…" /></Field>
+            <Field label="Mobile"><Input name="phone" inputMode="tel" /></Field>
+            <Field label="Email"><Input name="email" type="email" /></Field>
+          </CrmForm>
+        )}
+      </Card>
+
       {!l.locked && (
         <Card title="Details" className="mb-5">
           <CrmForm action={saveLeadDetails.bind(null, l.id)} submit="Save details">
@@ -145,7 +162,8 @@ export default async function LeadPage({ params, searchParams }: PageProps<"/crm
               <Field label="Contact name"><Input name="contactName" defaultValue={l.contactName} /></Field>
               <Field label="Gym / business"><Input name="gymName" defaultValue={l.gymName} /></Field>
               <Field label="Priority"><Select name="priority" defaultValue={l.priority}>{PRIORITIES.map((p) => <option key={p}>{p}</option>)}</Select></Field>
-              <Field label="Product"><Select name="product" defaultValue={l.product}>{PRODUCTS.map((p) => <option key={p} value={p}>{p === "SaaS" ? "Gym Accounting" : "Gym Partnership"}</option>)}</Select></Field>
+              <Field label="Plan"><Select name="plan" defaultValue={l.plan} disabled={l.verification === "Pending"}>{SELLABLE.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}</Select></Field>
+              <Field label="Billing"><Select name="billing" defaultValue={l.billing} disabled={l.verification === "Pending"}><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></Select></Field>
               <Field label="City"><Input name="city" defaultValue={l.city ?? ""} /></Field>
               <Field label="District"><Input name="district" defaultValue={l.district ?? ""} /></Field>
               <Field label="State"><Input name="state" defaultValue={l.state ?? ""} /></Field>

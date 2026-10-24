@@ -25,7 +25,7 @@ type CodePurpose = "VERIFY_EMAIL" | "RESET_PASSWORD" | "LOGIN";
 export const appUrl = () => (process.env.APP_URL?.trim() || (process.env.NODE_ENV === "production" ? "https://fitron.in" : "http://localhost:3000")).replace(/\/$/, "");
 
 /** Makes a one-time link token; only its hash is stored. Older unused tokens of the same kind stop working. */
-async function issueToken(userId: string, purpose: Purpose) {
+export async function issueToken(userId: string, purpose: Purpose) {
   const token = randomBytes(32).toString("base64url");
   await db.$transaction([
     db.authToken.updateMany({ where: { userId, purpose, usedAt: null }, data: { usedAt: new Date() } }),
@@ -35,7 +35,7 @@ async function issueToken(userId: string, purpose: Purpose) {
 }
 
 /** Marks the token used and returns its user id, or null if it is unknown, used or expired. */
-async function redeemToken(token: string, purpose: Purpose) {
+export async function redeemToken(token: string, purpose: Purpose) {
   const row = await db.authToken.findUnique({ where: { id: sha256(token) } });
   if (!row || row.purpose !== purpose || row.usedAt || row.expiresAt.getTime() < Date.now()) return null;
   const { count } = await db.authToken.updateMany({ where: { id: row.id, usedAt: null }, data: { usedAt: new Date() } });
@@ -47,7 +47,7 @@ async function redeemToken(token: string, purpose: Purpose) {
 const codeHash = (userId: string, purpose: CodePurpose, code: string) => sha256(`${userId}:${purpose}:${code}`);
 
 /** Makes a six-digit code for the same email as a link; only its hash is stored. Older unused codes of the same kind stop working. */
-async function issueCode(userId: string, purpose: CodePurpose) {
+export async function issueCode(userId: string, purpose: CodePurpose) {
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   await db.$transaction([
     db.authCode.updateMany({ where: { userId, purpose, usedAt: null }, data: { usedAt: new Date() } }),
@@ -65,7 +65,7 @@ const retireLinks = (userId: string, purpose: CodePurpose) => db.authToken.updat
  * the code is compared, so one code can only ever be guessed at CODE_TRIES times, however many requests arrive at once.
  * Wrong, expired, used and unknown all look the same (null).
  */
-async function redeemCode(email: string, code: string, purpose: CodePurpose) {
+export async function redeemCode(email: string, code: string, purpose: CodePurpose) {
   const user = await db.user.findFirst({ where: { email, active: true, deletedAt: null } });
   if (!user) return null;
   const row = await db.authCode.findFirst({ where: { userId: user.id, purpose, usedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: "desc" } });
@@ -213,7 +213,7 @@ export async function requestPasswordReset(email: string) {
 }
 
 /** Sets the password and signs the user out everywhere. Reaching the inbox also proves the address, so it counts as verified. */
-async function setNewPassword(userId: string, password: string) {
+export async function setNewPassword(userId: string, password: string) {
   const passwordHash = await hashPassword(password);
   const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
   await db.$transaction([

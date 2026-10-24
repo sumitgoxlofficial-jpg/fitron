@@ -95,9 +95,13 @@ export type StageChange = {
   lossReason?: string;
   proofType?: string;
   proofRef?: string;
-  /** Paise */
+  /** Paise: for Closed Won the services work it out from the plan, never from what the browser says */
   value?: number;
   closedDate?: string;
+  /** Closed Won: the plan sold, how it is billed, and the one-time add-ons (src/lib/domain/crm-plans.ts) */
+  plan?: string;
+  billing?: string;
+  addons?: string[];
 };
 export type StageCheck =
   | { ok: true; /** Leaving Closed Won while it waits for approval takes the submission back. */ withdraws: boolean }
@@ -271,3 +275,12 @@ export function isDueToday(t: { done: boolean; dueAt: Date }, now = new Date(), 
   if (t.done || isOverdue(t, now)) return false;
   return new Date(t.dueAt.getTime() + 330 * 60_000).toISOString().slice(0, 10) === today;
 }
+
+/** The date ranges the dashboard and Reports can be limited to (the lead's creation date). */
+export const DATE_RANGES = [
+  ["all", "All time"],
+  ["7", "Last 7 days"],
+  ["30", "Last 30 days"],
+  ["month", "This month"],
+  ["90", "Last 90 days"],
+] as const;

@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "CrmStaff" ADD COLUMN     "incentive" INTEGER NOT NULL DEFAULT 5,
+ADD COLUMN     "joinedAt" DATE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "payout" BYTEA,
+ADD COLUMN     "profile" JSONB,
+ADD COLUMN     "salary" INTEGER,
+ADD COLUMN     "termsAcceptedAt" TIMESTAMPTZ,
+ADD COLUMN     "termsVersion" TEXT;

@@ -1783,21 +1783,36 @@ model WindowsAiUsage {
 // src/lib/services/crm*.ts (every route and action goes through them).
 
 model CrmStaff {
-  userId        String     @id
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String     @id
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// FIT-EMP-0001
-  empId         String     @unique
+  empId           String     @unique
   /// admin | marketing | manager | sales
-  role          String
-  managerId     String?
-  manager       CrmStaff?  @relation("CrmTeam", fields: [managerId], references: [userId])
-  reports       CrmStaff[] @relation("CrmTeam")
-  /// Active | Inactive
-  status        String     @default("Active")
+  role            String
+  managerId       String?
+  manager         CrmStaff?  @relation("CrmTeam", fields: [managerId], references: [userId])
+  reports         CrmStaff[] @relation("CrmTeam")
+  /// Active | Inactive | Invited (added by an admin; they finish by creating their account)
+  status          String     @default("Active")
   /// Monthly target in paise; 0 = none set
-  monthlyTarget Int        @default(0)
-  createdAt     DateTime   @default(now()) @db.Timestamptz
-  updatedAt     DateTime   @updatedAt @db.Timestamptz
+  monthlyTarget   Int        @default(0)
+  /// The day they joined: their first 30 days earn the first-month commission
+  joinedAt        DateTime   @default(now()) @db.Date
+  /// Monthly salary in paise after the first month; null = not set
+  salary          Int?
+  /// Incentive percentage on verified deals after the first month (0 to 5)
+  incentive       Int        @default(5)
+  /// Name, address, city, state, PIN and mobile, from the profile page
+  profile         Json?
+  /// Bank account or UPI details for payouts, sealed with AES-GCM (sealSecret in two-step.ts); never shown in full
+  payout          Bytes?
+  /// Their own settings: the dashboard's layout (which widgets, in what order)
+  prefs           Json?
+  /// The terms and conditions version they accepted, and when
+  termsVersion    String?
+  termsAcceptedAt DateTime?  @db.Timestamptz
+  createdAt       DateTime   @default(now()) @db.Timestamptz
+  updatedAt       DateTime   @updatedAt @db.Timestamptz
 
   @@index([role])
   @@index([managerId])
@@ -1842,6 +1857,13 @@ model CrmLead {
   priority      String          @default("Medium")
   /// Paise
   estValue      Int             @default(0)
+  /// The plan being sold (a key from src/lib/domain/pricing.ts) and how it is billed (MONTHLY | YEARLY); the deal value follows from them
+  plan          String          @default("starter")
+  billing       String          @default("MONTHLY")
+  /// One-time add-ons sold with the plan: setup, brand
+  addons        String[]        @default([])
+  /// When a manager or Super Admin approved the deal: commission is earned from this day
+  verifiedAt    DateTime?       @db.Timestamptz
   lastContactAt DateTime?       @db.Timestamptz
   closedById    String?
   /// null | Pending | Verified | Rejected
@@ -1861,6 +1883,7 @@ model CrmLead {
   assignments   CrmAssignment[]
   activities    CrmActivity[]
   tasks         CrmTask[]
+  contacts      CrmContact[]
 
   @@index([ownerId, stage])
   @@index([campaignId])
@@ -1939,4 +1962,30 @@ model CrmAudit {
 
   @@index([leadId, at])
   @@index([at])
+}
+
+/// More people at the same gym: the owner, the manager, the person who pays. The lead's own contact is the first.
+model CrmContact {
+  id          String   @id @default(cuid())
+  leadId      String
+  lead        CrmLead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  name        String
+  title       String?
+  phone       String?
+  email       String?
+  createdById String
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  @@index([leadId])
+}
+
+/// A saved set of lead filters, private to the person who made it
+model CrmSavedView {
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String
+  filters   Json
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  @@index([ownerId])
 }

@@ -12,7 +12,7 @@ const btn: Record<Variant, string> = {
   ghost: "border border-transparent px-1.5 text-accent hover:bg-accent/10 active:bg-accent/18",
 };
 const btnBase =
-  "inline-flex items-center justify-center gap-1.5 rounded-md py-2.5 text-sm leading-[1.2] font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-45";
+  "inline-flex items-center justify-center gap-1.5 rounded-[var(--btn-radius,var(--radius-md))] py-2.5 text-sm leading-[1.2] font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-45";
 
 export function Button({ variant = "default", className, ...p }: ComponentProps<"button"> & { variant?: Variant }) {
   return <button className={cx(btnBase, btn[variant], className)} {...p} />;

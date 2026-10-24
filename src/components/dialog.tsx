@@ -10,7 +10,7 @@ export function Dialog({ kicker, title, note, close, error, width = 480, form, c
   return (
     <div className="fixed inset-0 z-50 grid place-items-center overflow-auto p-5 max-lg:items-end max-lg:p-0">
       <Link href={close} aria-label="Close" className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_8%,rgba(0,0,0,0.6))]" scroll={false} />
-      <div role="dialog" aria-modal="true" style={{ width: `min(${width}px, 100%)` }} className={`relative flex max-h-[92vh] flex-col gap-3.5 overflow-auto rounded-lg p-5 ${form ? "bg-bg" : "bg-surface"} shadow-lg max-lg:rounded-t-[18px] max-lg:rounded-b-none`}>
+      <div role="dialog" aria-modal="true" aria-label={title} style={{ width: `min(${width}px, 100%)` }} className={`relative flex max-h-[92vh] flex-col gap-3.5 overflow-auto rounded-lg p-5 ${form ? "bg-bg" : "bg-surface"} shadow-lg max-lg:rounded-t-[18px] max-lg:rounded-b-none`}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[11px] tracking-[0.1em] text-muted uppercase">{kicker}</div>

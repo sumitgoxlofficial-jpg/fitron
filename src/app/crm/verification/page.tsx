@@ -21,11 +21,11 @@ export default async function VerificationPage() {
               <div className="text-[11px] tracking-[0.08em] text-muted uppercase"><LeadLink id={l.id} /> · {l.product === "SaaS" ? "Gym Accounting" : "Gym Partnership"}</div>
               <div className="text-xl font-semibold">{l.gymName}</div>
               <div className="text-[28px] font-semibold tabular-nums">{formatRupees(l.estValue)}</div>
-              <dl className="my-3 text-sm text-muted">
+              <div className="my-3 text-sm text-muted">
                 <div>{l.proofType}: <b className="text-fg">{l.proofRef}</b></div>
                 <div>Closed by {l.closedByName ?? "—"} · created {fmtStamp(l.createdAt)}</div>
                 <div>Campaign: {l.campaignName ?? "none"} · Source: {l.source}</div>
-              </dl>
+              </div>
               <div className="flex flex-wrap items-start gap-3">
                 <form action={approveAction.bind(null, l.id)}><Button variant="primary">Approve</Button></form>
                 <CrmForm action={rejectAction.bind(null, l.id)} submit="Reject" variant="danger" className="flex min-w-[220px] flex-1 flex-col gap-2">
