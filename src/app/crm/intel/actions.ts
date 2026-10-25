@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { requireCrm } from "@/lib/auth/crm";
 import { simpleAction } from "@/lib/form-action";
 import type { FormState } from "@/lib/validation/common";
@@ -30,7 +31,10 @@ const intel = ["/crm/intel", "/crm/intel/discovery", "/crm/intel/gyms", "/crm/in
 export async function createJobAction(_: FormState, fd: FormData): Promise<FormState> {
   const everything = s(fd, "scope") === "all";
   const states = everything ? INDIA_STATES.map((x) => x.code) : all(fd, "states");
-  return run((u) => createJob(u, { source: s(fd, "source"), states, categories: all(fd, "categories"), onlyMissingPhone: fd.get("onlyMissingPhone") === "on", confirmed: fd.get("confirmed") === "on" }), `Job queued for ${states.length} area${states.length === 1 ? "" : "s"}. The worker advances it every half hour, or press “Run next batch now”.`, intel);
+  const r = await run((u) => createJob(u, { source: s(fd, "source"), states, categories: all(fd, "categories"), onlyMissingPhone: fd.get("onlyMissingPhone") === "on", confirmed: fd.get("confirmed") === "on" }), `Job queued and started${states.length ? ` for ${states.length} area${states.length === 1 ? "" : "s"}` : ""}. It works in the background and the table below updates by itself; the scheduled worker carries on every half hour if it is interrupted.`, intel);
+  // Start straight away, after the answer has been sent, so nobody has to find a second button.
+  if (r?.ok) after(() => runDueJobs(240_000).catch(() => undefined));
+  return r;
 }
 
 export async function jobControlAction(_: FormState, fd: FormData): Promise<FormState> {
