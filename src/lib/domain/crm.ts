@@ -25,6 +25,8 @@ export const CRM_PERMISSIONS = {
   "audit.view": "View full audit log",
   "intel.view": "View the gym database (Gym Intelligence)",
   "intel.manage": "Run collection, manage sources, merge, export & promote gyms",
+  "calling.view": "See the AI calling dashboard, calls and transcripts",
+  "calling.manage": "Run AI calling: campaigns, settings, emergency stop, do-not-call list",
 } as const;
 export type CrmPermission = keyof typeof CRM_PERMISSIONS;
 
@@ -46,6 +48,8 @@ const GRANTS: Record<CrmPermission, readonly CrmRole[]> = {
   "audit.view": ["admin"],
   "intel.view": ["admin", "marketing"],
   "intel.manage": ["admin"],
+  "calling.view": ["admin"],
+  "calling.manage": ["admin"],
 };
 
 export const crmCan = (role: CrmRole, p: CrmPermission) => GRANTS[p].includes(role);

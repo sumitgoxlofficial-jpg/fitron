@@ -121,7 +121,7 @@ export function need(u: CrmUser, p: CrmPermission) {
 /** Phone numbers and email addresses never go in the audit trail; if one slips into a message it is removed. */
 export const scrub = (s: string) => s.replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[email removed]").replace(/(?:\+?\d[\s-]?){10,}/g, "[number removed]");
 
-export async function crmAudit(tx: Tx | typeof db, a: { actorId: string; leadId?: string | null; kind: "create" | "assign" | "stage" | "call" | "task" | "verify" | "export" | "import" | "user" | "denied" | "intel"; text: string; meta?: Prisma.InputJsonValue }) {
+export async function crmAudit(tx: Tx | typeof db, a: { actorId: string; leadId?: string | null; kind: "create" | "assign" | "stage" | "call" | "task" | "verify" | "export" | "import" | "user" | "denied" | "intel" | "calling"; text: string; meta?: Prisma.InputJsonValue }) {
   await tx.crmAudit.create({ data: { actorId: a.actorId, leadId: a.leadId ?? null, kind: a.kind, text: scrub(a.text).slice(0, 400), meta: a.meta } });
 }
 

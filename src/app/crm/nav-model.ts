@@ -37,6 +37,23 @@ function intelGroup(u: CrmUser): NavGroup {
   };
 }
 
+/** The AI Calling pages: the Super Admin's only */
+function callingGroup(u: CrmUser): NavGroup {
+  if (!u.can("calling.view")) return { group: "AI Calling", items: [] };
+  return {
+    group: "AI Calling",
+    items: [
+      item("/crm/calling", "Overview", "callOverview"),
+      item("/crm/calling/campaigns", "Campaigns", "callCampaigns"),
+      item("/crm/calling/calls", "Call history", "callHistory"),
+      item("/crm/calling/dnc", "Permission & do-not-call", "callDnc"),
+      item("/crm/calling/settings", "Settings & test call", "callSettings"),
+      item("/crm/calling/setup", "Agent setup", "callSetup"),
+      item("/crm/audit?kind=calling", "Audit trail", "audit"),
+    ],
+  };
+}
+
 export const pagesFor = (u: CrmUser) => navFor(u).flatMap((g) => g.items.map((i) => ({ label: i.label, sub: g.group, href: i.href })));
 
 /** The Super Admin runs the company: oversight and control, none of the employee's own tools (their tasks, ID card or earnings). */
@@ -47,6 +64,7 @@ function adminNav(u: CrmUser, pending: number): NavGroup[] {
     { group: "Marketing", items: [item("/crm/import", "Import leads", "import"), item("/crm/campaigns", "Campaigns", "campaigns")] },
     { group: "People", items: [item("/crm/employees", "Employees", "team"), item("/crm/leaderboard", "Leaderboard", "leaderboard"), item("/crm/activity", "Activity", "activity"), item("/crm/earnings", "Commissions & payouts", "earnings")] },
     intelGroup(u),
+    callingGroup(u),
     { group: "Control", items: [item("/crm/roles", "Roles & permissions", "access"), item("/crm/pricing", "Price list", "pricing"), item("/crm/audit", "Audit log", "audit")] },
   ];
 }

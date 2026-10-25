@@ -2178,3 +2178,109 @@ model GiSuppression {
   addedById String
   createdAt DateTime @default(now()) @db.Timestamptz
 }
+
+// ── AI Calling (docs/AI_CALLING.md) ─────────────────────────────────────────
+
+/// Switches and limits for the AI caller: the emergency stop, test or live mode, the test-number allow-list. One row, "default".
+model AcSetting {
+  id   String @id
+  data Json
+}
+
+model AcCampaign {
+  id           String    @id @default(cuid())
+  name         String
+  /// DRAFT | PENDING | APPROVED | RUNNING | PAUSED | STOPPED | COMPLETED
+  status       String    @default("DRAFT")
+  /// Who may be called: states, stages, gym ids… (src/lib/domain/ai-calling/campaign.ts)
+  filter       Json
+  maxCalls     Int
+  concurrency  Int       @default(1)
+  /// India time, minutes after midnight
+  hoursFrom    Int       @default(600)
+  hoursTo      Int       @default(1080)
+  /// The offer exactly as it was when the campaign was approved
+  offer        Json
+  /// A test campaign only ever dials the allow-listed test numbers
+  testMode     Boolean   @default(true)
+  createdById  String
+  approvedById String?
+  approvedAt   DateTime? @db.Timestamptz
+  startedAt    DateTime? @db.Timestamptz
+  endedAt      DateTime? @db.Timestamptz
+  createdAt    DateTime  @default(now()) @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @db.Timestamptz
+  calls        AcCall[]
+
+  @@index([status])
+}
+
+model AcCall {
+  id                  String     @id @default(cuid())
+  campaignId          String?
+  campaign            AcCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  leadId              String
+  /// 10 digits
+  phone               String
+  /// campaign:lead:attempt, or test:… — a second call with the same key is refused by the database
+  idempotencyKey      String     @unique
+  /// QUEUED | DIALING | IN_PROGRESS | COMPLETED | NO_ANSWER | BUSY | FAILED | CANCELLED
+  status              String     @default("QUEUED")
+  attempt             Int        @default(1)
+  conversationId      String?    @unique
+  sipCallId           String?
+  /// Hash of the key the agent's tools must present for this call
+  tokenHash           String
+  test                Boolean    @default(false)
+  dialedAt            DateTime?  @db.Timestamptz
+  endedAt             DateTime?  @db.Timestamptz
+  durationSec         Int?
+  /// INTERESTED | DEMO_REQUESTED | DEMO_BOOKED | FOLLOW_UP | NOT_INTERESTED | NO_ANSWER | BUSY | INVALID_NUMBER | HUMAN_HANDOFF | DO_NOT_CONTACT
+  disposition         String?
+  summary             String?
+  transcript          Json?
+  transcriptExpiresAt DateTime?  @db.Timestamptz
+  /// Paise, only when the provider reports it
+  costPaise           Int?
+  error               String?
+  createdAt           DateTime   @default(now()) @db.Timestamptz
+  updatedAt           DateTime   @updatedAt @db.Timestamptz
+
+  @@index([campaignId, status])
+  @@index([leadId, createdAt])
+  @@index([status, createdAt])
+}
+
+model AcDemo {
+  id        String   @id @default(cuid())
+  leadId    String
+  callId    String?
+  slotAt    DateTime @db.Timestamptz
+  /// BOOKED | CANCELLED
+  status    String   @default("BOOKED")
+  note      String?
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  @@unique([leadId, slotAt])
+  @@index([slotAt])
+}
+
+/// Why this number may be called with a sales message. No row, no call.
+model AcConsent {
+  phoneNorm    String   @id
+  /// ENQUIRY | EXISTING_CUSTOMER | OPTED_IN | TEST
+  basis        String
+  note         String?
+  recordedById String
+  createdAt    DateTime @default(now()) @db.Timestamptz
+}
+
+/// Do-not-call, kept for good; checked before every call
+model AcSuppression {
+  phoneNorm String   @id
+  reason    String
+  /// call | admin
+  source    String
+  callId    String?
+  createdAt DateTime @default(now()) @db.Timestamptz
+}
