@@ -79,7 +79,7 @@ describe.skipIf(!hasDb)("two-step sign-in, from the password to the session (dat
     const { u } = await member(false);
     const r = await signIn(u.email, "/members");
     expect(r.to).toBe("/members");
-    expect(createSession).toHaveBeenCalledWith(u.id);
+    expect(createSession).toHaveBeenCalledWith(u.id, "gym");
     expect(jar.has(TWO_STEP_COOKIE)).toBe(false);
   });
 
@@ -97,7 +97,7 @@ describe.skipIf(!hasDb)("two-step sign-in, from the password to the session (dat
     const r = await run(() => verifyTwoStep(undefined, form({ code: goodCode(secret) })));
     expect(r.to).toBe("/members");
     expect(createSession).toHaveBeenCalledTimes(1);
-    expect(createSession).toHaveBeenCalledWith(u.id);
+    expect(createSession).toHaveBeenCalledWith(u.id, "gym");
     expect(jar.has(TWO_STEP_COOKIE)).toBe(false);
     const a = await db.auditLog.findFirstOrThrow({ where: { entityId: u.id, action: "auth.login" } });
     expect(a.after).toMatchObject({ via: "email", secondStep: "code" });
