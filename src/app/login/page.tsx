@@ -12,10 +12,9 @@ import { readChallenge } from "@/lib/auth/two-step-challenge";
 import { Notice } from "@/components/ui";
 import { safeNext } from "@/lib/auth/next";
 import { CookieBanner } from "@/components/cookie-banner";
-import { GoogleButton, googleMessage } from "@/components/google-button";
-import { DEFAULT_PLAN, findPlan, lowestGymPrice } from "@/lib/domain/pricing";
-import { formatInr } from "@/lib/format";
-import { GOOGLE_SIGNUP_COOKIE, googleReady, unsign } from "@/lib/integrations/google";
+import { googleMessage } from "@/components/google-button";
+import { DEFAULT_PLAN, findPlan } from "@/lib/domain/pricing";
+import { GOOGLE_SIGNUP_COOKIE, unsign } from "@/lib/integrations/google";
 import { TRAINER_HREF } from "@/lib/domain/site-links";
 
 export const metadata = { title: "Sign in · FITRON" };
@@ -30,10 +29,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const planQ = one(q.plan);
   const plan = findPlan(planQ)?.product === "GYM_ACCOUNTING" ? planQ! : DEFAULT_PLAN;
   const cycle = q.cycle === "YEARLY" || q.cycle === "year" ? "YEARLY" : "MONTHLY";
-  const fromMonthly = formatInr(lowestGymPrice("MONTHLY")).replace(/\.00$/, "");
   const upHref = `/login?${new URLSearchParams({ tab: "up", ...(planQ ? { plan } : {}), ...(one(q.cycle) ? { cycle } : {}), ...(next ? { next } : {}) })}`;
   const inHref = next ? `/login?${new URLSearchParams({ next })}` : "/login";
-  const tab = "rounded-[5px] px-3.5 py-1.5 text-[13px] font-semibold";
   const gMsg = googleMessage(q.google, q.email);
   // The second step of a two-step sign-in, once the password (or Google) has been accepted.
   const twoStep = !up && q.step === "2" ? await readChallenge() : null
@@ -43,7 +40,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const emailSignInOn = emailReady() || process.env.NODE_ENV !== "production";
   const emailMode = emailSignInOn && q.mode === "email";
   const stats: [string, string][] = [
-    [fromMonthly, "a month, Starter"],
+    ["₹15,000", "a year, white-labelled"],
     ["24/7", "AI coach for members"],
     ["UPI", "autopay and reminders"],
   ];
@@ -52,7 +49,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <section className="flex flex-col justify-between gap-10 bg-[#0e0d0a] bg-[radial-gradient(ellipse_at_top_left,rgba(207,169,79,0.18),transparent_60%)] p-10 text-[#f3ede0]">
         <div className="flex items-center justify-between gap-3">
           <a href="/#top" className="block w-[min(100%,340px)]"><Image src="/fitron-logo-v2.png" alt="FITRON" width={599} height={218} className="block h-auto w-full" priority /></a>
-          <a href="/#products" className="text-[13px] text-[#cfa94f]">For gyms ↗</a>
+          <a href="/#gyms" className="text-[13px] text-[#cfa94f]">For gyms ↗</a>
         </div>
         <div className="max-w-[440px]">
           <p className="mb-3 text-xs tracking-[0.14em] text-[#cfa94f] uppercase">Fitron Gym Accounting Solution</p>
@@ -86,20 +83,19 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           ) : up ? (
             <>
               {gMsg && <Notice tone="alert">{gMsg}</Notice>}
-              <CreateAccountForm key={google?.email ?? "email"} plan={plan} cycle={cycle} googleOn={googleReady()} google={google ? { email: google.email, name: google.name } : undefined} />
+              <CreateAccountForm key={google?.email ?? "email"} plan={plan} cycle={cycle} googleOn={false} google={google ? { email: google.email, name: google.name } : undefined} />
             </>
           ) : (
             <>
               <div>
                 <h2 className="text-[26px] font-semibold text-[#f3ede0] uppercase" style={{fontFamily:"var(--font-head,inherit)"}}>Welcome back</h2>
-                <p className="m-0 text-[13px] text-[#a99f8c]">Sign in with your staff email or Google account.</p>
+                <p className="m-0 text-[13px] text-[#a99f8c]">Sign in with your staff email.</p>
               </div>
               {(q.twostep === "expired" || (q.step === "2" && !twoStep)) && <Notice tone="alert">That sign-in took too long or could not be finished. Sign in again.</Notice>}
               {typeof q.idle === "string" && /^\d+$/.test(q.idle) && <Notice tone="alert">You were signed out after {q.idle} minutes of inactivity.</Notice>}
               {q.reset && <Notice tone="ok">Password changed. Sign in with your new password.</Notice>}
               {q.verified && <Notice tone="ok">Email confirmed. Sign in to open your console.</Notice>}
               {gMsg && <Notice tone="alert">{gMsg}</Notice>}
-              <GoogleButton href={`/auth/google?${new URLSearchParams({ for: "staff", ...(next ? { next } : {}) })}`} divider="or with email" />
               {emailMode ? (
                 <EmailSignInForm next={next} />
               ) : (
