@@ -49,7 +49,7 @@ export async function login(_: LoginState, formData: FormData): Promise<LoginSta
     redirect("/login?step=2");
   }
 
-  await createSession(user.id);
+  await createSession(user.id, "gym");
   await recordSignIn(user.id, "email");
   redirect(safeNext(formData.get("next")));
 }
@@ -60,7 +60,7 @@ async function finishEmailSignIn(user: User, via: "email-link" | "email-code", n
     await startChallenge({ uid: user.id, next, via });
     redirect("/login?step=2");
   }
-  await createSession(user.id);
+  await createSession(user.id, "gym");
   await recordSignIn(user.id, via);
   redirect(next);
 }
@@ -120,7 +120,7 @@ export async function verifyTwoStep(_: LoginState, formData: FormData): Promise<
   const how = await verifySecondFactor(user.id, String(formData.get("code") ?? ""));
   if (!how) return { message: "That code is not right. Use the current code in your app, or a recovery code." };
   await clearChallenge();
-  await createSession(user.id);
+  await createSession(user.id, "gym");
   await recordSignIn(user.id, challenge.via, how);
   redirect(safeNext(challenge.next));
 }

@@ -5,7 +5,7 @@ import { gymPlan } from "@/lib/services/saas";
 import { PERMISSION_FEATURE, planHas, type Feature, type GymPlanView } from "@/lib/domain/features";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { readSession, sessionCheck } from "./session";
+import { sessionCheck } from "./session";
 import type { Permission } from "./permissions";
 
 export const BRANCH_COOKIE = "fitron_branch";
@@ -36,8 +36,8 @@ export type CurrentUser = {
 };
 
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
-  const session = await readSession();
-  if (!session) return null;
+  const { session } = await sessionCheck();
+  if (!session || (session as { kind?: string }).kind === "crm") return null;
   const user = await db.user.findFirst({
     where: { id: session.userId, active: true, deletedAt: null },
     include: {

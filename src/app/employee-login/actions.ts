@@ -27,7 +27,7 @@ export async function signInAction(_: AuthState, fd: FormData): Promise<AuthStat
     await startChallenge({ uid: r.userId, next: "/crm", via: "email" });
     redirect("/login?step=2");
   }
-  await createSession(r.userId);
+  await createSession(r.userId, "crm");
   await recordSignIn(r.userId, "email");
   redirect("/crm");
 }
