@@ -7,7 +7,6 @@ import { Logo } from "@/components/logo";
 // full-screen menu on phones. Plain <a> links: the home page is a static file, not a route.
 
 export const NAV_LINKS = [
-  ["/ai-personal-trainer", "AI Trainer"],
   ["/gym-accounting", "Gym Accounting"],
   ["/#windows", "Windows App"],
   ["/#together", "Better Together"],
@@ -78,9 +77,6 @@ export function SiteHeader() {
             ))}
           </nav>
           <div className="flex items-center gap-1.5 sm:gap-3">
-            <a href="/employee-login" data-track="employee_login_click" data-track-from="header" className="s-nav-link hidden min-h-11 items-center px-1 md:inline-flex">
-              Employee login
-            </a>
             <a href="/download/windows" data-track="download_click" data-track-from="header" className="s-btn s-btn-primary s-btn-sm">
               Download App
             </a>
@@ -113,9 +109,6 @@ export function SiteHeader() {
             </a>
           ))}
           <div className="mt-6 flex flex-wrap gap-3">
-            <a href="/employee-login" data-track="employee_login_click" data-track-from="menu" className="s-btn s-btn-ghost" onClick={() => setOpen(false)}>
-              Employee Login
-            </a>
             <a href="/download/windows" data-track="download_click" data-track-from="menu" className="s-btn s-btn-primary" onClick={() => setOpen(false)}>
               Download App
             </a>
