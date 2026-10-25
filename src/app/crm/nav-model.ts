@@ -30,6 +30,8 @@ function intelGroup(u: CrmUser): NavGroup {
       item("/crm/intel/gyms", "India gym database", "intelDb"),
       item("/crm/intel/phones", "Phone verification", "intelPhone"),
       item("/crm/intel/coverage", "Geographic coverage", "intelMap"),
+      item("/crm/intel/analytics", "Sales analytics", "intelAnalytics"),
+      ...(m ? [item("/crm/intel/assign", "Assign leads", "intelAssign")] : []),
       ...(m ? [item("/crm/intel/sources", "Sources & integrations", "intelSources"), item("/crm/intel/duplicates", "Duplicate review", "intelDup"), item("/crm/intel/transfer", "Import & export", "intelTransfer"), item("/crm/intel/settings", "Collection settings", "intelSettings"), item("/crm/audit?kind=intel", "Audit logs", "audit")] : []),
     ],
   };
