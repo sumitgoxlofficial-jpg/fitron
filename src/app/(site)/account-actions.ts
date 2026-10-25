@@ -41,7 +41,7 @@ export async function signUpGym(_: FormState, fd: FormData): Promise<FormState> 
       const { user, verified } = await createGymAccount({ ...d, logo: logo instanceof File && logo.size > 0 ? logo : null }, !!google);
       if (google) store.delete(GOOGLE_SIGNUP_COOKIE);
       if (verified) {
-        await createSession(user.id);
+        await createSession(user.id, "gym");
         next = "/onboarding";
       } else next = `/verify-email?sent=${encodeURIComponent(user.email)}`;
     },

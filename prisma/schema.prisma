@@ -186,6 +186,8 @@ model Session {
   id         String   @id
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "gym" = Gym Accounting console; "crm" = FITRON employee CRM. Keeps the two sign-ins isolated.
+  kind       String   @default("gym")
   expiresAt  DateTime @db.Timestamptz
   lastSeenAt DateTime @default(now()) @db.Timestamptz
   ip         String?

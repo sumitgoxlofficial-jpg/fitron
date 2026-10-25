@@ -7,10 +7,10 @@ import type { CrmUser } from "@/lib/services/crm-access";
 import { crmUserFor } from "@/lib/services/crm-people";
 import { readSession, sessionCheck } from "./session";
 
-/** The signed-in CRM employee, or null: no session, not an employee, or deactivated. Read from the database on every request. */
+/** The signed-in CRM employee, or null: no session, not a crm-kind session, not an employee, or deactivated. */
 export const getCrmUser = cache(async (): Promise<CrmUser | null> => {
   const session = await readSession();
-  if (!session) return null;
+  if (!session || (session as { kind?: string }).kind !== "crm") return null;
   const user = await db.user.findFirst({ where: { id: session.userId, active: true, deletedAt: null }, select: { id: true, email: true } });
   return user ? crmUserFor(user.id, user.email) : null;
 });
@@ -21,7 +21,7 @@ export async function requireCrm(p?: CrmPermission, opts: { setup?: boolean } = 
   if (!u) {
     if (!(await readSession())) {
       const { endedBy, idleMinutes } = await sessionCheck();
-      redirect(endedBy === "idle" ? `/login?idle=${idleMinutes}&next=/crm` : "/login?next=/crm");
+      redirect(endedBy === "idle" ? `/employee-login?idle=${idleMinutes}` : "/employee-login");
     }
     notFound();
   }

@@ -91,7 +91,7 @@ async function staffIn(user: { id: string; emailVerifiedAt: Date | null; totpEna
     res.cookies.set(c.name, c.value, c.options);
     return res;
   }
-  await createSession(userId);
+  await createSession(userId, "gym");
   await recordSignIn(userId, "google");
   return to(next);
 }

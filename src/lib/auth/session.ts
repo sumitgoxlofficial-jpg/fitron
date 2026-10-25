@@ -13,7 +13,7 @@ const SESSION_DAYS = 30;
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, kind: "gym" | "crm" = "gym") {
   const token = randomBytes(32).toString("base64url");
   const h = await headers();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
@@ -22,6 +22,7 @@ export async function createSession(userId: string) {
     data: {
       id: sha256(token),
       userId,
+      kind,
       expiresAt,
       ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
       userAgent: h.get("user-agent"),
@@ -64,7 +65,7 @@ export const sessionCheck = cache(async (): Promise<{ session: Session | null; e
   }
   const row: Session = { ...session, user: undefined } as Session & { user?: unknown };
   delete (row as { user?: unknown }).user;
-  return { session: row, endedBy: null, idleMinutes };
+  return { session: row as Session & { kind: string }, endedBy: null, idleMinutes };
 });
 
 /** Returns the signed-in user's session row, or null. Expired and idle sessions are removed. */
