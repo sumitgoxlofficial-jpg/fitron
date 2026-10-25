@@ -67,19 +67,19 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           ))}
         </div>
       </section>
-      <section className="flex items-center justify-center px-6 py-10">
-        <div className="flex w-full max-w-[400px] flex-col gap-[18px]">
+      <section className="flex items-center justify-center bg-[#0e0d0a] px-6 py-10">
+        <div className="flex w-full max-w-[420px] flex-col gap-[18px] rounded-[22px] border border-[rgba(243,237,224,0.1)] bg-[#181611] p-[30px] shadow-[0_40px_90px_-40px_rgba(0,0,0,.9)]">
 {!twoStep && (
-                      <nav className="inline-flex gap-[2px] self-start rounded-md bg-surface p-[3px]" aria-label="Sign in or create account">
-            <Link href={inHref} aria-current={up ? undefined : "page"} className={`${tab} ${up ? "text-fg" : "bg-accent text-accent-ink"}`}>Sign in</Link>
-            <Link href={upHref} aria-current={up ? "page" : undefined} className={`${tab} ${up ? "bg-accent text-accent-ink" : "text-fg"}`}>Create account</Link>
+            <nav className="flex gap-1 rounded-full border border-[rgba(243,237,224,0.1)] bg-[#0e0d0a] p-1" aria-label="Sign in or create account">
+            <Link href={inHref} aria-current={up ? undefined : "page"} className={`flex-1 rounded-full px-3.5 py-2 text-[13px] font-bold text-center ${up ? "text-[#cfa94f]" : "bg-gradient-to-b from-[#f3d88f] via-[#d9b45a] to-[#c49a3c] text-[#17140d]"}`}>Sign in</Link>
+            <Link href={upHref} aria-current={up ? "page" : undefined} className={`flex-1 rounded-full px-3.5 py-2 text-[13px] font-bold text-center ${up ? "bg-gradient-to-b from-[#f3d88f] via-[#d9b45a] to-[#c49a3c] text-[#17140d]" : "text-[#cfa94f]"}`}>Create account</Link>
           </nav>
           )}
           {twoStep ? (
             <>
               <div>
-                <h2 className="text-[28px] font-semibold">Two-step sign-in</h2>
-                <p className="m-0 text-sm text-neutral-700">Your password was right. Now enter the code from your authenticator app.</p>
+                <h2 className="text-[26px] font-semibold text-[#f3ede0] uppercase" style={{fontFamily:"var(--font-head,inherit)"}}>Two-step sign-in</h2>
+                <p className="m-0 text-sm text-[#a99f8c]">Your password was right. Now enter the code from your authenticator app.</p>
               </div>
               <TwoStepForm />
             </>
@@ -91,8 +91,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           ) : (
             <>
               <div>
-                <h2 className="text-[28px] font-semibold">Sign in to Fitron</h2>
-                <p className="m-0 text-sm text-neutral-700">Use your staff email or Google account.</p>
+                <h2 className="text-[26px] font-semibold text-[#f3ede0] uppercase" style={{fontFamily:"var(--font-head,inherit)"}}>Welcome back</h2>
+                <p className="m-0 text-[13px] text-[#a99f8c]">Sign in with your staff email or Google account.</p>
               </div>
               {(q.twostep === "expired" || (q.step === "2" && !twoStep)) && <Notice tone="alert">That sign-in took too long or could not be finished. Sign in again.</Notice>}
               {typeof q.idle === "string" && /^\d+$/.test(q.idle) && <Notice tone="alert">You were signed out after {q.idle} minutes of inactivity.</Notice>}
@@ -114,10 +114,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
               )}
             </>
           )}
-          <p className="text-xs text-neutral-700">New to FITRON? <a href="/#pricing" className="text-accent underline">See plans and pricing</a></p>
-          <p className="flex flex-wrap gap-x-3 gap-y-1 border-t border-line pt-3 text-xs text-neutral-700">
-            <span>Member of the AI Trainer? <a href={TRAINER_HREF} className="text-accent underline">Sign in to the AI Trainer</a></span>
-            <a href="/" className="text-accent underline">Back to fitron.in</a>
+          <p className="text-xs text-[#a99f8c]">New to FITRON? <a href="/#pricing" className="text-[#cfa94f] underline">See plans and pricing</a></p>
+          <p className="flex flex-wrap gap-x-3 gap-y-1 border-t border-[rgba(243,237,224,0.1)] pt-3 text-xs text-[#a99f8c]">
+            <span>Member of the AI Trainer? <a href={TRAINER_HREF} className="text-[#cfa94f] underline">Sign in to the AI Trainer</a></span>
+            <a href="/" className="text-[#cfa94f] underline">Back to fitron.in</a>
           </p>
         </div>
       </section>

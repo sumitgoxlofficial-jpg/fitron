@@ -118,8 +118,8 @@ export function CreateAccountForm({ plan, cycle, googleOn, google }: { plan: str
   return (
     <>
       <div>
-        <h2 className="text-[28px] font-semibold">{step === 1 ? "Create your Fitron account" : "Set up your gym"}</h2>
-        <p className="mt-1 text-sm text-muted">
+        <h2 className="text-[26px] font-semibold text-[#f3ede0] uppercase" style={{fontFamily:"var(--font-head,inherit)"}}>{step === 1 ? "Create your account" : "Set up your gym"}</h2>
+        <p className="mt-1 text-[13px] text-[#a99f8c]">
           {google
             ? `Confirmed by Google as ${google.email}. The gym's details are shown on invoices, WhatsApp messages and the sidebar. You can change them later in Settings.`
             : step === 1
@@ -161,7 +161,7 @@ export function CreateAccountForm({ plan, cycle, googleOn, google }: { plan: str
                 <a href="/privacy#dpa" target="_blank" className="underline">Data Processing terms</a> under the DPDP Act, 2023.
               </span>
             </label>
-            <Button variant="primary" disabled={checking} className="py-[11px] text-[15px]">{checking ? "Checking…" : "Continue"}</Button>
+            <Button variant="primary" disabled={checking} className="!rounded-full min-h-[50px] bg-gradient-to-b from-[#f3d88f] via-[#d9b45a] to-[#c49a3c] !text-[#17140d] text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,.5),0_12px_26px_-8px_rgba(217,180,90,.5)] hover:brightness-105">{checking ? "Checking…" : "Continue"}</Button>
           </form>
           <p className="text-xs text-muted">The first account becomes Super Admin. Add staff later in Staff &amp; roles.</p>
         </>
@@ -228,7 +228,7 @@ export function CreateAccountForm({ plan, cycle, googleOn, google }: { plan: str
           </div>
           <div className="flex gap-2">
             {!google && <Button type="button" variant="ghost" onClick={() => { setErr(""); setLogo(null); setStep(1); }}>Back</Button>}
-            <Button variant="primary" disabled={creating} className="flex-1 py-[11px] text-[15px]">{creating ? "Creating your console…" : "Create account and open Fitron"}</Button>
+            <Button variant="primary" disabled={creating} className="flex-1 !rounded-full min-h-[50px] bg-gradient-to-b from-[#f3d88f] via-[#d9b45a] to-[#c49a3c] !text-[#17140d] text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,.5),0_12px_26px_-8px_rgba(217,180,90,.5)] hover:brightness-105">{creating ? "Creating your console…" : "Create account and open Fitron"}</Button>
           </div>
           {google && <a href={gymSignupHref({ plan: p.key, cycle: billing })} className="self-center text-sm text-accent underline">Use a different email</a>}
         </form>

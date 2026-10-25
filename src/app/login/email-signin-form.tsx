@@ -17,7 +17,7 @@ export function EmailSignInForm({ next }: { next?: string }) {
         <Field label="Email" error={asked?.errors?.email} hint="We email you a six-digit code and a sign-in link. No password needed.">
           <Input name="email" type="email" autoComplete="username" required autoFocus defaultValue={email} />
         </Field>
-        <Button variant="primary" disabled={asking} className="py-[11px] text-[15px]">
+        <Button variant="primary" disabled={asking} className="!rounded-full min-h-[50px] bg-gradient-to-b from-[#f3d88f] via-[#d9b45a] to-[#c49a3c] !text-[#17140d] text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,.5),0_12px_26px_-8px_rgba(217,180,90,.5)] hover:brightness-105">
           {asking ? "Sending…" : "Email me a code"}
         </Button>
         <Link href={next ? `/login?${new URLSearchParams({ next })}` : "/login"} className="self-start py-1 text-[13px] text-accent no-underline">Use my password instead</Link>
@@ -34,7 +34,7 @@ export function EmailSignInForm({ next }: { next?: string }) {
         <Field label="Six-digit code" error={state?.errors?.code} hint={`Sent to ${email}. Or open the link in that email.`}>
           <Input name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={7} required autoFocus placeholder="123456" className="tracking-widest" />
         </Field>
-        <Button variant="primary" disabled={verifying} className="py-[11px] text-[15px]">
+        <Button variant="primary" disabled={verifying} className="!rounded-full min-h-[50px] bg-gradient-to-b from-[#f3d88f] via-[#d9b45a] to-[#c49a3c] !text-[#17140d] text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,.5),0_12px_26px_-8px_rgba(217,180,90,.5)] hover:brightness-105">
           {verifying ? "Checking…" : "Verify and sign in"}
         </Button>
       </form>
