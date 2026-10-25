@@ -1,4 +1,5 @@
 import "server-only";
+import "@/lib/zod-config";
 import type { z } from "zod";
 import { db } from "@/lib/db";
 import { type Disposition } from "@/lib/domain/ai-calling/constants";
