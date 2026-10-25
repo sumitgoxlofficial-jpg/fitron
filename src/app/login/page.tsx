@@ -15,7 +15,6 @@ import { CookieBanner } from "@/components/cookie-banner";
 import { googleMessage } from "@/components/google-button";
 import { DEFAULT_PLAN, findPlan } from "@/lib/domain/pricing";
 import { GOOGLE_SIGNUP_COOKIE, unsign } from "@/lib/integrations/google";
-import { TRAINER_HREF } from "@/lib/domain/site-links";
 
 export const metadata = { title: "Sign in · FITRON" };
 
@@ -112,7 +111,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           )}
           <p className="text-xs text-[#a99f8c]">New to FITRON? <a href="/#pricing" className="text-[#cfa94f] underline">See plans and pricing</a></p>
           <p className="flex flex-wrap gap-x-3 gap-y-1 border-t border-[rgba(243,237,224,0.1)] pt-3 text-xs text-[#a99f8c]">
-            <span>Member of the AI Trainer? <a href={TRAINER_HREF} className="text-[#cfa94f] underline">Sign in to the AI Trainer</a></span>
             <a href="/" className="text-[#cfa94f] underline">Back to fitron.in</a>
           </p>
         </div>
