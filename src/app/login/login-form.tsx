@@ -32,7 +32,7 @@ export function LoginForm({ next }: { next?: string }) {
         </Field>
         <Link href="/forgot-password" className="self-start py-1 text-[13px] text-accent no-underline">Forgot password?</Link>
       </div>
-      <Button variant="primary" disabled={pending} className="py-[11px] text-[15px]">
+      <Button variant="primary" disabled={pending} className="!rounded-full min-h-[50px] bg-gradient-to-b from-[#f3d88f] via-[#d9b45a] to-[#c49a3c] !text-[#17140d] text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,.5),0_12px_26px_-8px_rgba(217,180,90,.5)] hover:brightness-105">
         {pending ? "Signing in…" : "Sign in"}
       </Button>
     </form>
