@@ -11,6 +11,7 @@ import { saveSettings, setSource } from "@/lib/services/gym-intel/core";
 import { addManualGym, decideDup, recordReachability, setReview, suppressNumber } from "@/lib/services/gym-intel/gyms";
 import { cancelJob, createJob, pauseJob, retryJob, runDueJobs } from "@/lib/services/gym-intel/jobs";
 import { assignPromotedByArea, promoteGym, type PromoteAction } from "@/lib/services/gym-intel/promote";
+import { promoteMany } from "@/lib/services/gym-intel/analytics";
 import { UserError } from "@/lib/services/errors";
 
 // Every action finds out who is asking from the session; the services check the permission and write the audit entry.
@@ -112,3 +113,11 @@ export async function assignAreaAction(_: FormState, fd: FormData): Promise<Form
   return run((u) => assignPromotedByArea(u, { state: s(fd, "state") || undefined, district: s(fd, "district") || undefined, city: s(fd, "city") || undefined }, s(fd, "owner")), (r) => `Assigned ${(r as { assigned: number }).assigned} lead${(r as { assigned: number }).assigned === 1 ? "" : "s"}.`, ["/crm/leads", "/crm/intel/gyms"]);
 }
 
+
+export async function promoteManyAction(_: FormState, fd: FormData): Promise<FormState> {
+  if (fd.get("confirmed") !== "on") return { message: "Tick the box to confirm: this creates CRM leads.", nonce: Math.random().toString(36).slice(2) };
+  return run((u) => promoteMany(u, { state: s(fd, "state") || undefined, district: s(fd, "district") || undefined, city: s(fd, "city") || undefined, pin: s(fd, "pin") || undefined }), (r) => {
+    const x = r as { tried: number; created: number; linked: number; flagged: number; failed: number };
+    return `${x.created} new lead${x.created === 1 ? "" : "s"}, ${x.linked} linked to existing, ${x.flagged} flagged as possible duplicates${x.failed ? `, ${x.failed} not possible` : ""}.`;
+  }, ["/crm/leads", "/crm/intel", "/crm/intel/gyms", "/crm/intel/assign", "/crm/intel/analytics"]);
+}

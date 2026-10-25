@@ -10,7 +10,8 @@ import { saveSettings, setSource } from "./core";
 import { decideDup, gymDetail, listGyms, overview, recordReachability, suppressNumber } from "./gyms";
 import { cancelJob, createJob, importOsmFile, retryJob, runDueJobs, runJobStep } from "./jobs";
 import { coverage, importPinDirectory } from "./geo";
-import { promoteGym } from "./promote";
+import { assignPromotedByArea, promoteGym } from "./promote";
+import { analytics, assignmentOverview, promoteMany } from "./analytics";
 import { recordObservation } from "./persist";
 import { DEFAULT_SETTINGS } from "@/lib/domain/gym-intel/settings";
 
@@ -28,7 +29,7 @@ const staff = async (role: "admin" | "marketing" | "sales"): Promise<CrmUser> =>
 
 /** The fixture with fresh ids and names, so reruns and other tests never collide with it. */
 function fresh() {
-  const tag = randomUUID().slice(0, 5);
+  const tag = `x${randomUUID().slice(0, 5)}`; // always has a letter, so a search for it is never read as a phone number
   const base = Number(rnd());
   const j = JSON.parse(JSON.stringify(fixture)) as { elements: { id: number; tags: Record<string, string> }[] };
   j.elements.forEach((e, i) => {
@@ -459,6 +460,64 @@ describe.skipIf(!hasDb)("Gym Intelligence (database)", () => {
       const g = await gym([mobile()]);
       await suppressNumber(admin, g.gymId, "asked not to be called");
       await expect(promoteGym(admin, g.gymId, { action: "PROMOTE" })).rejects.toThrow(/do-not-contact/);
+    });
+  });
+
+
+  describe("bulk promotion, assignment by area and analytics", () => {
+    const area = () => `Area${randomUUID().slice(0, 6)}`;
+    const mk = (state: string, phones: string[], name = `Bulk ${randomUUID().slice(0, 6)}`, city = `C${randomUUID().slice(0, 5)}`) => recordObservation({ source: "manual_entry", sourceUrl: "https://example.test/b", sourceRecordId: `b-${randomUUID()}`, name, phonesRaw: phones, state, city, pin: String(randomInt(100_000, 999_999)) }, { settings: DEFAULT_SETTINGS });
+
+    it("promotes only the ready gyms, once, and only for the Super Admin", async () => {
+      const state = area();
+      for (let i = 0; i < 3; i++) await mk(state, [mobile()]);
+      await mk(state, ["0651 2345678"]); // a landline: not ready
+      await mk(state, []); // no number: not ready
+      await expect(promoteMany(marketing, { state })).rejects.toBeInstanceOf(CrmDenied);
+      const r = await promoteMany(admin, { state });
+      expect(r).toMatchObject({ tried: 3, created: 3, failed: 0 });
+      expect(await db.crmLead.count({ where: { state, source: "Gym Intelligence" } })).toBe(3);
+      await expect(promoteMany(admin, { state })).rejects.toThrow(/ready/);
+    });
+
+    it("assigns unowned gym leads in an area to an employee and leaves owned ones alone", async () => {
+      const state = area();
+      const a = await mk(state, [mobile()]);
+      const b = await mk(state, [mobile()]);
+      await promoteMany(admin, { state });
+      const leadA = (await db.giGym.findUniqueOrThrow({ where: { id: a.gymId } })).leadId!;
+      const leadB = (await db.giGym.findUniqueOrThrow({ where: { id: b.gymId } })).leadId!;
+      const rep = await staff("sales");
+      const other = await staff("sales");
+      await db.crmLead.update({ where: { id: leadB }, data: { ownerId: other.id } });
+      await expect(assignPromotedByArea(sales, { state }, rep.id)).rejects.toBeInstanceOf(CrmDenied);
+      await expect(assignPromotedByArea(admin, {}, rep.id)).rejects.toThrow(/state, district or city/);
+      await expect(assignPromotedByArea(admin, { state }, admin.id)).rejects.toThrow(/sales employee or manager/);
+      expect(await assignPromotedByArea(admin, { state }, rep.id)).toEqual({ assigned: 1 });
+      expect((await db.crmLead.findUniqueOrThrow({ where: { id: leadA } })).ownerId).toBe(rep.id);
+      expect((await db.crmLead.findUniqueOrThrow({ where: { id: leadB } })).ownerId).toBe(other.id);
+      const o = await assignmentOverview(admin);
+      expect(o.owners.find((x) => x.id === rep.id)?.leads).toBe(1);
+      expect(o.history.some((h) => h.leadId === leadA && h.to === rep.name)).toBe(true);
+    });
+
+    it("counts the funnel from stored records and never counts a discovered number as a sale", async () => {
+      const state = area();
+      const g = await mk(state, [mobile()]);
+      await promoteMany(admin, { state });
+      const lead = (await db.giGym.findUniqueOrThrow({ where: { id: g.gymId } })).leadId!;
+      const row = async () => (await analytics(admin)).byState.find((r) => r.key === state)!;
+      expect(await row()).toMatchObject({ gyms: 1, leads: 1, assigned: 0, contacted: 0, demos: 0, closed: 0 });
+      await db.crmLead.update({ where: { id: lead }, data: { ownerId: sales.id, stage: "Contacted" } });
+      expect(await row()).toMatchObject({ assigned: 1, contacted: 1, demos: 0, closed: 0 });
+      await db.crmLead.update({ where: { id: lead }, data: { stage: "Closed Won", verification: "Pending" } });
+      expect(await row()).toMatchObject({ demos: 1, closed: 0 }); // won but not yet approved: not a sale
+      await db.crmLead.update({ where: { id: lead }, data: { verification: "Verified" } });
+      expect(await row()).toMatchObject({ closed: 1 });
+      const a = await analytics(marketing);
+      expect(a.totals.promoted).toBeGreaterThan(0);
+      expect(a.bySource.some((r) => r.key === "manual_entry")).toBe(true);
+      await expect(analytics(sales)).rejects.toBeInstanceOf(CrmDenied);
     });
   });
 

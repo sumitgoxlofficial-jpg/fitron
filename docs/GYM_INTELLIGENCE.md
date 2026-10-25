@@ -4,7 +4,7 @@ Finds gym businesses' **publicly published** phone numbers from permitted source
 and de-duplicate them, and turns eligible gyms into CRM leads. It lives inside the existing FITRON CRM (`/crm`), uses its sign-in and
 roles, and its Postgres database. It is not a separate application.
 
-Phases 1–3 are built: the discovery engine, the data model, the services and exports, and the ten Super Admin pages under **Gym Intelligence**
+Phases 1–4 are built: the discovery engine, the data model, the services and exports, and the ten Super Admin pages under **Gym Intelligence**
 in the CRM menu (Overview, Gym discovery, India gym database, Phone verification, Geographic coverage, Sources & integrations, Duplicate
 review, Import & export, Collection settings, Audit logs). CRM analytics are phase 4; see "Status".
 
@@ -128,4 +128,4 @@ The migration only adds tables, a sequence and RLS. To roll back after deploying
 
 ## Status
 
-Phases 1–3 done: engine, data model, services, exports, worker, tests, and the Super Admin pages (checked in a browser; no accessibility violations in dark, light or phone view). Phase 4 (assignment-by-area screen, sales analytics by source and area) and phase 5 (the PIN directory loaded at scale, more sources) follow.
+Phases 1–3 done: engine, data model, services, exports, worker, tests, and the Super Admin pages (checked in a browser; no accessibility violations in dark, light or phone view). Phase 4 done: bulk promotion, assignment by area with history, sales analytics. Phase 5 (the PIN directory loaded at scale, more sources) is operational: load the directory and switch on more sources.
