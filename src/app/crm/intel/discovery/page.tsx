@@ -7,6 +7,7 @@ import { listJobs } from "@/lib/services/gym-intel/jobs";
 import { Card, Empty, Field, Notice, PageHeader, ScrollRegion, Select, TABLE, TD, TH, TR } from "@/components/ui";
 import { CrmForm } from "../../crm-form";
 import { JobStatusBadge, when } from "../parts";
+import { AutoRefresh } from "./auto-refresh";
 import { createJobAction, jobControlAction, runNowAction } from "../actions";
 
 export const metadata = { title: "Gym discovery · FITRON CRM" };
@@ -53,6 +54,7 @@ export default async function DiscoveryPage() {
         </Card>
       </div>
       <div className="mt-6" />
+      <AutoRefresh active={jobs.some((j) => ["QUEUED", "RUNNING"].includes(j.status))} />
       <Card title="Jobs">
         {jobs.length === 0 ? <Empty>No jobs yet.</Empty> : (
           <ScrollRegion label="Collection jobs">
@@ -66,7 +68,10 @@ export default async function DiscoveryPage() {
                   return (
                     <tr key={j.id} className={TR}>
                       <td className={TD}><b>{SOURCES[j.source as SourceKey]?.name ?? j.source}</b><div className="text-xs text-[var(--muted)]">{j.kind.toLowerCase()} · {j.id.slice(-6)}</div></td>
-                      <td className={TD}><JobStatusBadge s={j.status} />{j.errorSummary && <div className="mt-1 max-w-[260px] text-xs text-[var(--alert)]">{j.errorSummary}</div>}</td>
+                      <td className={TD}><JobStatusBadge s={j.status} />{j.status === "RUNNING" && <div className="mt-1 text-xs text-[var(--muted)]">working now</div>}
+                        {j.status === "QUEUED" && j.leaseUntil && j.leaseUntil > new Date() && <div className="mt-1 text-xs text-[var(--muted)]">next try {when(j.leaseUntil)}</div>}
+                        {j.status === "QUEUED" && !j.errorSummary && !(j.leaseUntil && j.leaseUntil > new Date()) && <div className="mt-1 text-xs text-[var(--muted)]">waiting for a worker (starts within a minute, or press Run next batch now)</div>}
+                        {j.errorSummary && <div className="mt-1 max-w-[260px] text-xs text-[var(--alert)]">{j.errorSummary}</div>}</td>
                       <td className={TD}>{sc.file ?? (sc.states?.length ? `${cp.done?.length ?? 0} of ${sc.states.length} areas${cp.failed?.length ? `, ${cp.failed.length} failed` : ""}` : "gym websites")}</td>
                       <td className={`${TD} text-right tabular-nums`}>{j.recordsFound}</td>
                       <td className={`${TD} text-right tabular-nums`}>{j.phonesFound}</td>
