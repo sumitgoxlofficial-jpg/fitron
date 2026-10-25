@@ -7,7 +7,6 @@ import { Logo } from "@/components/logo";
 // full-screen menu on phones. Plain <a> links: the home page is a static file, not a route.
 
 export const NAV_LINKS = [
-  ["/ai-personal-trainer", "AI Trainer"],
   ["/gym-accounting", "Gym Accounting"],
   ["/#windows", "Windows App"],
   ["/#together", "Better Together"],
