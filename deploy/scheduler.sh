@@ -71,6 +71,14 @@ while true; do
       echo "$(date -u) gym intelligence worker failed; retrying in 5 minutes"
     fi
   fi
+  # AI calling: the next calls of running campaigns, every half hour (it only does anything while a campaign is running).
+  if [ "$(last calls)" != "$half" ]; then
+    if wget -q -O /dev/null --header "Authorization: Bearer $CRON_SECRET" http://app:3000/api/jobs/calls; then
+      mark calls "$half"
+    else
+      echo "$(date -u) ai calling worker failed; retrying in 5 minutes"
+    fi
+  fi
   # %u is the weekday, 1 = Monday: 6 is Saturday. At 21:00 UTC that is already Sunday morning in India, the quietest time.
   if [ "$(date -u +%u)" = 6 ] && [ "$hm" -ge 2100 ] && [ "$(last restoretest)" != "$day" ]; then
     if wget -q -O /backups/last-restore-test.json --header "Authorization: Bearer $CRON_SECRET" http://app:3000/api/jobs/weekly; then
