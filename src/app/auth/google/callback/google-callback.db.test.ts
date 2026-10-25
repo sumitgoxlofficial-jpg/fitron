@@ -65,7 +65,7 @@ describe.skipIf(!hasDb)("Google callback, between Gym Accounting and the AI Trai
     await db.trainerMember.create({ data: { email: row.email, name: "Both" } });
     const res = await callback("staff");
     expect(where(res)).toBe("/dashboard");
-    expect(createSession).toHaveBeenCalledWith(owner.id);
+    expect(createSession).toHaveBeenCalledWith(owner.id, "gym");
     expect(createTrainerSession).not.toHaveBeenCalled();
   });
 
