@@ -51,8 +51,8 @@ export function elevenLabsProvider(fetchFn: typeof fetch = fetch): Provider {
       }
       const body = (await res.json().catch(() => ({}))) as { success?: boolean; message?: string; conversation_id?: string | null; sip_call_id?: string | null; detail?: unknown };
       if (!res.ok || body.success === false) {
-        const why = typeof body.message === "string" ? body.message : typeof body.detail === "string" ? body.detail : `HTTP ${res.status}`;
-        throw new ProviderError(`The calling provider refused the call: ${why.slice(0, 160)}`);
+        const why = typeof body.message === "string" ? body.message : typeof body.detail === "string" ? body.detail : typeof body.detail !== "undefined" ? JSON.stringify(body.detail).slice(0, 300) : `HTTP ${res.status}`;
+        throw new ProviderError(`The calling provider refused the call: ${why.slice(0, 300)}`);
       }
       return { conversationId: body.conversation_id ?? null, sipCallId: body.sip_call_id ?? null };
     },
