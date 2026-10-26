@@ -6,8 +6,8 @@ export const maxDuration = 30;
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || url.searchParams.get("secret") !== cronSecret) {
+  const setupKey = process.env.WEBHOOK_SETUP_KEY ?? process.env.CRON_SECRET;
+  if (!setupKey || url.searchParams.get("secret") !== setupKey) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
