@@ -46,7 +46,7 @@ async function factsFor(leadId: string, campaignId: string | null, now: Date, te
     lead: { id: lead.id, gymName: lead.gymName, contactName: lead.contactName, phone: lead.phone },
     facts: {
       settings, phone, suppressed: phone ? sup.has(phone) : false, consentBasis: consent?.basis ?? null, leadOpen: (OPEN_STAGES as readonly string[]).includes(lead.stage),
-      campaign: campaign ? { status: campaign.status, testMode: campaign.testMode, hoursFrom: campaign.hoursFrom, hoursTo: campaign.hoursTo } : test ? { status: "RUNNING", testMode: true, hoursFrom: 0, hoursTo: 1440 } : null,
+      campaign: campaign ? { status: campaign.status, testMode: campaign.testMode, hoursFrom: campaign.hoursFrom, hoursTo: campaign.hoursTo } : null,
       attemptsMade: prior.length, lastAttemptAt: last, callsToday: today, now,
     },
   };
