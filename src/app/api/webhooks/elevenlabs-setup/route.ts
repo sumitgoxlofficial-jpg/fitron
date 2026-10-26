@@ -25,17 +25,41 @@ export async function GET(req: Request) {
   const settingsRes = await fetch(`${apiBase}/v1/convai/settings`, { headers });
   const settings = await settingsRes.json().catch(() => null);
 
-  // Step 2: register the webhook — ElevenLabs returns a webhook_id and signing_secret
-  const createRes = await fetch(`${apiBase}/v1/convai/webhooks`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ url: webhookUrl }),
-  });
-  const createData = await createRes.json().catch(() => null);
+  // Step 2: list existing webhooks
+  const listRes = await fetch(`${apiBase}/v1/convai/webhooks`, { headers });
+  const listData = await listRes.json().catch(() => null);
 
-  // Step 3: if webhook was created, update the agent to reference it
+  // Step 3: find or create the webhook for our URL
+  const existingWebhook = Array.isArray(listData?.webhooks)
+    ? listData.webhooks.find((w: { url?: string }) => w.url === webhookUrl)
+    : null;
+
+  let webhookId: string | null = existingWebhook?.webhook_id ?? settings?.webhooks?.post_call_webhook_id ?? null;
+  let webhookDetail: unknown = null;
+
+  // Step 4: if we have a webhook_id, get its full details (including signing_secret if returned)
+  if (webhookId) {
+    const detailRes = await fetch(`${apiBase}/v1/convai/webhooks/${webhookId}`, { headers });
+    webhookDetail = await detailRes.json().catch(() => null);
+  }
+
+  // Step 5: if no webhook exists for our URL, create one
+  let createData: unknown = null;
+  if (!existingWebhook) {
+    const createRes = await fetch(`${apiBase}/v1/convai/webhooks`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ url: webhookUrl }),
+    });
+    createData = await createRes.json().catch(() => null);
+    if ((createData as { webhook_id?: string })?.webhook_id) {
+      webhookId = (createData as { webhook_id: string }).webhook_id;
+    }
+  }
+
+  // Step 6: ensure the agent is wired to this webhook_id
   let agentUpdateResult = null;
-  if (createRes.ok && createData?.webhook_id && agentId) {
+  if (webhookId && agentId) {
     const agentRes = await fetch(`${apiBase}/v1/convai/agents/${agentId}`, {
       method: "PATCH",
       headers,
@@ -47,7 +71,7 @@ export async function GET(req: Request) {
               transcript_format: "json",
               exclude_transcript: false,
               send_audio: false,
-              post_call_webhook_id: createData.webhook_id,
+              post_call_webhook_id: webhookId,
             },
           },
         },
@@ -56,19 +80,14 @@ export async function GET(req: Request) {
     agentUpdateResult = await agentRes.json().catch(() => null);
   }
 
-  // Step 4: also try PATCH /v1/convai/settings directly (alternative approach)
-  const patchSettingsRes = await fetch(`${apiBase}/v1/convai/settings`, {
-    method: "PATCH",
-    headers,
-    body: JSON.stringify({ post_call_webhook_url: webhookUrl }),
-  });
-  const patchSettingsData = await patchSettingsRes.json().catch(() => null);
-
   return Response.json({
     settings: { status: settingsRes.status, data: settings },
-    createWebhook: { status: createRes.status, data: createData },
+    listWebhooks: { status: listRes.status, data: listData },
+    existingWebhook,
+    webhookId,
+    webhookDetail,
+    createWebhook: createData,
     agentUpdate: agentUpdateResult,
-    patchSettings: { status: patchSettingsRes.status, data: patchSettingsData },
-    note: "If createWebhook succeeded and returned a signing_secret, update ELEVENLABS_WEBHOOK_SECRET in Vercel with that value.",
+    note: "Check webhookDetail.signing_secret — if present, set that as ELEVENLABS_WEBHOOK_SECRET in Vercel.",
   });
 }
