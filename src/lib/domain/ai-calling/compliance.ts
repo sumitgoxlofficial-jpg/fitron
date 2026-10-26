@@ -40,10 +40,14 @@ export function callBlockers(f: CallFacts): string[] {
     if (!f.consentBasis) out.push("No record of why this number may be called with a sales message.");
   }
   if (!f.leadOpen) out.push("The lead is already closed.");
-  const mins = istClockMinutes(f.now);
-  const from = Math.max(LEGAL_FROM, f.campaign?.hoursFrom ?? LEGAL_FROM);
-  const to = Math.min(LEGAL_TO, f.campaign?.hoursTo ?? LEGAL_TO);
-  if (mins < from || mins >= to) out.push("Outside the permitted calling hours.");
+  // Test calls placed from the settings page (campaign === null) are internal checks,
+  // not promotional messages, so the TRAI window doesn't apply to them.
+  if (f.campaign !== null) {
+    const mins = istClockMinutes(f.now);
+    const from = Math.max(LEGAL_FROM, f.campaign.hoursFrom);
+    const to = Math.min(LEGAL_TO, f.campaign.hoursTo);
+    if (mins < from || mins >= to) out.push("Outside the permitted calling hours.");
+  }
   if (f.attemptsMade >= s.maxAttempts) out.push(`Already tried ${f.attemptsMade} time${f.attemptsMade === 1 ? "" : "s"}.`);
   else if (f.lastAttemptAt && f.now.getTime() - f.lastAttemptAt.getTime() < s.retryGapMinutes * 60_000) out.push("Tried too recently.");
   if (f.callsToday >= s.dailyCallCap) out.push("Today's call limit is reached.");
