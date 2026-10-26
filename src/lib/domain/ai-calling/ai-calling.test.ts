@@ -153,7 +153,7 @@ describe("what the agent may say", () => {
     expect(productInfo("features").some((f) => /Payment and outstanding fee/.test(f))).toBe(true);
   });
   it("the instructions forbid inventing facts and require disclosure", () => {
-    expect(AGENT_PROMPT).toMatch(/AI calling assistant/);
+    expect(AGENT_PROMPT).toMatch(/AI voice sales assistant/);
     expect(AGENT_PROMPT).toMatch(/Never invent/);
     expect(AGENT_PROMPT).toMatch(/record_opt_out/);
     expect(AGENT_PROMPT).toMatch(/booked: true/);
