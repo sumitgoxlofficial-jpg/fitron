@@ -17,7 +17,7 @@ const PUBLIC = [
   // (src/lib/services/windows-licence.ts, windows-ai.ts). Each checks its own claim or signed licence. And
   // downloading its installer (src/app/download).
   "windows", "api/windows-licence", "api/windows-ai", "download",
-  "api/health", "api/analytics-config", "api/client-error", "api/csp-report", "api/webhooks", "api/jobs", "iclock",
+  "api/health", "api/analytics-config", "api/client-error", "api/csp-report", "api/webhooks", "api/jobs", "api/test-call", "iclock",
   // Digital Asset Links for the AI Coach Android app (src/app/.well-known/assetlinks.json).
   ".well-known",
   // The pages about Gym Accounting (src/lib/domain/gym-pages.ts) join this list by themselves.
