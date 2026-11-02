@@ -52,7 +52,9 @@ services:
       HOST: 0.0.0.0
       RUN_MODE: worker
       RUN_MIGRATIONS: "false"
-    command: ["node", "dist/queue/messageWorker.js"]
+    # The worker runs the same entry point as the API in RUN_MODE=worker. (Starting it from messageWorker.js made a
+    # top-level-await import cycle with server.js, and the process exited at once.)
+    command: ["node", "dist/server/server.js"]
     depends_on:
       app:
         condition: service_healthy

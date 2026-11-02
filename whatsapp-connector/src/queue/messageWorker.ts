@@ -23,10 +23,5 @@ export function createMessageWorker(connection: RedisClient, deps: ProcessorDeps
   return worker;
 }
 
-// `npm run start:worker` runs the worker as its own process (docker-compose "worker" service).
-const isMain = process.argv[1]?.endsWith("messageWorker.js") || process.argv[1]?.endsWith("messageWorker.ts");
-if (isMain) {
-  process.env.RUN_MODE = "worker";
-  const { main } = await import("../server/server.js");
-  await main();
-}
+// Run the worker with `npm run start:worker` (server.ts in RUN_MODE=worker). This file is not an entry point: importing
+// server.js from here formed a top-level-await cycle (server.js -> worker.js -> this file) and the process exited.
